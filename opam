@@ -1,0 +1,22 @@
+opam-version: "2.0"
+name: "rhotic"
+version: "dev"
+synopsis: "Formalization of a subset of R"
+authors: "Ming-Ho Yee <mh@mhyee.com>"
+maintainer: "Ming-Ho Yee <mh@mhyee.com>"
+homepage: "https://github.com/reactorlabs/rhotic"
+dev-repo: "git+https://git@github.com:reactorlabs/rhotic.git"
+bug-reports: "https://github.com/reactorlabs/rhotic/issues"
+license: "none for now"
+build: [
+ ["dune" "subst"] {pinned}
+ ["dune" "build" "-p" name "-j" jobs]
+ ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+]
+depends: [
+ "dune" {build}
+ "ocaml"
+]
+depopts: [
+ "utop"
+]

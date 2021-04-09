@@ -1,0 +1,15 @@
+version = 0.15.0
+profile = default
+
+align-constructors-decl = true
+break-before-in = auto
+break-cases = toplevel
+break-fun-decl = smart
+break-fun-sig = smart
+break-separators = before
+dock-collection-brackets = false
+let-and = sparse
+margin = 100
+module-item-spacing = preserve
+sequence-style = separator
+type-decl = sparse
