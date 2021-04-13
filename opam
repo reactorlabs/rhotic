@@ -16,6 +16,8 @@ build: [
 depends: [
  "dune" {build}
  "ocaml"
+ "ppx_deriving"
+ "angstrom"
 ]
 depopts: [
  "utop"

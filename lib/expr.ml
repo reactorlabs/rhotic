@@ -28,9 +28,9 @@ type simple_expression =
 [@@deriving eq, show { with_path = false }]
 
 type unary_op =
-  | LogicalNot
-  | Plus
-  | Minus
+  | Logical_Not
+  | Unary_Plus
+  | Unary_Minus
   | To_Bool
   | To_Int
   | To_Str
@@ -40,35 +40,36 @@ type binary_op =
   | Plus
   | Minus
   | Times
-  | IntDivide
+  | Int_Divide
   | Modulo
   | Less
-  | LessEqual
+  | Less_Equal
   | Greater
-  | GreaterEqual
+  | Greater_Equal
   | Equal
-  | NotEqual
-  | And
-  | Or
+  | Not_Equal
+  | Logical_And
+  | Logical_Or
 [@@deriving eq, show { with_path = false }]
 
 type expression =
-  | Combine of simple_expression list
-  | UnOp    of unary_op * simple_expression
-  | BinOp   of binary_op * simple_expression * simple_expression
-  | Subset1 of simple_expression * simple_expression option
-  | Subset2 of simple_expression * simple_expression
-  | Call    of identifier * simple_expression list
+  | Combine           of simple_expression list
+  | Unary_Op          of unary_op * simple_expression
+  | Binary_Op         of binary_op * simple_expression * simple_expression
+  | Subset1           of simple_expression * simple_expression option
+  | Subset2           of simple_expression * simple_expression
+  | Call              of identifier * simple_expression list
+  | Simple_Expression of simple_expression
 [@@deriving eq, show { with_path = false }]
 
 type statement =
-  | FunctionDef    of identifier * identifier list * statement list
   | Assign         of identifier * expression
   | Subset1_Assign of identifier * expression
   | Subset2_Assign of identifier * expression
-  | Expression     of expression
+  | Function_Def   of identifier * identifier list * statement list
   | If             of expression * statement list * statement list option
   | For            of identifier * expression * statement list
+  | Expression     of expression
 [@@deriving eq, show { with_path = false }]
 
 type type_tag =
