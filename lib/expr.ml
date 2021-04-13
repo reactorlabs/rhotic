@@ -31,6 +31,9 @@ type unary_op =
   | LogicalNot
   | Plus
   | Minus
+  | To_Bool
+  | To_Int
+  | To_Str
 [@@deriving eq, show { with_path = false }]
 
 type binary_op =
