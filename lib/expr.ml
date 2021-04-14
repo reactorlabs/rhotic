@@ -1,3 +1,5 @@
+(* TODO: data frames *)
+
 type literal =
   | NA_bool
   | Bool    of bool
@@ -64,10 +66,10 @@ type expression =
 
 type statement =
   | Assign         of identifier * expression
-  | Subset1_Assign of identifier * expression
-  | Subset2_Assign of identifier * expression
+  | Subset1_Assign of identifier * simple_expression option * expression
+  | Subset2_Assign of identifier * simple_expression * expression
   | Function_Def   of identifier * identifier list * statement list
-  | If             of expression * statement list * statement list option
+  | If             of expression * statement list * statement list
   | For            of identifier * expression * statement list
   | Expression     of expression
 [@@deriving eq, show { with_path = false }]
