@@ -197,7 +197,7 @@ let program =
         (* function_def ::= id <- function ( id , ... , id ) block *)
         let fun_def =
           lift3
-            (fun id args stmts -> Function_Def (id, args, stmts))
+            (fun f params stmts -> Function_Def (f, params, stmts))
             (identifier <* arrow <* string "function")
             (with_ws (parens_comma_sep identifier))
             block in
