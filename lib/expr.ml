@@ -13,6 +13,12 @@ let show_lit = function
   | Str s -> s
   | NA_bool | NA_int | NA_str -> "NA"
 
+type type_tag =
+  | T_Bool [@printer fun fmt _ -> fprintf fmt "Bool"]
+  | T_Int [@printer fun fmt _ -> fprintf fmt "Int"]
+  | T_Str [@printer fun fmt _ -> fprintf fmt "Str"]
+[@@deriving eq, show { with_path = false }]
+
 module Identifier = struct
   type t = string
   let compare = String.compare
@@ -25,12 +31,6 @@ type identifier = Identifier.t [@@deriving eq, show]
 type simple_expression =
   | Lit of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
   | Var of identifier [@printer fun fmt -> fprintf fmt "%s"]
-[@@deriving eq, show { with_path = false }]
-
-type coerce_op =
-  | To_Bool
-  | To_Int
-  | To_Str
 [@@deriving eq, show { with_path = false }]
 
 type unary_op =
@@ -58,7 +58,7 @@ type binary_op =
 type expression =
   | Combine           of simple_expression list
   | Dataframe_Ctor    of (identifier * simple_expression) list
-  | Coerce_Op         of coerce_op * simple_expression
+  | Coerce_Op         of type_tag * simple_expression
   | Unary_Op          of unary_op * simple_expression
   | Binary_Op         of binary_op * simple_expression * simple_expression
   | Subset1           of simple_expression * simple_expression option
@@ -77,17 +77,6 @@ type statement =
   | Expression     of expression
 [@@deriving eq, show { with_path = false }]
 
-type type_tag =
-  | T_Bool
-  | T_Int
-  | T_Str
-[@@deriving eq]
-
-let show_type = function
-  | T_Bool -> "Bool"
-  | T_Int -> "Int"
-  | T_Str -> "Str"
-
 type value =
   | Vector    of literal array * type_tag
   | Dataframe of value array * string array
@@ -96,9 +85,37 @@ type value =
 let rec show_val = function
   | Vector (a, t) ->
       let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
-      "[" ^ inner ^ "]," ^ show_type t
+      "[" ^ inner ^ "]," ^ show_type_tag t
   | Dataframe (cols, names) ->
       let inner =
         Array.map2 (fun v n -> n ^ " = " ^ show_val v) cols names
         |> Array.to_list |> String.concat "; " in
       "[" ^ inner ^ "]"
+
+module Env = Map.Make (Identifier)
+
+type environment = value Env.t
+
+(* Helpers for constructing ASTs *)
+let get_tag = function
+  | Bool _ | NA_bool -> T_Bool
+  | Int _ | NA_int -> T_Int
+  | Str _ | NA_str -> T_Str
+
+let na_lit = function
+  | T_Bool -> NA_bool
+  | T_Int -> NA_int
+  | T_Str -> NA_str
+let opt_bool_lit = function
+  | Some b -> Bool b
+  | None -> NA_bool
+let opt_int_lit = function
+  | Some i -> Int i
+  | None -> NA_int
+let opt_str_lit = function
+  | Some s -> Str s
+  | None -> NA_str
+
+let vec_of_lit l = Vector ([| l |], get_tag l)
+
+let vector v t = Vector (v, t)

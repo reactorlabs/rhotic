@@ -20,7 +20,9 @@ let rec val_to_r = function
         let inner = a |> Array.map lit_to_r |> Array.to_list |> String.concat ", " in
         Printf.sprintf "c(%s)" inner
   | Dataframe (cols, names) ->
-      let inner = Array.map2 (fun v n -> n ^ " = " ^ val_to_r v) cols names |> Array.to_list |> String.concat ", " in
+      let inner =
+        Array.map2 (fun v n -> n ^ " = " ^ val_to_r v) cols names
+        |> Array.to_list |> String.concat ", " in
       Printf.sprintf "data.frame(%s)" inner
 
 let to_r stmt_list =
@@ -39,9 +41,9 @@ let to_r stmt_list =
     | Coerce_Op (op, se) -> (
         let coerce op = Printf.sprintf "%s(%s)" op (simple_expr_to_r se) in
         match op with
-        | To_Bool -> coerce "as.logical"
-        | To_Int -> coerce "as.integer"
-        | To_Str -> coerce "as.character" )
+        | T_Bool -> coerce "as.logical"
+        | T_Int -> coerce "as.integer"
+        | T_Str -> coerce "as.character" )
     | Unary_Op (op, se) -> (
         let unary op = Printf.sprintf "%s%s" op (simple_expr_to_r se) in
         match op with

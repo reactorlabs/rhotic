@@ -120,9 +120,9 @@ let program =
        c_op      ::= 'as.logical' | 'as.integer' | 'as.character' *)
     let coerce_op =
       let c_op =
-        string "as.logical" *> ws *> return To_Bool
-        <|> string "as.integer" *> ws *> return To_Int
-        <|> string "as.character" *> ws *> return To_Str in
+        string "as.logical" *> ws *> return T_Bool
+        <|> string "as.integer" *> ws *> return T_Int
+        <|> string "as.character" *> ws *> return T_Str in
       lift2 (fun op se -> Coerce_Op (op, se)) c_op (parens simple_expr) in
 
     (* unary_op ::= u_op simple_Expr
