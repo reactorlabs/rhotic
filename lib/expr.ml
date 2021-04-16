@@ -1,5 +1,3 @@
-(* TODO: data frames *)
-
 type literal =
   | NA_bool
   | Bool    of bool
@@ -59,6 +57,7 @@ type binary_op =
 
 type expression =
   | Combine           of simple_expression list
+  | Dataframe_Ctor    of (identifier * simple_expression) list
   | Coerce_Op         of coerce_op * simple_expression
   | Unary_Op          of unary_op * simple_expression
   | Binary_Op         of binary_op * simple_expression * simple_expression
@@ -89,9 +88,17 @@ let show_type = function
   | T_Int -> "Int"
   | T_Str -> "Str"
 
-type value = Vector of literal array * type_tag [@@deriving eq]
+type value =
+  | Vector    of literal array * type_tag
+  | Dataframe of value array * string array
+[@@deriving eq]
 
-let show_val = function
+let rec show_val = function
   | Vector (a, t) ->
       let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
       "[" ^ inner ^ "]," ^ show_type t
+  | Dataframe (cols, names) ->
+      let inner =
+        Array.map2 (fun v n -> n ^ " = " ^ show_val v) cols names
+        |> Array.to_list |> String.concat "; " in
+      "[" ^ inner ^ "]"

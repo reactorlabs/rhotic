@@ -8,7 +8,7 @@ let lit_to_r = function
   | NA_int -> "NA_integer_"
   | NA_str -> "NA_character_"
 
-let val_to_r = function
+let rec val_to_r = function
   | Vector (a, t) ->
       (* Need a workaround because rhotic doesn't have the NULL vector, only typed empty vectors. *)
       if Array.length a = 0 then
@@ -19,6 +19,9 @@ let val_to_r = function
       else
         let inner = a |> Array.map lit_to_r |> Array.to_list |> String.concat ", " in
         Printf.sprintf "c(%s)" inner
+  | Dataframe (cols, names) ->
+      let inner = Array.map2 (fun v n -> n ^ " = " ^ val_to_r v) cols names |> Array.to_list |> String.concat ", " in
+      Printf.sprintf "data.frame(%s)" inner
 
 let to_r stmt_list =
   let simple_expr_to_r = function
@@ -29,6 +32,10 @@ let to_r stmt_list =
     | Combine es ->
         let inner = es |> List.map simple_expr_to_r |> String.concat ", " in
         Printf.sprintf "c(%s)" inner
+    | Dataframe_Ctor bs ->
+        let binding_to_r (b, se) = Printf.sprintf "%s = %s" b (simple_expr_to_r se) in
+        let inner = bs |> List.map binding_to_r |> String.concat ", " in
+        Printf.sprintf "data.frame(%s)" inner
     | Coerce_Op (op, se) -> (
         let coerce op = Printf.sprintf "%s(%s)" op (simple_expr_to_r se) in
         match op with

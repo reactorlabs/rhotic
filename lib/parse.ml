@@ -11,6 +11,7 @@ let reserved =
   ; "NA_i"
   ; "NA_s"
   ; "combine"
+  ; "data.frame"
   ; "as.logical"
   ; "as.integer"
   ; "as.character"
@@ -108,6 +109,13 @@ let program =
     (* combine ::= 'combine' '(' simple_expr ',' ... ',' simple_expr ')' *)
     let combine = string "combine" *> ws *> parens_comma_sep simple_expr >>| fun es -> Combine es in
 
+    (* dataframe ::= 'data.frame' '( binding ',' ... ',' binding ')
+       binding   ::= identifier '=' simple_expr *)
+    let dataframe =
+      let binding =
+        lift2 (fun id se -> (id, se)) (identifier <* with_blank (char '=')) simple_expr in
+      string "data.frame" *> ws *> parens_comma_sep binding >>| fun bs -> Dataframe_Ctor bs in
+
     (* coerce_op ::= c_op simple_expr
        c_op      ::= 'as.logical' | 'as.integer' | 'as.character' *)
     let coerce_op =
@@ -163,8 +171,10 @@ let program =
 
     let se = simple_expr >>| fun se -> Simple_Expression se in
 
-    (* expression ::= combine | coerce_op | unary_op | binary_op | subset | call | simple_expr *)
-    combine <|> coerce_op <|> unary_op <|> binary_op <|> subset' <|> call <|> se in
+    (* expression ::= combine | dataframe
+                    | coerce_op | unary_op | binary_op
+                    | subset | call | simple_expr *)
+    combine <|> dataframe <|> coerce_op <|> unary_op <|> binary_op <|> subset' <|> call <|> se in
 
   (* stmt_list ::= stmt sep ... sep stmt
       sep       ::= ; | [\n\r]+
