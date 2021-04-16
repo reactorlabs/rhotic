@@ -10,13 +10,14 @@ let reserved =
   ; "T"
   ; "NA_i"
   ; "NA_s"
-  ; "to_bool"
-  ; "to_int"
-  ; "to_str"
   ; "combine"
+  ; "as.logical"
+  ; "as.integer"
+  ; "as.character"
   ; "function"
   ; "if"
   ; "else"
+  ; "for"
   ]
 
 (* Common helpers for parsers *)
@@ -51,7 +52,7 @@ let bracks2 p = string "[[" *> with_blank p <* string "]]"
 let braces p = blank *> char '{' *> with_blank p <* char '}'
 let quotes p = char '"' *> p <* char '"'
 
-let parens_comma_sep p = parens (sep_by (char ',') (with_blank p))
+let parens_comma_sep p = parens @@ sep_by (char ',') (with_blank p)
 
 (* Program parser *)
 let program =
@@ -107,24 +108,23 @@ let program =
     (* combine ::= 'combine' '(' simple_expr ',' ... ',' simple_expr ')' *)
     let combine = string "combine" *> ws *> parens_comma_sep simple_expr >>| fun es -> Combine es in
 
-    (* unary_op    ::= op_expr | coerce_expr
-       op_expr     ::= uop simple_expr
-       u_op        ::= '!' | '+' | '-'
-       coerce_expr ::= coerce ( simple_expr )
-       coerce      ::= 'to_bool' | 'to_int' | 'to_str' *)
+    (* coerce_op ::= c_op simple_expr
+       c_op      ::= 'as.logical' | 'as.integer' | 'as.character' *)
+    let coerce_op =
+      let c_op =
+        string "as.logical" *> ws *> return To_Bool
+        <|> string "as.integer" *> ws *> return To_Int
+        <|> string "as.character" *> ws *> return To_Str in
+      lift2 (fun op se -> Coerce_Op (op, se)) c_op (parens simple_expr) in
+
+    (* unary_op ::= u_op simple_Expr
+       u_op     ::= '!' | '+' | '-' *)
     let unary_op =
       let u_op =
         char '!' *> ws *> return Logical_Not
         <|> char '+' *> ws *> return Unary_Plus
         <|> char '-' *> ws *> return Unary_Minus in
-      let coerce =
-        string "to_bool" *> ws *> return To_Bool
-        <|> string "to_int" *> ws *> return To_Int
-        <|> string "to_str" *> ws *> return To_Str in
-      let unop' op se = Unary_Op (op, se) in
-      let op_expr = lift2 unop' u_op simple_expr in
-      let coerce_expr = lift2 unop' coerce (parens simple_expr) in
-      op_expr <|> coerce_expr in
+      lift2 (fun op se -> Unary_Op (op, se)) u_op simple_expr in
 
     (* binary_op ::= simple_expr b_op simple_expr
        b_op      ::=  '+' |  '-' | '*' | '/' | '%'
@@ -163,8 +163,8 @@ let program =
 
     let se = simple_expr >>| fun se -> Simple_Expression se in
 
-    (* expression ::= combine | unary_op | binary_op | subset | call | simple_expr *)
-    combine <|> unary_op <|> binary_op <|> subset' <|> call <|> se in
+    (* expression ::= combine | coerce_op | unary_op | binary_op | subset | call | simple_expr *)
+    combine <|> coerce_op <|> unary_op <|> binary_op <|> subset' <|> call <|> se in
 
   (* stmt_list ::= stmt sep ... sep stmt
       sep       ::= ; | [\n\r]+
@@ -199,7 +199,7 @@ let program =
           lift3
             (fun f params stmts -> Function_Def (f, params, stmts))
             (identifier <* arrow <* string "function")
-            (with_ws (parens_comma_sep identifier))
+            (with_ws @@ parens_comma_sep identifier)
             block in
 
         (* if ::= if ( expr ) { stmt_list }

@@ -29,16 +29,18 @@ let to_r stmt_list =
     | Combine es ->
         let inner = es |> List.map simple_expr_to_r |> String.concat ", " in
         Printf.sprintf "c(%s)" inner
-    | Unary_Op (op, se) -> (
-        let unary op = Printf.sprintf "%s%s" op (simple_expr_to_r se) in
+    | Coerce_Op (op, se) -> (
         let coerce op = Printf.sprintf "%s(%s)" op (simple_expr_to_r se) in
         match op with
-        | Logical_Not -> unary "!"
-        | Unary_Plus -> unary "+"
-        | Unary_Minus -> unary "-"
         | To_Bool -> coerce "as.logical"
         | To_Int -> coerce "as.integer"
         | To_Str -> coerce "as.character" )
+    | Unary_Op (op, se) -> (
+        let unary op = Printf.sprintf "%s%s" op (simple_expr_to_r se) in
+        match op with
+        | Logical_Not -> unary "!"
+        | Unary_Plus -> unary "+"
+        | Unary_Minus -> unary "-" )
     | Binary_Op (op, se1, se2) -> (
         let binary op = Printf.sprintf "%s %s %s" (simple_expr_to_r se1) op (simple_expr_to_r se2) in
         match op with

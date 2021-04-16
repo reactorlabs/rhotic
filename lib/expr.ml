@@ -29,13 +29,16 @@ type simple_expression =
   | Var of identifier [@printer fun fmt -> fprintf fmt "%s"]
 [@@deriving eq, show { with_path = false }]
 
+type coerce_op =
+  | To_Bool
+  | To_Int
+  | To_Str
+[@@deriving eq, show { with_path = false }]
+
 type unary_op =
   | Logical_Not
   | Unary_Plus
   | Unary_Minus
-  | To_Bool
-  | To_Int
-  | To_Str
 [@@deriving eq, show { with_path = false }]
 
 type binary_op =
@@ -56,6 +59,7 @@ type binary_op =
 
 type expression =
   | Combine           of simple_expression list
+  | Coerce_Op         of coerce_op * simple_expression
   | Unary_Op          of unary_op * simple_expression
   | Binary_Op         of binary_op * simple_expression * simple_expression
   | Subset1           of simple_expression * simple_expression option
