@@ -102,20 +102,51 @@ let get_tag = function
   | Int _ | NA_int -> T_Int
   | Str _ | NA_str -> T_Str
 
-let na_lit = function
-  | T_Bool -> NA_bool
-  | T_Int -> NA_int
-  | T_Str -> NA_str
-let opt_bool_lit = function
-  | Some b -> Bool b
-  | None -> NA_bool
-let opt_int_lit = function
-  | Some i -> Int i
-  | None -> NA_int
-let opt_str_lit = function
-  | Some s -> Str s
-  | None -> NA_str
-
 let vec_of_lit l = Vector ([| l |], get_tag l)
 
 let vector v t = Vector (v, t)
+
+module Wrappers = struct
+  (* rhotic to OCaml conversion.
+
+     These helpers take a rhotic value and return an OCaml value, wrapped in an Option. None
+     represents an NA rhotic value. *)
+  let get_bool = function
+    | Bool b -> Some b
+    | NA_bool -> None
+    | Int _ | NA_int | Str _ | NA_str -> assert false
+  let get_int = function
+    | Int i -> Some i
+    | NA_int -> None
+    | Bool _ | NA_bool | Str _ | NA_str -> assert false
+  let get_str = function
+    | Str s -> Some s
+    | NA_str -> None
+    | Bool _ | NA_bool | Int _ | NA_int -> assert false
+
+  (* OCaml Option to rhotic conversion.
+
+     These helpers take an OCaml value, wrapped in an Option, and return a rhotic value. *)
+  let put_bool = function
+    | Some b -> Bool b
+    | None -> NA_bool
+  let put_int = function
+    | Some i -> Int i
+    | None -> NA_int
+  let put_str = function
+    | Some s -> Str s
+    | None -> NA_str
+
+  (* OCaml to rhotic conversion.
+
+     These helpers take an OCaml value, and return a non-NA rhotic value. *)
+  let true_lit = Bool true
+  let false_lit = Bool false
+  let int_lit i = Int i
+  let str_lit s = Str s
+
+  let na = function
+    | T_Bool -> NA_bool
+    | T_Int -> NA_int
+    | T_Str -> NA_str
+end

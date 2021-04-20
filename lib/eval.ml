@@ -1,28 +1,9 @@
 open Expr
+open Util
 
 exception Object_not_found
 exception Coercion_not_possible
-
-(* Gets a boolean value from a bool Literal.
-   Wraps the result in an Option, so that NA is represented by None. *)
-let get_bool = function
-  | Bool b -> Some b
-  | NA_bool -> None
-  | Int _ | NA_int | Str _ | NA_str -> assert false
-
-(* Gets an integer value from an int Literal.
-   Wraps the result in an Option, so that NA is represented by None. *)
-let get_int = function
-  | Int i -> Some i
-  | NA_int -> None
-  | Bool _ | NA_bool | Str _ | NA_str -> assert false
-
-(* Gets a string value from a str Literal.
-   Wraps the result in an Option, so that NA is represented by None. *)
-let get_str = function
-  | Str s -> Some s
-  | NA_str -> None
-  | Bool _ | NA_bool | Int _ | NA_int -> assert false
+exception Not_supported
 
 let lookup env x =
   match Env.find_opt x env with
@@ -36,28 +17,80 @@ let eval_simple_expr env = function
 (* TODO: remove this *)
 let empty_vector = Vector ([||], T_Bool)
 
-let coerce_value to_ty v =
-  match v with
-  | Vector (a, from_ty) -> (
-      match (to_ty, from_ty) with
-      | T_Bool, T_Int ->
-          let res =
-            a |> Array.map get_int
-            |> Array.map (Option.map (fun x -> x <> 0))
-            |> Array.map opt_bool_lit in
-          vector res to_ty
-      | T_Bool, T_Str -> empty_vector
-      | T_Int, T_Bool -> empty_vector
-      | T_Int, T_Str -> empty_vector
-      | T_Str, T_Bool -> empty_vector
-      | T_Str, T_Int -> empty_vector
-      | T_Bool, T_Bool | T_Int, T_Int | T_Str, T_Str -> v )
+(* Type hierarchy: T_Bool < T_Int < T_Str *)
+let type_lub t1 t2 =
+  match (t1, t2) with
+  | T_Str, _ | _, T_Str -> T_Str
+  | T_Int, _ | _, T_Int -> T_Int
+  | T_Bool, _ -> T_Bool
+
+let coerce_value to_ty value =
+  let open Wrappers in
+  match value with
+  | Vector (data, from_ty) -> (
+      (* NA is NA_int, true is 1, false is 0 *)
+      let bool_to_int =
+        Option.map (function
+          | true -> 1
+          | false -> 0) in
+
+      (* NA is NA_str, true is "TRUE", false is "FALSE" *)
+      let bool_to_str =
+        Option.map (function
+          | true -> "TRUE"
+          | false -> "FALSE") in
+
+      (* NA_int is NA, 0 is false, everything else is true *)
+      let int_to_bool = Option.map (fun x -> x <> 0) in
+
+      (* NA_int is "NA" *)
+      let int_to_str = Option.map Stdlib.string_of_int in
+
+      (* "T" "TRUE" "True" "true" are true, "F" "FALSE" "False" "false" are false, everything else is NA *)
+      let str_to_bool s =
+        Option.bind s (function
+          | "T" | "TRUE" | "True" | "true" -> Some true
+          | "F" | "FALSE" | "False" | "false" -> Some false
+          | _ -> None) in
+
+      (* Coerce string to int, result is NA if the coercion fails *)
+      let str_to_int s = Option.bind s Stdlib.int_of_string_opt in
+
+      let coerce unwrap convert wrap =
+        let res = Array.map (unwrap %> convert %> wrap) data in
+        vector res to_ty in
+
+      match (from_ty, to_ty) with
+      | T_Bool, T_Int -> coerce get_bool bool_to_int put_int
+      | T_Bool, T_Str -> coerce get_bool bool_to_str put_str
+      | T_Int, T_Bool -> coerce get_int int_to_bool put_bool
+      | T_Int, T_Str -> coerce get_int int_to_str put_str
+      | T_Str, T_Bool -> coerce get_str str_to_bool put_bool
+      | T_Str, T_Int -> coerce get_str str_to_int put_int
+      | T_Bool, T_Bool | T_Int, T_Int | T_Str, T_Str -> value )
   | Dataframe _ -> raise Coercion_not_possible
 
 let eval_expr env = function
   | Combine [] -> Vector ([||], T_Bool)
-  | Combine _ -> empty_vector
-  | Dataframe_Ctor _ -> empty_vector
+  | Combine ses ->
+      let values = List.map (eval_simple_expr env) ses in
+      (* Get the least upper bound of all types *)
+      let ty =
+        values
+        |> List.map (function
+             | Vector (_, t) -> t
+             | Dataframe _ -> raise Not_supported)
+        |> List.fold_left type_lub T_Bool in
+      (* Coerce all vectors to that type, then extract and concatenate the data *)
+      let data =
+        values
+        |> List.map (coerce_value ty)
+        |> List.map (function
+             | Vector (a, _) -> a
+             | Dataframe _ -> raise Not_supported)
+        |> Array.concat in
+      Vector (data, ty)
+  | Dataframe_Ctor _ -> raise Not_supported
   | Coerce_Op (ty, se) ->
       let v = eval_simple_expr env se in
       coerce_value ty v
