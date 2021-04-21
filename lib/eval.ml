@@ -3,6 +3,7 @@ open Util
 
 exception Object_not_found
 exception Coercion_not_possible
+exception Invalid_argument_type
 exception Not_supported
 
 let lookup env x =
@@ -70,33 +71,62 @@ let coerce_value to_ty value =
       | T_Bool, T_Bool | T_Int, T_Int | T_Str, T_Str -> value )
   | Dataframe _ -> raise Coercion_not_possible
 
+let combine values =
+  (* Get the least upper bound of all types *)
+  let ty =
+    values
+    |> List.map (function
+         | Vector (_, t) -> t
+         | Dataframe _ -> raise Not_supported)
+    |> List.fold_left type_lub T_Bool in
+  (* Coerce all vectors to that type, then extract and concatenate the data *)
+  let data =
+    values
+    |> List.map (coerce_value ty)
+    |> List.map (function
+         | Vector (a, _) -> a
+         | Dataframe _ -> raise Not_supported)
+    |> Array.concat in
+  vector data ty
+
+(* Boolean and integer values get coerced; strings cannot be coerced *)
+let unary op = function
+  | Vector (_, t) as v -> (
+      let open Wrappers in
+      if t = T_Str then raise Invalid_argument_type ;
+      match op with
+      | Logical_Not ->
+          let res =
+            coerce_value T_Bool v
+            |> (function
+                 | Vector (a, _) -> a
+                 | Dataframe _ -> raise Not_supported)
+            |> Array.map (get_bool %> Option.map (fun x -> not x) %> put_bool) in
+          vector res T_Bool
+      | Unary_Plus -> coerce_value T_Int v
+      | Unary_Minus ->
+          let res =
+            coerce_value T_Int v
+            |> (function
+                 | Vector (a, _) -> a
+                 | Dataframe _ -> raise Not_supported)
+            |> Array.map (get_int %> Option.map (fun x -> -x) %> put_int) in
+          vector res T_Int )
+  | Dataframe _ -> raise Not_supported
+
 let eval_expr env = function
-  | Combine [] -> Vector ([||], T_Bool)
-  | Combine ses ->
-      let values = List.map (eval_simple_expr env) ses in
-      (* Get the least upper bound of all types *)
-      let ty =
-        values
-        |> List.map (function
-             | Vector (_, t) -> t
-             | Dataframe _ -> raise Not_supported)
-        |> List.fold_left type_lub T_Bool in
-      (* Coerce all vectors to that type, then extract and concatenate the data *)
-      let data =
-        values
-        |> List.map (coerce_value ty)
-        |> List.map (function
-             | Vector (a, _) -> a
-             | Dataframe _ -> raise Not_supported)
-        |> Array.concat in
-      Vector (data, ty)
+  | Combine [] -> vector [||] T_Bool
+  | Combine ses -> List.map (eval_simple_expr env) ses |> combine
   | Dataframe_Ctor _ -> raise Not_supported
-  | Coerce_Op (ty, se) ->
-      let v = eval_simple_expr env se in
-      coerce_value ty v
-  | Unary_Op (_, _) -> empty_vector
+  | Coerce_Op (ty, se) -> eval_simple_expr env se |> coerce_value ty
+  | Unary_Op (op, se) -> eval_simple_expr env se |> unary op
   | Binary_Op (_, _, _) -> empty_vector
   | Subset1 (_, _) -> empty_vector
   | Subset2 (_, _) -> empty_vector
   | Call (_, _) -> empty_vector
   | Simple_Expression se -> eval_simple_expr env se
+
+let[@warning "-4-8"] eval_string s =
+  match Parse.parse s with
+  | [ Expression e ] -> print_endline @@ show_val @@ eval_expr Env.empty e
+  | _ -> ()
