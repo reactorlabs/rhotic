@@ -3,6 +3,7 @@ open Util
 
 exception Object_not_found
 exception Invalid_argument_type
+exception Vector_lengths_do_not_match
 exception Not_supported
 
 let match_vector = function
@@ -95,13 +96,42 @@ let unary op v =
       |> Array.map @@ map_int (fun x -> -x)
       |> vector T_Int
 
+let binary op v1 v2 =
+  let open Wrappers in
+  match op with
+  | Arithmetic o -> (
+      if get_vector_type v1 = T_Str || get_vector_type v2 = T_Str then raise Invalid_argument_type ;
+      let data1 = coerce_value T_Int v1 |> get_vector_data in
+      let data2 = coerce_value T_Int v2 |> get_vector_data in
+      if Array.length data1 <> Array.length data2 then raise Vector_lengths_do_not_match ;
+      let arithmetic_op f = Array.map2 (map2_int f) data1 data2 |> vector T_Int in
+      (* TODO: double-check division and modulo *)
+      match o with
+      | Plus -> arithmetic_op (fun x y -> x + y)
+      | Minus -> arithmetic_op (fun x y -> x - y)
+      | Times -> arithmetic_op (fun x y -> x * y)
+      | Int_Divide -> arithmetic_op (fun x y -> x / y)
+      | Modulo -> arithmetic_op (fun x y -> x mod y) )
+  | Relational o -> (
+      match o with
+      | Less -> empty_vector
+      | Less_Equal -> empty_vector
+      | Greater -> empty_vector
+      | Greater_Equal -> empty_vector
+      | Equal -> empty_vector
+      | Not_Equal -> empty_vector )
+  | Logical o -> (
+      match o with
+      | Logical_And -> empty_vector
+      | Logical_Or -> empty_vector )
+
 let eval_expr env = function
   | Combine [] -> vector T_Bool [||]
-  | Combine ses -> ses |> List.map @@ eval_simple_expr env |> combine
+  | Combine ses -> combine @@ List.map (eval_simple_expr env) ses
   | Dataframe_Ctor _ -> raise Not_supported
-  | Coerce_Op (ty, se) -> se |> eval_simple_expr env |> coerce_value ty
-  | Unary_Op (op, se) -> se |> eval_simple_expr env |> unary op
-  | Binary_Op (_, _, _) -> empty_vector
+  | Coerce_Op (ty, se) -> coerce_value ty (eval_simple_expr env se)
+  | Unary_Op (op, se) -> unary op (eval_simple_expr env se)
+  | Binary_Op (op, se1, se2) -> binary op (eval_simple_expr env se1) (eval_simple_expr env se2)
   | Subset1 (_, _) -> empty_vector
   | Subset2 (_, _) -> empty_vector
   | Call (_, _) -> empty_vector

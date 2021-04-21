@@ -53,19 +53,25 @@ let to_r stmt_list =
     | Binary_Op (op, se1, se2) -> (
         let binary op = Printf.sprintf "%s %s %s" (simple_expr_to_r se1) op (simple_expr_to_r se2) in
         match op with
-        | Plus -> binary "+"
-        | Minus -> binary "-"
-        | Times -> binary "*"
-        | Int_Divide -> binary "%/%"
-        | Modulo -> binary "%%"
-        | Less -> binary "<"
-        | Less_Equal -> binary "<="
-        | Greater -> binary ">"
-        | Greater_Equal -> binary ">="
-        | Equal -> binary "=="
-        | Not_Equal -> binary "!="
-        | Logical_And -> binary "&&"
-        | Logical_Or -> binary "||" )
+        | Arithmetic o -> (
+            match o with
+            | Plus -> binary "+"
+            | Minus -> binary "-"
+            | Times -> binary "*"
+            | Int_Divide -> binary "%/%"
+            | Modulo -> binary "%%" )
+        | Relational o -> (
+            match o with
+            | Less -> binary "<"
+            | Less_Equal -> binary "<="
+            | Greater -> binary ">"
+            | Greater_Equal -> binary ">="
+            | Equal -> binary "=="
+            | Not_Equal -> binary "!=" )
+        | Logical o -> (
+            match o with
+            | Logical_And -> binary "&&"
+            | Logical_Or -> binary "||" ) )
     | Subset1 (se1, None) -> Printf.sprintf "%s[]" (simple_expr_to_r se1)
     | Subset1 (se1, Some se2) ->
         Printf.sprintf "%s[%s]" (simple_expr_to_r se1) (simple_expr_to_r se2)

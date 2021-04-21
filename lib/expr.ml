@@ -39,20 +39,32 @@ type unary_op =
   | Unary_Minus
 [@@deriving eq, show { with_path = false }]
 
-type binary_op =
+type arithmetic_op =
   | Plus
   | Minus
   | Times
   | Int_Divide
   | Modulo
+[@@deriving eq, show { with_path = false }]
+
+type relational_op =
   | Less
   | Less_Equal
   | Greater
   | Greater_Equal
   | Equal
   | Not_Equal
+[@@deriving eq, show { with_path = false }]
+
+type logical_op =
   | Logical_And
   | Logical_Or
+[@@deriving eq, show { with_path = false }]
+
+type binary_op =
+  | Arithmetic of arithmetic_op
+  | Relational of relational_op
+  | Logical    of logical_op
 [@@deriving eq, show { with_path = false }]
 
 type expression =
@@ -142,14 +154,26 @@ module Wrappers = struct
   let int_lit i = Int i
   let str_lit s = Str s
 
-  (* Takes an OCaml function and a rhotic value.
+  (* Takes a unary OCaml function and a rhotic value.
      The function is total, and does not return None/NA.
      Unwraps the rhotic value, applies the function, then wraps the value. *)
   let map_bool f x = put_bool @@ Option.map f (get_bool x)
   let map_int f x = put_int @@ Option.map f (get_int x)
   let map_str f x = put_str @@ Option.map f (get_str x)
 
-  (* Takes an OCaml function and a rhotic value.
+  (* Takes a binary OCaml function and two rhotic values.
+     The function is total, and does not return None/NA.
+     However, if either input value is None/NA, then the result is None/NA.
+     All other values are unwrapped, the function is applied, and the result is wrapped. *)
+  (* TODO: clean this up *)
+  let map2_bool f x y =
+    Option.bind (get_bool x) (fun x -> Option.bind (get_bool y) (fun y -> Some (f x y))) |> put_bool
+  let map2_int f x y =
+    Option.bind (get_int x) (fun x -> Option.bind (get_int y) (fun y -> Some (f x y))) |> put_int
+  let map2_str f x y =
+    Option.bind (get_str x) (fun x -> Option.bind (get_str y) (fun y -> Some (f x y))) |> put_str
+
+  (* Takes a unary OCaml function and a rhotic value.
      The function is partial, and may return None/NA.
      Unwraps the rhotic value, applies the function, then wraps the value. *)
   let bind_bool f x = put_bool @@ Option.bind (get_bool x) f

@@ -144,19 +144,19 @@ let program =
        "<" (or ">") is parsed and accepted, leaving "=" in the input. *)
     let binary_op =
       let b_op =
-        with_ws (char '+') *> return Plus
-        <|> with_ws (char '-') *> return Minus
-        <|> with_ws (char '*') *> return Times
-        <|> with_ws (char '/') *> return Int_Divide
-        <|> with_ws (char '%') *> return Modulo
-        <|> with_ws (string "<=") *> return Less_Equal
-        <|> with_ws (string ">=") *> return Greater_Equal
-        <|> with_ws (char '<') *> return Less
-        <|> with_ws (char '>') *> return Greater
-        <|> with_ws (string "==") *> return Equal
-        <|> with_ws (string "!=") *> return Not_Equal
-        <|> with_ws (string "&&") *> return Logical_And
-        <|> with_ws (string "||") *> return Logical_Or in
+        with_ws (char '+') *> return (Arithmetic Plus)
+        <|> with_ws (char '-') *> return (Arithmetic Minus)
+        <|> with_ws (char '*') *> return (Arithmetic Times)
+        <|> with_ws (char '/') *> return (Arithmetic Int_Divide)
+        <|> with_ws (char '%') *> return (Arithmetic Modulo)
+        <|> with_ws (string "<=") *> return (Relational Less_Equal)
+        <|> with_ws (string ">=") *> return (Relational Greater_Equal)
+        <|> with_ws (char '<') *> return (Relational Less)
+        <|> with_ws (char '>') *> return (Relational Greater)
+        <|> with_ws (string "==") *> return (Relational Equal)
+        <|> with_ws (string "!=") *> return (Relational Not_Equal)
+        <|> with_ws (string "&&") *> return (Logical Logical_And)
+        <|> with_ws (string "||") *> return (Logical Logical_Or) in
       lift3 (fun se1 op se2 -> Binary_Op (op, se1, se2)) simple_expr b_op simple_expr in
 
     (* subset  ::= subset1 | subset2
