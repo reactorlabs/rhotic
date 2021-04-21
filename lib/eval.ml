@@ -2,9 +2,14 @@ open Expr
 open Util
 
 exception Object_not_found
-exception Coercion_not_possible
 exception Invalid_argument_type
 exception Not_supported
+
+let match_vector = function
+  | Vector (data, ty) -> (data, ty)
+  | Dataframe _ -> raise Not_supported
+let get_vector_data = Stdlib.fst % match_vector
+let get_vector_type = Stdlib.snd % match_vector
 
 let lookup env x =
   match Env.find_opt x env with
@@ -26,20 +31,13 @@ let type_lub t1 t2 =
   | T_Bool, _ -> T_Bool
 
 let coerce_value to_ty value =
-  let open Wrappers in
   match value with
   | Vector (data, from_ty) -> (
       (* NA is NA_int, true is 1, false is 0 *)
-      let bool_to_int =
-        Option.map (function
-          | true -> 1
-          | false -> 0) in
+      let bool_to_int = Option.map (fun x -> if x then 1 else 0) in
 
       (* NA is NA_str, true is "TRUE", false is "FALSE" *)
-      let bool_to_str =
-        Option.map (function
-          | true -> "TRUE"
-          | false -> "FALSE") in
+      let bool_to_str = Option.map (fun x -> if x then "TRUE" else "FALSE") in
 
       (* NA_int is NA, 0 is false, everything else is true *)
       let int_to_bool = Option.map (fun x -> x <> 0) in
@@ -57,10 +55,9 @@ let coerce_value to_ty value =
       (* Coerce string to int, result is NA if the coercion fails *)
       let str_to_int s = Option.bind s Stdlib.int_of_string_opt in
 
-      let coerce unwrap convert wrap =
-        let res = Array.map (unwrap %> convert %> wrap) data in
-        vector res to_ty in
+      let coerce unwrap convert wrap = Array.map (unwrap %> convert %> wrap) data |> vector to_ty in
 
+      let open Wrappers in
       match (from_ty, to_ty) with
       | T_Bool, T_Int -> coerce get_bool bool_to_int put_int
       | T_Bool, T_Str -> coerce get_bool bool_to_str put_str
@@ -69,57 +66,41 @@ let coerce_value to_ty value =
       | T_Str, T_Bool -> coerce get_str str_to_bool put_bool
       | T_Str, T_Int -> coerce get_str str_to_int put_int
       | T_Bool, T_Bool | T_Int, T_Int | T_Str, T_Str -> value )
-  | Dataframe _ -> raise Coercion_not_possible
-
-let combine values =
-  (* Get the least upper bound of all types *)
-  let ty =
-    values
-    |> List.map (function
-         | Vector (_, t) -> t
-         | Dataframe _ -> raise Not_supported)
-    |> List.fold_left type_lub T_Bool in
-  (* Coerce all vectors to that type, then extract and concatenate the data *)
-  let data =
-    values
-    |> List.map (coerce_value ty)
-    |> List.map (function
-         | Vector (a, _) -> a
-         | Dataframe _ -> raise Not_supported)
-    |> Array.concat in
-  vector data ty
-
-(* Boolean and integer values get coerced; strings cannot be coerced *)
-let unary op = function
-  | Vector (_, t) as v -> (
-      let open Wrappers in
-      if t = T_Str then raise Invalid_argument_type ;
-      match op with
-      | Logical_Not ->
-          let res =
-            coerce_value T_Bool v
-            |> (function
-                 | Vector (a, _) -> a
-                 | Dataframe _ -> raise Not_supported)
-            |> Array.map (get_bool %> Option.map (fun x -> not x) %> put_bool) in
-          vector res T_Bool
-      | Unary_Plus -> coerce_value T_Int v
-      | Unary_Minus ->
-          let res =
-            coerce_value T_Int v
-            |> (function
-                 | Vector (a, _) -> a
-                 | Dataframe _ -> raise Not_supported)
-            |> Array.map (get_int %> Option.map (fun x -> -x) %> put_int) in
-          vector res T_Int )
   | Dataframe _ -> raise Not_supported
 
+let combine values =
+  (* Get the least upper bound of all types
+     Then coerce all vectors to that type, extract, and concatenate the data *)
+  let ty = values |> List.map get_vector_type |> List.fold_left type_lub T_Bool in
+  let data = values |> List.map @@ coerce_value ty |> List.map get_vector_data |> Array.concat in
+  vector ty data
+
+(* Boolean and integer values get coerced; strings cannot be coerced.
+   Unary operations on data frames are not supported. *)
+let unary op v =
+  let open Wrappers in
+  if get_vector_type v = T_Str then raise Invalid_argument_type ;
+  match op with
+  | Logical_Not ->
+      (* Coerce to boolean, apply logical not *)
+      v |> coerce_value T_Bool |> get_vector_data
+      |> Array.map @@ map_bool (fun x -> not x)
+      |> vector T_Bool
+  | Unary_Plus ->
+      (* Nop for integers, but coerces booleans to integers *)
+      v |> coerce_value T_Int
+  | Unary_Minus ->
+      (* Coerce to integer, apply unary negation *)
+      v |> coerce_value T_Int |> get_vector_data
+      |> Array.map @@ map_int (fun x -> -x)
+      |> vector T_Int
+
 let eval_expr env = function
-  | Combine [] -> vector [||] T_Bool
-  | Combine ses -> List.map (eval_simple_expr env) ses |> combine
+  | Combine [] -> vector T_Bool [||]
+  | Combine ses -> ses |> List.map @@ eval_simple_expr env |> combine
   | Dataframe_Ctor _ -> raise Not_supported
-  | Coerce_Op (ty, se) -> eval_simple_expr env se |> coerce_value ty
-  | Unary_Op (op, se) -> eval_simple_expr env se |> unary op
+  | Coerce_Op (ty, se) -> se |> eval_simple_expr env |> coerce_value ty
+  | Unary_Op (op, se) -> se |> eval_simple_expr env |> unary op
   | Binary_Op (_, _, _) -> empty_vector
   | Subset1 (_, _) -> empty_vector
   | Subset2 (_, _) -> empty_vector

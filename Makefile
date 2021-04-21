@@ -28,6 +28,8 @@ bc:
 fmt:
 	@# force this command to always return true
 	dune build @fmt --auto-promote || true
+	@# output a linebreak
+	@echo
 
 deps:
 	opam install . --deps-only --locked

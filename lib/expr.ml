@@ -104,11 +104,10 @@ let get_tag = function
 
 let vec_of_lit l = Vector ([| l |], get_tag l)
 
-let vector v t = Vector (v, t)
+let vector t v = Vector (v, t)
 
 module Wrappers = struct
   (* rhotic to OCaml conversion.
-
      These helpers take a rhotic value and return an OCaml value, wrapped in an Option. None
      represents an NA rhotic value. *)
   let get_bool = function
@@ -125,7 +124,6 @@ module Wrappers = struct
     | Bool _ | NA_bool | Int _ | NA_int -> assert false
 
   (* OCaml Option to rhotic conversion.
-
      These helpers take an OCaml value, wrapped in an Option, and return a rhotic value. *)
   let put_bool = function
     | Some b -> Bool b
@@ -138,12 +136,25 @@ module Wrappers = struct
     | None -> NA_str
 
   (* OCaml to rhotic conversion.
-
      These helpers take an OCaml value, and return a non-NA rhotic value. *)
   let true_lit = Bool true
   let false_lit = Bool false
   let int_lit i = Int i
   let str_lit s = Str s
+
+  (* Takes an OCaml function and a rhotic value.
+     The function is total, and does not return None/NA.
+     Unwraps the rhotic value, applies the function, then wraps the value. *)
+  let map_bool f x = put_bool @@ Option.map f (get_bool x)
+  let map_int f x = put_int @@ Option.map f (get_int x)
+  let map_str f x = put_str @@ Option.map f (get_str x)
+
+  (* Takes an OCaml function and a rhotic value.
+     The function is partial, and may return None/NA.
+     Unwraps the rhotic value, applies the function, then wraps the value. *)
+  let bind_bool f x = put_bool @@ Option.bind (get_bool x) f
+  let bind_int f x = put_int @@ Option.bind (get_int x) f
+  let bind_str f x = put_str @@ Option.bind (get_str x) f
 
   let na = function
     | T_Bool -> NA_bool
