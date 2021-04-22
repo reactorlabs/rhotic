@@ -1,3 +1,5 @@
+open Util
+
 type literal =
   | NA_bool
   | Bool    of bool
@@ -156,26 +158,21 @@ module Wrappers = struct
 
   (* Takes a unary OCaml function and a rhotic value.
      The function is total, and does not return None/NA.
-     Unwraps the rhotic value, applies the function, then wraps the value. *)
+     Unwraps the rhotic value, applies the function, then wraps the result. *)
   let map_bool f x = put_bool @@ Option.map f (get_bool x)
   let map_int f x = put_int @@ Option.map f (get_int x)
   let map_str f x = put_str @@ Option.map f (get_str x)
 
   (* Takes a binary OCaml function and two rhotic values.
-     The function is total, and does not return None/NA.
-     However, if either input value is None/NA, then the result is None/NA.
-     All other values are unwrapped, the function is applied, and the result is wrapped. *)
-  (* TODO: clean this up *)
-  let map2_bool f x y =
-    Option.bind (get_bool x) (fun x -> Option.bind (get_bool y) (fun y -> Some (f x y))) |> put_bool
-  let map2_int f x y =
-    Option.bind (get_int x) (fun x -> Option.bind (get_int y) (fun y -> Some (f x y))) |> put_int
-  let map2_str f x y =
-    Option.bind (get_str x) (fun x -> Option.bind (get_str y) (fun y -> Some (f x y))) |> put_str
+     The function is partial, and may return None/NA.
+     Unwraps the rhotic values, applies the function, then wraps the result. *)
+  let bind2_bool f x y = Option.bind2 f (get_bool x) (get_bool y) |> put_bool
+  let bind2_int f x y = Option.bind2 f (get_int x) (get_int y) |> put_int
+  let bind2_str f x y = Option.bind2 f (get_str x) (get_str y) |> put_str
 
   (* Takes a unary OCaml function and a rhotic value.
      The function is partial, and may return None/NA.
-     Unwraps the rhotic value, applies the function, then wraps the value. *)
+     Unwraps the rhotic value, applies the function, then wraps the result. *)
   let bind_bool f x = put_bool @@ Option.bind (get_bool x) f
   let bind_int f x = put_int @@ Option.bind (get_int x) f
   let bind_str f x = put_str @@ Option.bind (get_str x) f

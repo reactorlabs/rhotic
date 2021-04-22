@@ -56,9 +56,8 @@ let coerce_value to_ty value =
       (* Coerce string to int, result is NA if the coercion fails *)
       let str_to_int s = Option.bind s Stdlib.int_of_string_opt in
 
-      let coerce unwrap convert wrap = Array.map (unwrap %> convert %> wrap) data |> vector to_ty in
-
       let open Wrappers in
+      let coerce unwrap convert wrap = Array.map (unwrap %> convert %> wrap) data |> vector to_ty in
       match (from_ty, to_ty) with
       | T_Bool, T_Int -> coerce get_bool bool_to_int put_int
       | T_Bool, T_Str -> coerce get_bool bool_to_str put_str
@@ -84,34 +83,39 @@ let unary op v =
   match op with
   | Logical_Not ->
       (* Coerce to boolean, apply logical not *)
-      v |> coerce_value T_Bool |> get_vector_data
-      |> Array.map @@ map_bool (fun x -> not x)
-      |> vector T_Bool
+      v |> coerce_value T_Bool |> get_vector_data |> Array.map @@ map_bool not |> vector T_Bool
   | Unary_Plus ->
       (* Nop for integers, but coerces booleans to integers *)
       v |> coerce_value T_Int
   | Unary_Minus ->
       (* Coerce to integer, apply unary negation *)
-      v |> coerce_value T_Int |> get_vector_data
-      |> Array.map @@ map_int (fun x -> -x)
-      |> vector T_Int
+      v |> coerce_value T_Int |> get_vector_data |> Array.map @@ map_int ( ~- ) |> vector T_Int
 
 let binary op v1 v2 =
   let open Wrappers in
   match op with
   | Arithmetic o -> (
+      (* String operands not allowed; but coerce booleans to integers. *)
       if get_vector_type v1 = T_Str || get_vector_type v2 = T_Str then raise Invalid_argument_type ;
-      let data1 = coerce_value T_Int v1 |> get_vector_data in
-      let data2 = coerce_value T_Int v2 |> get_vector_data in
+
+      let data1 = v1 |> coerce_value T_Int |> get_vector_data in
+      let data2 = v2 |> coerce_value T_Int |> get_vector_data in
+
+      (* Both vectors have to have the same length. *)
       if Array.length data1 <> Array.length data2 then raise Vector_lengths_do_not_match ;
-      let arithmetic_op f = Array.map2 (map2_int f) data1 data2 |> vector T_Int in
-      (* TODO: double-check division and modulo *)
+
+      (* R uses "floored" modulo while OCaml uses "truncated" modulo.
+         E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
+      let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
+      let mod' x y = x - (y * div' x y) in
+
+      let arithmetic_op f = Array.map2 (bind2_int f) data1 data2 |> vector T_Int in
       match o with
-      | Plus -> arithmetic_op (fun x y -> x + y)
-      | Minus -> arithmetic_op (fun x y -> x - y)
-      | Times -> arithmetic_op (fun x y -> x * y)
-      | Int_Divide -> arithmetic_op (fun x y -> x / y)
-      | Modulo -> arithmetic_op (fun x y -> x mod y) )
+      | Plus -> arithmetic_op (fun x y -> Some (x + y))
+      | Minus -> arithmetic_op (fun x y -> Some (x - y))
+      | Times -> arithmetic_op (fun x y -> Some (x * y))
+      | Int_Divide -> arithmetic_op (fun x y -> if y = 0 then None else Some (div' x y))
+      | Modulo -> arithmetic_op (fun x y -> if y = 0 then None else Some (mod' x y) ) )
   | Relational o -> (
       match o with
       | Less -> empty_vector
