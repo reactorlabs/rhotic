@@ -70,8 +70,10 @@ let to_r stmt_list =
             | Not_Equal -> binary "!=" )
         | Logical o -> (
             match o with
-            | Logical_And -> binary "&&"
-            | Logical_Or -> binary "||" ) )
+            | And -> binary "&&"
+            | Or -> binary "||"
+            | Elementwise_And -> binary "&"
+            | Elementwise_Or -> binary "|" ) )
     | Subset1 (se1, None) -> Printf.sprintf "%s[]" (simple_expr_to_r se1)
     | Subset1 (se1, Some se2) ->
         Printf.sprintf "%s[%s]" (simple_expr_to_r se1) (simple_expr_to_r se2)

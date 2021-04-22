@@ -141,7 +141,8 @@ let program =
                    | '&&' | '||'
 
        NOTE: Order is significant! Need to attempt parsing "<=" and ">=" before "<" and ">". Otherwise
-       "<" (or ">") is parsed and accepted, leaving "=" in the input. *)
+       "<" (or ">") is parsed and accepted, leaving "=" in the input. Similarly, "&&" and "||" need
+       to be parsed before "&" and "|". *)
     let binary_op =
       let b_op =
         with_ws (char '+') *> return (Arithmetic Plus)
@@ -155,8 +156,10 @@ let program =
         <|> with_ws (char '>') *> return (Relational Greater)
         <|> with_ws (string "==") *> return (Relational Equal)
         <|> with_ws (string "!=") *> return (Relational Not_Equal)
-        <|> with_ws (string "&&") *> return (Logical Logical_And)
-        <|> with_ws (string "||") *> return (Logical Logical_Or) in
+        <|> with_ws (string "&&") *> return (Logical And)
+        <|> with_ws (string "||") *> return (Logical Or)
+        <|> with_ws (char '&') *> return (Logical Elementwise_And)
+        <|> with_ws (char '|') *> return (Logical Elementwise_Or) in
       lift3 (fun se1 op se2 -> Binary_Op (op, se1, se2)) simple_expr b_op simple_expr in
 
     (* subset  ::= subset1 | subset2

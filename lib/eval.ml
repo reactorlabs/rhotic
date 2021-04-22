@@ -11,6 +11,7 @@ let match_vector = function
   | Dataframe _ -> raise Not_supported
 let get_vector_data = Stdlib.fst % match_vector
 let get_vector_type = Stdlib.snd % match_vector
+let vector_length = Array.length % get_vector_data
 
 let lookup env x =
   match Env.find_opt x env with
@@ -72,7 +73,7 @@ let combine values =
   (* Get the least upper bound of all types
      Then coerce all vectors to that type, extract, and concatenate the data *)
   let ty = values |> List.map get_vector_type |> List.fold_left type_lub T_Bool in
-  let data = values |> List.map @@ coerce_value ty |> List.map get_vector_data |> Array.concat in
+  let data = values |> List.map (coerce_value ty) |> List.map get_vector_data |> Array.concat in
   vector ty data
 
 (* Boolean and integer values get coerced; strings cannot be coerced.
@@ -83,39 +84,42 @@ let unary op v =
   match op with
   | Logical_Not ->
       (* Coerce to boolean, apply logical not *)
-      v |> coerce_value T_Bool |> get_vector_data |> Array.map @@ map_bool not |> vector T_Bool
+      v |> coerce_value T_Bool |> get_vector_data
+      |> Array.map (lift_bool @@ Option.map not)
+      |> vector T_Bool
   | Unary_Plus ->
       (* Nop for integers, but coerces booleans to integers *)
       v |> coerce_value T_Int
   | Unary_Minus ->
       (* Coerce to integer, apply unary negation *)
-      v |> coerce_value T_Int |> get_vector_data |> Array.map @@ map_int ( ~- ) |> vector T_Int
+      v |> coerce_value T_Int |> get_vector_data
+      |> Array.map (lift_int @@ Option.map ( ~- ))
+      |> vector T_Int
 
 let binary op v1 v2 =
+  (* Both vectors have to have the same length. *)
+  if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
+
   let open Wrappers in
   match op with
   | Arithmetic o -> (
       (* String operands not allowed; but coerce booleans to integers. *)
       if get_vector_type v1 = T_Str || get_vector_type v2 = T_Str then raise Invalid_argument_type ;
-
       let data1 = v1 |> coerce_value T_Int |> get_vector_data in
       let data2 = v2 |> coerce_value T_Int |> get_vector_data in
-
-      (* Both vectors have to have the same length. *)
-      if Array.length data1 <> Array.length data2 then raise Vector_lengths_do_not_match ;
 
       (* R uses "floored" modulo while OCaml uses "truncated" modulo.
          E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
       let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
       let mod' x y = x - (y * div' x y) in
 
-      let arithmetic_op f = Array.map2 (bind2_int f) data1 data2 |> vector T_Int in
+      let arithmetic f = Array.map2 (lift2_int @@ Option.bind2 f) data1 data2 |> vector T_Int in
       match o with
-      | Plus -> arithmetic_op (fun x y -> Some (x + y))
-      | Minus -> arithmetic_op (fun x y -> Some (x - y))
-      | Times -> arithmetic_op (fun x y -> Some (x * y))
-      | Int_Divide -> arithmetic_op (fun x y -> if y = 0 then None else Some (div' x y))
-      | Modulo -> arithmetic_op (fun x y -> if y = 0 then None else Some (mod' x y) ) )
+      | Plus -> arithmetic (fun x y -> Some (x + y))
+      | Minus -> arithmetic (fun x y -> Some (x - y))
+      | Times -> arithmetic (fun x y -> Some (x * y))
+      | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
+      | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) )
   | Relational o -> (
       match o with
       | Less -> empty_vector
@@ -125,9 +129,32 @@ let binary op v1 v2 =
       | Equal -> empty_vector
       | Not_Equal -> empty_vector )
   | Logical o -> (
+      (* String operands not allowed; but coerce integers to booleans. *)
+      if get_vector_type v1 = T_Str || get_vector_type v2 = T_Str then raise Invalid_argument_type ;
+      let data1 = v1 |> coerce_value T_Bool |> get_vector_data in
+      let data2 = v2 |> coerce_value T_Bool |> get_vector_data in
+
+      (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
+      let and' x y =
+        match (x, y) with
+        | Some true, Some true -> Some true
+        | Some false, _ | _, Some false -> Some false
+        | _ -> None in
+      let or' x y =
+        match (x, y) with
+        | Some false, Some false -> Some false
+        | Some true, _ | _, Some true -> Some true
+        | _ -> None in
+
+      (* And and Or only compare the first element of each vector; empty vector is treated as NA. *)
+      let elementwise f = Array.map2 (lift2_bool f) data1 data2 |> vector T_Bool in
+      let e1 = if Array.length data1 = 0 then None else get_bool data1.(0) in
+      let e2 = if Array.length data2 = 0 then None else get_bool data2.(0) in
       match o with
-      | Logical_And -> empty_vector
-      | Logical_Or -> empty_vector )
+      | And -> and' e1 e2 |> put_bool |> vec_of_lit
+      | Or -> or' e1 e2 |> put_bool |> vec_of_lit
+      | Elementwise_And -> elementwise and'
+      | Elementwise_Or -> elementwise or' )
 
 let eval_expr env = function
   | Combine [] -> vector T_Bool [||]

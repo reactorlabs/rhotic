@@ -1,5 +1,3 @@
-open Util
-
 type literal =
   | NA_bool
   | Bool    of bool
@@ -59,8 +57,10 @@ type relational_op =
 [@@deriving eq, show { with_path = false }]
 
 type logical_op =
-  | Logical_And
-  | Logical_Or
+  | And
+  | Or
+  | Elementwise_And
+  | Elementwise_Or
 [@@deriving eq, show { with_path = false }]
 
 type binary_op =
@@ -156,26 +156,23 @@ module Wrappers = struct
   let int_lit i = Int i
   let str_lit s = Str s
 
-  (* Takes a unary OCaml function and a rhotic value.
-     The function is total, and does not return None/NA.
-     Unwraps the rhotic value, applies the function, then wraps the result. *)
-  let map_bool f x = put_bool @@ Option.map f (get_bool x)
-  let map_int f x = put_int @@ Option.map f (get_int x)
-  let map_str f x = put_str @@ Option.map f (get_str x)
+  (* Takes a unary OCaml function that operates on OCaml option values, and lifts it so it operates
+     on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
 
-  (* Takes a binary OCaml function and two rhotic values.
-     The function is partial, and may return None/NA.
-     Unwraps the rhotic values, applies the function, then wraps the result. *)
-  let bind2_bool f x y = Option.bind2 f (get_bool x) (get_bool y) |> put_bool
-  let bind2_int f x y = Option.bind2 f (get_int x) (get_int y) |> put_int
-  let bind2_str f x y = Option.bind2 f (get_str x) (get_str y) |> put_str
+     Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
+     f to handle None/NA values as inputs *)
+  let lift_bool f x = f (get_bool x) |> put_bool
+  let lift_int f x = f (get_int x) |> put_int
+  let lift_str f x = f (get_str x) |> put_str
 
-  (* Takes a unary OCaml function and a rhotic value.
-     The function is partial, and may return None/NA.
-     Unwraps the rhotic value, applies the function, then wraps the result. *)
-  let bind_bool f x = put_bool @@ Option.bind (get_bool x) f
-  let bind_int f x = put_int @@ Option.bind (get_int x) f
-  let bind_str f x = put_str @@ Option.bind (get_str x) f
+  (* Takes a binary OCaml function that operates on OCaml option values, and lifts it so it operates
+     on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
+
+     Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
+     f to handle None/NA values as inputs *)
+  let lift2_bool f x y = f (get_bool x) (get_bool y) |> put_bool
+  let lift2_int f x y = f (get_int x) (get_int y) |> put_int
+  let lift2_str f x y = f (get_str x) (get_str y) |> put_str
 
   let na = function
     | T_Bool -> NA_bool
