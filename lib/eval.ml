@@ -121,13 +121,36 @@ let binary op v1 v2 =
       | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
       | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) )
   | Relational o -> (
-      match o with
-      | Less -> empty_vector
-      | Less_Equal -> empty_vector
-      | Greater -> empty_vector
-      | Greater_Equal -> empty_vector
-      | Equal -> empty_vector
-      | Not_Equal -> empty_vector )
+      (* Booleans and integers can numeric comparisons, while strings use lexicographic comparisons.
+         We need to properly coerce the operands, but also need to handle numeric values and string
+         values differently. *)
+      match (get_vector_type v1, get_vector_type v2) with
+      | T_Str, _ | _, T_Str -> (
+          let data1 = v1 |> coerce_value T_Str |> get_vector_data in
+          let data2 = v2 |> coerce_value T_Str |> get_vector_data in
+          let relational f =
+            Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) data1 data2
+            |> vector T_Bool in
+          match o with
+          | Less -> relational (fun x y -> Some (String.compare x y < 0))
+          | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
+          | Greater -> relational (fun x y -> Some (String.compare x y > 0))
+          | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
+          | Equal -> relational (fun x y -> Some (String.compare x y = 0))
+          | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)) )
+      | T_Int, _ | _, T_Int | T_Bool, _ -> (
+          let data1 = v1 |> coerce_value T_Int |> get_vector_data in
+          let data2 = v2 |> coerce_value T_Int |> get_vector_data in
+          let relational f =
+            Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) data1 data2
+            |> vector T_Bool in
+          match o with
+          | Less -> relational (fun x y -> Some (x < y))
+          | Less_Equal -> relational (fun x y -> Some (x <= y))
+          | Greater -> relational (fun x y -> Some (x > y))
+          | Greater_Equal -> relational (fun x y -> Some (x >= y))
+          | Equal -> relational (fun x y -> Some (x = y))
+          | Not_Equal -> relational (fun x y -> Some (x <> y)) ) )
   | Logical o -> (
       (* String operands not allowed; but coerce integers to booleans. *)
       if get_vector_type v1 = T_Str || get_vector_type v2 = T_Str then raise Invalid_argument_type ;

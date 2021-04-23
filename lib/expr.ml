@@ -156,6 +156,11 @@ module Wrappers = struct
   let int_lit i = Int i
   let str_lit s = Str s
 
+  let na = function
+    | T_Bool -> NA_bool
+    | T_Int -> NA_int
+    | T_Str -> NA_str
+
   (* Takes a unary OCaml function that operates on OCaml option values, and lifts it so it operates
      on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
 
@@ -173,9 +178,4 @@ module Wrappers = struct
   let lift2_bool f x y = f (get_bool x) (get_bool y) |> put_bool
   let lift2_int f x y = f (get_int x) (get_int y) |> put_int
   let lift2_str f x y = f (get_str x) (get_str y) |> put_str
-
-  let na = function
-    | T_Bool -> NA_bool
-    | T_Int -> NA_int
-    | T_Str -> NA_str
 end
