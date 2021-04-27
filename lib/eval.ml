@@ -13,13 +13,60 @@ let get_vector_data = Stdlib.fst % match_vector
 let get_vector_type = Stdlib.snd % match_vector
 let vector_length = Array.length % get_vector_data
 
+let get_tag = function
+  | Bool _ | NA_bool -> T_Bool
+  | Int _ | NA_int -> T_Int
+  | Str _ | NA_str -> T_Str
+
+let vector_of_lit l = Vector ([| l |], get_tag l)
+let vector t v = Vector (v, t)
+
+(* rhotic to OCaml conversion.
+   These helpers take a rhotic value and return an OCaml value, wrapped in an option. None
+   represents an NA rhotic value. *)
+let get_bool = function
+  | Bool b -> Some b
+  | NA_bool -> None
+  | Int _ | NA_int | Str _ | NA_str -> assert false
+let get_int = function
+  | Int i -> Some i
+  | NA_int -> None
+  | Bool _ | NA_bool | Str _ | NA_str -> assert false
+let get_str = function
+  | Str s -> Some s
+  | NA_str -> None
+  | Bool _ | NA_bool | Int _ | NA_int -> assert false
+
+(* OCaml option to rhotic conversion.
+   These helpers take an OCaml value, wrapped in an option, and return a rhotic value. *)
+let put_bool = function
+  | Some b -> Bool b
+  | None -> NA_bool
+let put_int = function
+  | Some i -> Int i
+  | None -> NA_int
+let put_str = function
+  | Some s -> Str s
+  | None -> NA_str
+
+(* Takes an OCaml function that operates on OCaml option values, and lifts it so it operates
+   on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
+
+   Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
+   f to handle None/NA values as inputs *)
+let bool, int, str = ((get_bool, put_bool), (get_int, put_int), (get_str, put_str))
+
+let lift (type a) (unwrap, wrap) (f : a option -> a option) x = f (unwrap x) |> wrap
+let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) x y =
+  f (unwrap x) (unwrap y) |> wrap
+
 let lookup env x =
   match Env.find_opt x env with
   | None -> raise Object_not_found
   | Some v -> v
 
 let eval_simple_expr env = function
-  | Lit l -> vec_of_lit l
+  | Lit l -> vector_of_lit l
   | Var x -> lookup env x
 
 (* TODO: remove this *)
@@ -57,7 +104,6 @@ let coerce_value to_ty value =
       (* Coerce string to int, result is NA if the coercion fails *)
       let str_to_int s = Option.bind s Stdlib.int_of_string_opt in
 
-      let open Wrappers in
       let coerce unwrap convert wrap = Array.map (unwrap %> convert %> wrap) data |> vector to_ty in
       match (from_ty, to_ty) with
       | T_Bool, T_Int -> coerce get_bool bool_to_int put_int
@@ -79,7 +125,6 @@ let combine values =
 (* Boolean and integer values get coerced; strings cannot be coerced.
    Unary operations on data frames are not supported. *)
 let unary op v =
-  let open Wrappers in
   if get_vector_type v = T_Str then raise Invalid_argument_type ;
   match op with
   | Logical_Not ->
@@ -100,7 +145,6 @@ let binary op v1 v2 =
   (* Both vectors have to have the same length. *)
   if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
 
-  let open Wrappers in
   match op with
   | Arithmetic o -> (
       (* String operands not allowed; but coerce booleans to integers. *)
@@ -174,8 +218,8 @@ let binary op v1 v2 =
       let e1 = if Array.length data1 = 0 then None else get_bool data1.(0) in
       let e2 = if Array.length data2 = 0 then None else get_bool data2.(0) in
       match o with
-      | And -> and' e1 e2 |> put_bool |> vec_of_lit
-      | Or -> or' e1 e2 |> put_bool |> vec_of_lit
+      | And -> and' e1 e2 |> put_bool |> vector_of_lit
+      | Or -> or' e1 e2 |> put_bool |> vector_of_lit
       | Elementwise_And -> elementwise and'
       | Elementwise_Or -> elementwise or' )
 
