@@ -8,6 +8,15 @@ exception Invalid_argument_type
 exception Vector_lengths_do_not_match
 exception Not_supported
 
+let excptn_to_string = function
+  | Object_not_found -> "object not found"
+  | Invalid_argument_type -> "invalid argument type"
+  | Vector_lengths_do_not_match -> "vector lengths do not match"
+  | Not_supported -> "not supported"
+  | e ->
+      Stdlib.prerr_endline "Unrecognized exception" ;
+      raise e
+
 let match_vector = function
   | Vector (data, ty) -> (data, ty)
   | Dataframe _ -> raise Not_supported
@@ -253,12 +262,12 @@ let eval_stmt env stmt =
 
 let rec run_program env (stmts : statement list) =
   match stmts with
-  | [] -> vector T_Bool [||]
-  | [ stmt ] -> Stdlib.snd @@ eval_stmt env stmt
+  | [] -> (env, vector T_Bool [||])
+  | [ stmt ] -> eval_stmt env stmt
   | stmt :: stmts ->
       let env', _ = eval_stmt env stmt in
-      run_program env' stmts
+      (run_program [@tailcall]) env' stmts
 
 let run s =
   let program = Parse.parse s in
-  print_endline @@ show_val @@ run_program Env.empty program
+  print_endline @@ show_val @@ Stdlib.snd @@ run_program Env.empty program

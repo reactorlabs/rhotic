@@ -97,9 +97,9 @@ type value =
 [@@deriving eq]
 
 let rec show_val = function
-  | Vector (a, t) ->
+  | Vector (a, _) ->
       let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
-      "[" ^ inner ^ "]," ^ show_type_tag t
+      "[" ^ inner ^ "]"
   | Dataframe (cols, names) ->
       let inner =
         Array.map2 (fun v n -> n ^ " = " ^ show_val v) cols names
