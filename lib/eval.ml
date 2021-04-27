@@ -1,6 +1,8 @@
 open Expr
 open Util
 
+exception Todo
+
 exception Object_not_found
 exception Invalid_argument_type
 exception Vector_lengths_do_not_match
@@ -56,8 +58,9 @@ let put_str = function
    f to handle None/NA values as inputs *)
 let bool, int, str = ((get_bool, put_bool), (get_int, put_int), (get_str, put_str))
 
-let lift (type a) (unwrap, wrap) (f : a option -> a option) x = f (unwrap x) |> wrap
-let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) x y =
+let lift (type a) (unwrap, wrap) (f : a option -> a option) (x : literal) = f (unwrap x) |> wrap
+let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) (x : literal) (y : literal)
+    =
   f (unwrap x) (unwrap y) |> wrap
 
 let lookup env x =
@@ -68,9 +71,6 @@ let lookup env x =
 let eval_simple_expr env = function
   | Lit l -> vector_of_lit l
   | Var x -> lookup env x
-
-(* TODO: remove this *)
-let empty_vector = Vector ([||], T_Bool)
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
 let type_lub t1 t2 =
@@ -223,19 +223,42 @@ let binary op v1 v2 =
       | Elementwise_And -> elementwise and'
       | Elementwise_Or -> elementwise or' )
 
-let eval_expr env = function
+let eval_expr env expr =
+  let eval = eval_simple_expr env in
+  match expr with
   | Combine [] -> vector T_Bool [||]
-  | Combine ses -> combine @@ List.map (eval_simple_expr env) ses
+  | Combine ses -> combine @@ List.map eval ses
   | Dataframe_Ctor _ -> raise Not_supported
-  | Coerce_Op (ty, se) -> coerce_value ty (eval_simple_expr env se)
-  | Unary_Op (op, se) -> unary op (eval_simple_expr env se)
-  | Binary_Op (op, se1, se2) -> binary op (eval_simple_expr env se1) (eval_simple_expr env se2)
-  | Subset1 (_, _) -> empty_vector
-  | Subset2 (_, _) -> empty_vector
-  | Call (_, _) -> empty_vector
-  | Simple_Expression se -> eval_simple_expr env se
+  | Coerce_Op (ty, se) -> coerce_value ty (eval se)
+  | Unary_Op (op, se) -> unary op (eval se)
+  | Binary_Op (op, se1, se2) -> binary op (eval se1) (eval se2)
+  | Subset1 (_, _) -> raise Todo
+  | Subset2 (_, _) -> raise Todo
+  | Call (_, _) -> raise Todo
+  | Simple_Expression se -> eval se
 
-let[@warning "-4-8"] eval_string s =
-  match Parse.parse s with
-  | [ Expression e ] -> print_endline @@ show_val @@ eval_expr Env.empty e
-  | _ -> ()
+let eval_stmt env stmt =
+  let eval = eval_expr env in
+  match stmt with
+  | Assign (x, e) ->
+      let v = eval e in
+      let env' = Env.add x v env in
+      (env', v)
+  | Subset1_Assign (_, _, _) -> raise Todo
+  | Subset2_Assign (_, _, _) -> raise Todo
+  | Function_Def (_, _, _) -> raise Todo
+  | If (_, _, _) -> raise Todo
+  | For (_, _, _) -> raise Todo
+  | Expression e -> (env, eval e)
+
+let rec run_program env (stmts : statement list) =
+  match stmts with
+  | [] -> vector T_Bool [||]
+  | [ stmt ] -> Stdlib.snd @@ eval_stmt env stmt
+  | stmt :: stmts ->
+      let env', _ = eval_stmt env stmt in
+      run_program env' stmts
+
+let run s =
+  let program = Parse.parse s in
+  print_endline @@ show_val @@ run_program Env.empty program

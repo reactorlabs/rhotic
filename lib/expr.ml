@@ -10,7 +10,7 @@ type literal =
 let show_lit = function
   | Bool b -> if b then "T" else "F"
   | Int i -> Int.to_string i
-  | Str s -> s
+  | Str s -> "\"" ^ s ^ "\""
   | NA_bool | NA_int | NA_str -> "NA"
 
 type type_tag =
