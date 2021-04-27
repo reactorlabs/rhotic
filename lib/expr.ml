@@ -149,33 +149,14 @@ module Wrappers = struct
     | Some s -> Str s
     | None -> NA_str
 
-  (* OCaml to rhotic conversion.
-     These helpers take an OCaml value, and return a non-NA rhotic value. *)
-  let true_lit = Bool true
-  let false_lit = Bool false
-  let int_lit i = Int i
-  let str_lit s = Str s
-
-  let na = function
-    | T_Bool -> NA_bool
-    | T_Int -> NA_int
-    | T_Str -> NA_str
-
-  (* Takes a unary OCaml function that operates on OCaml option values, and lifts it so it operates
+  (* Takes an OCaml function that operates on OCaml option values, and lifts it so it operates
      on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
 
      Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
      f to handle None/NA values as inputs *)
-  let lift_bool f x = f (get_bool x) |> put_bool
-  let lift_int f x = f (get_int x) |> put_int
-  let lift_str f x = f (get_str x) |> put_str
+  let bool, int, str = (get_bool, put_bool), (get_int, put_int), (get_str, put_str)
 
-  (* Takes a binary OCaml function that operates on OCaml option values, and lifts it so it operates
-     on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
-
-     Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
-     f to handle None/NA values as inputs *)
-  let lift2_bool f x y = f (get_bool x) (get_bool y) |> put_bool
-  let lift2_int f x y = f (get_int x) (get_int y) |> put_int
-  let lift2_str f x y = f (get_str x) (get_str y) |> put_str
+  let lift (type a) (unwrap, wrap) (f : a option -> a option) x = f (unwrap x) |> wrap
+  let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) x y =
+    f (unwrap x) (unwrap y) |> wrap
 end

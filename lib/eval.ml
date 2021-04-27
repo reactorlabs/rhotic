@@ -85,7 +85,7 @@ let unary op v =
   | Logical_Not ->
       (* Coerce to boolean, apply logical not *)
       v |> coerce_value T_Bool |> get_vector_data
-      |> Array.map (lift_bool @@ Option.map not)
+      |> Array.map (lift bool @@ Option.map not)
       |> vector T_Bool
   | Unary_Plus ->
       (* Nop for integers, but coerces booleans to integers *)
@@ -93,7 +93,7 @@ let unary op v =
   | Unary_Minus ->
       (* Coerce to integer, apply unary negation *)
       v |> coerce_value T_Int |> get_vector_data
-      |> Array.map (lift_int @@ Option.map ( ~- ))
+      |> Array.map (lift int @@ Option.map ( ~- ))
       |> vector T_Int
 
 let binary op v1 v2 =
@@ -113,7 +113,7 @@ let binary op v1 v2 =
       let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
       let mod' x y = x - (y * div' x y) in
 
-      let arithmetic f = Array.map2 (lift2_int @@ Option.bind2 f) data1 data2 |> vector T_Int in
+      let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) data1 data2 |> vector T_Int in
       match o with
       | Plus -> arithmetic (fun x y -> Some (x + y))
       | Minus -> arithmetic (fun x y -> Some (x - y))
@@ -170,7 +170,7 @@ let binary op v1 v2 =
         | _ -> None in
 
       (* And and Or only compare the first element of each vector; empty vector is treated as NA. *)
-      let elementwise f = Array.map2 (lift2_bool f) data1 data2 |> vector T_Bool in
+      let elementwise f = Array.map2 (lift2 bool f) data1 data2 |> vector T_Bool in
       let e1 = if Array.length data1 = 0 then None else get_bool data1.(0) in
       let e2 = if Array.length data2 = 0 then None else get_bool data2.(0) in
       match o with
