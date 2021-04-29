@@ -6,12 +6,14 @@ exception Todo
 exception Object_not_found
 exception Invalid_argument_type
 exception Vector_lengths_do_not_match
+exception Invalid_subset_index
 exception Not_supported
 
 let excptn_to_string = function
   | Object_not_found -> "object not found"
   | Invalid_argument_type -> "invalid argument type"
   | Vector_lengths_do_not_match -> "vector lengths do not match"
+  | Invalid_subset_index -> "invalid subset index"
   | Not_supported -> "not supported"
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
@@ -66,7 +68,6 @@ let put_str = function
    Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
    f to handle None/NA values as inputs *)
 let bool, int, str = ((get_bool, put_bool), (get_int, put_int), (get_str, put_str))
-
 let lift (type a) (unwrap, wrap) (f : a option -> a option) (x : literal) = f (unwrap x) |> wrap
 let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) (x : literal) (y : literal)
     =
@@ -239,8 +240,17 @@ let binary op v1 v2 =
           | Elementwise_Or -> elementwise or' ) )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
-(* TODO: takes a single int index *)
-let subset2 v1 _ = v1
+let subset2 v1 v2 =
+  match (v1, v2) with
+  | Vector (data1, _), Vector (data2, ty2) -> (
+      let n1, n2 = (vector_length v1, vector_length v2) in
+      if n2 = 0 || n2 > 1 then raise Invalid_subset_index ;
+      if ty2 = T_Str then raise Invalid_argument_type ;
+      let data2 = data2 |> coerce_data ty2 T_Int in
+      match get_int data2.(0) with
+      | Some i when 1 <= i && i <= n1 -> vector_of_lit data1.(i - 1)
+      | Some _ | None -> raise Invalid_subset_index )
+  | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
 let eval_expr env expr =
   let eval = eval_simple_expr env in
