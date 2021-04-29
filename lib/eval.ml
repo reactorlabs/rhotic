@@ -156,88 +156,102 @@ let unary op = function
   | Dataframe _ -> raise Not_supported
 
 let binary op v1 v2 =
+  let arithmetic_op o =
+    let a1, a2 = vector_data v1, vector_data v2 in
+    let t1, t2 = vector_type v1, vector_type v2 in
+
+    (* String operands not allowed; but coerce booleans to integers. *)
+    if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+    let a1 = a1 |> coerce_data t1 T_Int in
+    let a2 = a2 |> coerce_data t2 T_Int in
+
+    (* R uses "floored" modulo while OCaml uses "truncated" modulo.
+        E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
+    let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
+    let mod' x y = x - (y * div' x y) in
+
+    let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
+    match o with
+    | Plus -> arithmetic (fun x y -> Some (x + y))
+    | Minus -> arithmetic (fun x y -> Some (x - y))
+    | Times -> arithmetic (fun x y -> Some (x * y))
+    | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
+    | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
+
+  let relational_op o =
+    let a1, a2 = vector_data v1, vector_data v2 in
+    let t1, t2 = vector_type v1, vector_type v2 in
+
+    (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
+        We need to properly coerce the operands, but also need to handle numeric values and string
+        values differently. *)
+    match (t1, t2) with
+    | T_Str, _ | _, T_Str -> (
+        let a1 = a1 |> coerce_data t1 T_Str in
+        let a2 = a2 |> coerce_data t2 T_Str in
+        let relational f =
+          Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) a1 a2
+          |> vector T_Bool in
+        match o with
+        | Less -> relational (fun x y -> Some (String.compare x y < 0))
+        | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
+        | Greater -> relational (fun x y -> Some (String.compare x y > 0))
+        | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
+        | Equal -> relational (fun x y -> Some (String.compare x y = 0))
+        | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)) )
+    | T_Int, _ | _, T_Int | T_Bool, _ -> (
+        let a1 = a1 |> coerce_data t1 T_Int in
+        let a2 = a2 |> coerce_data t2 T_Int in
+        let relational f =
+          Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) a1 a2
+          |> vector T_Bool in
+        match o with
+        | Less -> relational (fun x y -> Some (x < y))
+        | Less_Equal -> relational (fun x y -> Some (x <= y))
+        | Greater -> relational (fun x y -> Some (x > y))
+        | Greater_Equal -> relational (fun x y -> Some (x >= y))
+        | Equal -> relational (fun x y -> Some (x = y))
+        | Not_Equal -> relational (fun x y -> Some (x <> y)) ) in
+
+  let logical_op o =
+    let a1, a2 = vector_data v1, vector_data v2 in
+    let t1, t2 = vector_type v1, vector_type v2 in
+
+    (* String operands not allowed; but coerce integers to booleans. *)
+    if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+    let a1 = a1 |> coerce_data t1 T_Bool in
+    let a2 = a2 |> coerce_data t2 T_Bool in
+
+    (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
+    let and' x y =
+      match (x, y) with
+      | Some true, Some true -> Some true
+      | Some false, _ | _, Some false -> Some false
+      | _ -> None in
+    let or' x y =
+      match (x, y) with
+      | Some false, Some false -> Some false
+      | Some true, _ | _, Some true -> Some true
+      | _ -> None in
+
+    (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
+    let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
+    let e1 = if Array.length a1 = 0 then None else get_bool a1.(0) in
+    let e2 = if Array.length a2 = 0 then None else get_bool a2.(0) in
+    match o with
+    | And -> and' e1 e2 |> put_bool |> vector_of_lit
+    | Or -> or' e1 e2 |> put_bool |> vector_of_lit
+    | Elementwise_And -> elementwise and'
+    | Elementwise_Or -> elementwise or' in
+
   match (v1, v2) with
-  | Vector (a1, t1), Vector (a2, t2) -> (
+  | Vector _, Vector _ -> (
       (* Both vectors must have the same length. *)
       if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
-
       match op with
-      | Arithmetic o -> (
-          (* String operands not allowed; but coerce booleans to integers. *)
-          if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
-          let a1 = a1 |> coerce_data t1 T_Int in
-          let a2 = a2 |> coerce_data t2 T_Int in
-
-          (* R uses "floored" modulo while OCaml uses "truncated" modulo.
-             E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
-          let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
-          let mod' x y = x - (y * div' x y) in
-
-          let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
-          match o with
-          | Plus -> arithmetic (fun x y -> Some (x + y))
-          | Minus -> arithmetic (fun x y -> Some (x - y))
-          | Times -> arithmetic (fun x y -> Some (x * y))
-          | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
-          | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) )
-      | Relational o -> (
-          (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
-             We need to properly coerce the operands, but also need to handle numeric values and
-             string values differently. *)
-          match (t1, t2) with
-          | T_Str, _ | _, T_Str -> (
-              let a1 = a1 |> coerce_data t1 T_Str in
-              let a2 = a2 |> coerce_data t2 T_Str in
-              let relational f =
-                Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) a1 a2
-                |> vector T_Bool in
-              match o with
-              | Less -> relational (fun x y -> Some (String.compare x y < 0))
-              | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
-              | Greater -> relational (fun x y -> Some (String.compare x y > 0))
-              | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
-              | Equal -> relational (fun x y -> Some (String.compare x y = 0))
-              | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)) )
-          | T_Int, _ | _, T_Int | T_Bool, _ -> (
-              let a1 = a1 |> coerce_data t1 T_Int in
-              let a2 = a2 |> coerce_data t2 T_Int in
-              let relational f =
-                Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) a1 a2
-                |> vector T_Bool in
-              match o with
-              | Less -> relational (fun x y -> Some (x < y))
-              | Less_Equal -> relational (fun x y -> Some (x <= y))
-              | Greater -> relational (fun x y -> Some (x > y))
-              | Greater_Equal -> relational (fun x y -> Some (x >= y))
-              | Equal -> relational (fun x y -> Some (x = y))
-              | Not_Equal -> relational (fun x y -> Some (x <> y)) ) )
-      | Logical o -> (
-          (* String operands not allowed; but coerce integers to booleans. *)
-          if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
-          let a1 = a1 |> coerce_data t1 T_Bool in
-          let a2 = a2 |> coerce_data t2 T_Bool in
-
-          (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
-          let and' x y =
-            match (x, y) with
-            | Some true, Some true -> Some true
-            | Some false, _ | _, Some false -> Some false
-            | _ -> None in
-          let or' x y =
-            match (x, y) with
-            | Some false, Some false -> Some false
-            | Some true, _ | _, Some true -> Some true
-            | _ -> None in
-
-          (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
-          let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
-          let e1 = if Array.length a1 = 0 then None else get_bool a1.(0) in
-          let e2 = if Array.length a2 = 0 then None else get_bool a2.(0) in
-          match o with
-          | And -> and' e1 e2 |> put_bool |> vector_of_lit
-          | Or -> or' e1 e2 |> put_bool |> vector_of_lit
-          | Elementwise_And -> elementwise and'
-          | Elementwise_Or -> elementwise or' ) )
+      | Arithmetic o -> arithmetic_op o
+      | Relational o -> relational_op o
+      | Logical o -> logical_op o )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
 (* Checks that all elements are non-negative or NA.
