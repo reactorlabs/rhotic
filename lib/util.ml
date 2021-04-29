@@ -6,10 +6,22 @@ let ( %> ) f g x = g (f x)
  (%) : ('b -> 'c) -> ('a -> 'b) -> 'a -> 'c *)
 let ( % ) f g x = f (g x)
 
+module Array = struct
+  include Array
+
+  let filter_map f a = a |> Array.to_list |> List.filter_map f |> Array.of_list
+
+  let filter_mapi f a = a |> Array.mapi f |> filter_map Fun.id
+end
+
 module Option = struct
   include Option
 
   let bind2 f x y = Option.bind x (fun x -> Option.bind y (fun y -> f x y))
+
+  let map_or ~default f = function
+    | None -> default
+    | Some x -> f x
 end
 
 module String = struct

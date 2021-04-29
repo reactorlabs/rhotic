@@ -34,6 +34,11 @@ let get_tag = function
 let vector_of_lit l = Vector ([| l |], get_tag l)
 let vector t v = Vector (v, t)
 
+let na_of = function
+  | T_Bool -> NA_bool
+  | T_Int -> NA_int
+  | T_Str -> NA_str
+
 (* rhotic to OCaml conversion.
    These helpers take a rhotic value and return an OCaml value, wrapped in an option. None
    represents an NA rhotic value. *)
@@ -154,7 +159,7 @@ let unary op = function
 let binary op v1 v2 =
   match (v1, v2) with
   | Vector (data1, ty1), Vector (data2, ty2) -> (
-      (* Both vectors have to have the same length. *)
+      (* Both vectors must have the same length. *)
       if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
 
       match op with
@@ -240,6 +245,50 @@ let binary op v1 v2 =
           | Elementwise_Or -> elementwise or' ) )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
+(* Checks that all elements are non-negative or NA.
+  0 and NA are allowed for positive subsetting. *)
+let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x >= 0)
+
+(* Uses the indices in `idx` to select elements out of the array `a`:
+  - Valid indices are converted from 1-based indexing (R) to 0-based indexing (OCaml).
+  - 0 indices are dropped.
+  - Out-of-bounds and NA indices return NA.
+  Expects the inputs to be valid. *)
+let get_at_pos ty data idxs =
+  assert (is_positive_subsetting idxs) ;
+  idxs
+  |> Array.filter_map (function
+       | Some i when 1 <= i && i <= Array.length data -> Some data.(i - 1)
+       | Some 0 -> None
+       | Some _ | None -> Some (na_of ty))
+
+(* Convert a boolean vector (used for subsetting) to a positional vector:
+  - True indices are converted to positional indices.
+  - False indices are dropped.
+  - NA indices stay as NA. *)
+let bool_to_pos_vector idxs =
+  idxs
+  |> Array.filter_mapi (fun i x ->
+         match x with
+         | Some true -> Some (Some (i + 1))
+         | Some false -> None
+         | None -> Some None)
+
+let subset1 v1 v2 =
+  match (v1, v2) with
+  | Vector (data1, ty1), Vector (data2, ty2) -> (
+      match ty2 with
+      | T_Bool ->
+          (* Both vectors must have the same length. *)
+          if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
+          data2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos ty1 data1 |> vector ty1
+      | T_Int ->
+          let data2 = data2 |> Array.map get_int in
+          if not @@ is_positive_subsetting data2 then raise Invalid_subset_index ;
+          data2 |> get_at_pos ty1 data1 |> vector ty1
+      | T_Str -> raise Invalid_argument_type )
+  | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
+
 let subset2 v1 v2 =
   match (v1, v2) with
   | Vector (data1, _), Vector (data2, ty2) -> (
@@ -261,11 +310,8 @@ let eval_expr env expr =
   | Coerce_Op (ty, se) -> coerce_value ty (eval se)
   | Unary_Op (op, se) -> unary op (eval se)
   | Binary_Op (op, se1, se2) -> binary op (eval se1) (eval se2)
-  | Subset1 (_, _) ->
-      (* TODO: Vector of positive indices of arbitrary length
-         Vector of boolean indices of vector length
-         No recycling *)
-      raise Todo
+  | Subset1 (se1, None) -> eval se1
+  | Subset1 (se1, Some se2) -> subset1 (eval se1) (eval se2)
   | Subset2 (se1, se2) -> subset2 (eval se1) (eval se2)
   | Call (_, _) -> raise Todo
   | Simple_Expression se -> eval se
