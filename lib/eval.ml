@@ -20,7 +20,7 @@ let excptn_to_string = function
       raise e
 
 let match_vector = function
-  | Vector (data, ty) -> (data, ty)
+  | Vector (a, t) -> (a, t)
   | Dataframe _ -> raise Not_supported
 let vector_data = Stdlib.fst % match_vector
 let vector_type = Stdlib.snd % match_vector
@@ -141,40 +141,39 @@ let combine values =
 (* Boolean and integer values get coerced; strings cannot be coerced.
    Unary operations on data frames are not supported. *)
 let unary op = function
-  | Vector (data, ty) -> (
-      if ty = T_Str then raise Invalid_argument_type ;
+  | Vector (a, t) -> (
+      if t = T_Str then raise Invalid_argument_type ;
       match op with
       | Logical_Not ->
           (* Coerce to boolean, apply logical not *)
-          data |> coerce_data ty T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
+          a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
       | Unary_Plus ->
           (* Nop for integers, but coerces booleans to integers *)
-          data |> coerce_data ty T_Int |> vector T_Int
+          a |> coerce_data t T_Int |> vector T_Int
       | Unary_Minus ->
           (* Coerce to integer, apply unary negation *)
-          data |> coerce_data ty T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
-      )
+          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int )
   | Dataframe _ -> raise Not_supported
 
 let binary op v1 v2 =
   match (v1, v2) with
-  | Vector (data1, ty1), Vector (data2, ty2) -> (
+  | Vector (a1, t1), Vector (a2, t2) -> (
       (* Both vectors must have the same length. *)
       if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
 
       match op with
       | Arithmetic o -> (
           (* String operands not allowed; but coerce booleans to integers. *)
-          if ty1 = T_Str || ty2 = T_Str then raise Invalid_argument_type ;
-          let data1 = data1 |> coerce_data ty1 T_Int in
-          let data2 = data2 |> coerce_data ty2 T_Int in
+          if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+          let a1 = a1 |> coerce_data t1 T_Int in
+          let a2 = a2 |> coerce_data t2 T_Int in
 
           (* R uses "floored" modulo while OCaml uses "truncated" modulo.
              E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
           let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
           let mod' x y = x - (y * div' x y) in
 
-          let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) data1 data2 |> vector T_Int in
+          let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
           match o with
           | Plus -> arithmetic (fun x y -> Some (x + y))
           | Minus -> arithmetic (fun x y -> Some (x - y))
@@ -185,14 +184,12 @@ let binary op v1 v2 =
           (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
              We need to properly coerce the operands, but also need to handle numeric values and
              string values differently. *)
-          match (ty1, ty2) with
+          match (t1, t2) with
           | T_Str, _ | _, T_Str -> (
-              let data1 = data1 |> coerce_data ty1 T_Str in
-              let data2 = data2 |> coerce_data ty2 T_Str in
+              let a1 = a1 |> coerce_data t1 T_Str in
+              let a2 = a2 |> coerce_data t2 T_Str in
               let relational f =
-                Array.map2
-                  (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool)
-                  data1 data2
+                Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) a1 a2
                 |> vector T_Bool in
               match o with
               | Less -> relational (fun x y -> Some (String.compare x y < 0))
@@ -202,12 +199,10 @@ let binary op v1 v2 =
               | Equal -> relational (fun x y -> Some (String.compare x y = 0))
               | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)) )
           | T_Int, _ | _, T_Int | T_Bool, _ -> (
-              let data1 = data1 |> coerce_data ty1 T_Int in
-              let data2 = data2 |> coerce_data ty2 T_Int in
+              let a1 = a1 |> coerce_data t1 T_Int in
+              let a2 = a2 |> coerce_data t2 T_Int in
               let relational f =
-                Array.map2
-                  (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool)
-                  data1 data2
+                Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) a1 a2
                 |> vector T_Bool in
               match o with
               | Less -> relational (fun x y -> Some (x < y))
@@ -218,9 +213,9 @@ let binary op v1 v2 =
               | Not_Equal -> relational (fun x y -> Some (x <> y)) ) )
       | Logical o -> (
           (* String operands not allowed; but coerce integers to booleans. *)
-          if ty1 = T_Str || ty2 = T_Str then raise Invalid_argument_type ;
-          let data1 = data1 |> coerce_data ty1 T_Bool in
-          let data2 = data2 |> coerce_data ty2 T_Bool in
+          if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+          let a1 = a1 |> coerce_data t1 T_Bool in
+          let a2 = a2 |> coerce_data t2 T_Bool in
 
           (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
           let and' x y =
@@ -235,9 +230,9 @@ let binary op v1 v2 =
             | _ -> None in
 
           (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
-          let elementwise f = Array.map2 (lift2 bool f) data1 data2 |> vector T_Bool in
-          let e1 = if Array.length data1 = 0 then None else get_bool data1.(0) in
-          let e2 = if Array.length data2 = 0 then None else get_bool data2.(0) in
+          let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
+          let e1 = if Array.length a1 = 0 then None else get_bool a1.(0) in
+          let e2 = if Array.length a2 = 0 then None else get_bool a2.(0) in
           match o with
           | And -> and' e1 e2 |> put_bool |> vector_of_lit
           | Or -> or' e1 e2 |> put_bool |> vector_of_lit
@@ -254,11 +249,11 @@ let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x
   - 0 indices are dropped.
   - Out-of-bounds and NA indices return NA.
   Expects the inputs to be valid. *)
-let get_at_pos ty data idxs =
+let get_at_pos ty a idxs =
   assert (is_positive_subsetting idxs) ;
   idxs
   |> Array.filter_map (function
-       | Some i when 1 <= i && i <= Array.length data -> Some data.(i - 1)
+       | Some i when 1 <= i && i <= Array.length a -> Some a.(i - 1)
        | Some 0 -> None
        | Some _ | None -> Some (na_of ty))
 
@@ -276,28 +271,28 @@ let bool_to_pos_vector idxs =
 
 let subset1 v1 v2 =
   match (v1, v2) with
-  | Vector (data1, ty1), Vector (data2, ty2) -> (
-      match ty2 with
+  | Vector (a1, t1), Vector (a2, t2) -> (
+      match t2 with
       | T_Bool ->
           (* Both vectors must have the same length. *)
           if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
-          data2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos ty1 data1 |> vector ty1
+          a2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos t1 a1 |> vector t1
       | T_Int ->
-          let data2 = data2 |> Array.map get_int in
-          if not @@ is_positive_subsetting data2 then raise Invalid_subset_index ;
-          data2 |> get_at_pos ty1 data1 |> vector ty1
+          let a2 = a2 |> Array.map get_int in
+          if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
+          a2 |> get_at_pos t1 a1 |> vector t1
       | T_Str -> raise Invalid_argument_type )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
 let subset2 v1 v2 =
   match (v1, v2) with
-  | Vector (data1, _), Vector (data2, ty2) -> (
+  | Vector (a1, _), Vector (a2, t2) -> (
       let n1, n2 = (vector_length v1, vector_length v2) in
       if n2 = 0 || n2 > 1 then raise Invalid_subset_index ;
-      if ty2 = T_Str then raise Invalid_argument_type ;
-      let data2 = data2 |> coerce_data ty2 T_Int in
-      match get_int data2.(0) with
-      | Some i when 1 <= i && i <= n1 -> vector_of_lit data1.(i - 1)
+      if t2 = T_Str then raise Invalid_argument_type ;
+      let a2 = a2 |> coerce_data t2 T_Int in
+      match get_int a2.(0) with
+      | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
       | Some _ | None -> raise Invalid_subset_index )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
