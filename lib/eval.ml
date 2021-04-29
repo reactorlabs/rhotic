@@ -232,6 +232,9 @@ let binary op v1 v2 =
       | Elementwise_And -> elementwise and'
       | Elementwise_Or -> elementwise or' )
 
+(* TODO: takes a single int index *)
+let subset2 v1 _ = v1
+
 let eval_expr env expr =
   let eval = eval_simple_expr env in
   match expr with
@@ -241,8 +244,12 @@ let eval_expr env expr =
   | Coerce_Op (ty, se) -> coerce_value ty (eval se)
   | Unary_Op (op, se) -> unary op (eval se)
   | Binary_Op (op, se1, se2) -> binary op (eval se1) (eval se2)
-  | Subset1 (_, _) -> raise Todo
-  | Subset2 (_, _) -> raise Todo
+  | Subset1 (_, _) ->
+      (* TODO: Vector of positive indices of arbitrary length
+         Vector of boolean indices of vector length
+         No recycling *)
+      raise Todo
+  | Subset2 (se1, se2) -> subset2 (eval se1) (eval se2)
   | Call (_, _) -> raise Todo
   | Simple_Expression se -> eval se
 
@@ -255,7 +262,9 @@ let eval_stmt env stmt =
       (env', v)
   | Subset1_Assign (_, _, _) -> raise Todo
   | Subset2_Assign (_, _, _) -> raise Todo
-  | Function_Def (_, _, _) -> raise Todo
+  | Function_Def (_, _, _) ->
+      (* TODO: Restrict parser so that functions can only be defined at top level *)
+      raise Todo
   | If (_, _, _) -> raise Todo
   | For (_, _, _) -> raise Todo
   | Expression e -> (env, eval e)
@@ -267,6 +276,15 @@ let rec run_program env (stmts : statement list) =
   | stmt :: stmts ->
       let env', _ = eval_stmt env stmt in
       (run_program [@tailcall]) env' stmts
+
+(* TODO: Program state
+    program counter
+    program (array of statements)
+    environment
+    current function
+    function table
+    stack of (return value, env, return pc)
+*)
 
 let run s =
   let program = Parse.parse s in
