@@ -5,7 +5,7 @@ exception Parse_error of string
 
 (* Reserved keywords/literals *)
 let reserved =
-  [ "NA_b"
+  [ "NA"
   ; "F"
   ; "T"
   ; "NA_i"
@@ -58,19 +58,22 @@ let parens_comma_sep p = parens @@ sep_by (char ',') (with_blank p)
 (* Program parser *)
 let program =
   (* literal ::= boolean | integer | string
-     boolean ::= 'NA_b' | 'F' | 'T'
+     boolean ::= 'NA | 'F' | 'T'
      integer ::= 'NA_i' | [0-9]+
-     string  ::= 'NA_s' | '"' [any non-quote character]* '"' *)
+     string  ::= 'NA_s' | '"' [any non-quote character]* '"'
+
+     NOTE: Order is significant! Need to attempt parsing "NA_i" and "NA_s" before "NA". Otherwise
+     NA_i (and NA_s) will be accepted as NA and _i (and _s) will be rejected. *)
   let literal =
     let boolean =
-      string "NA_b" *> return NA_bool
+      string "NA" *> return NA_bool
       <|> string "F" *> return (Bool false)
       <|> string "T" *> return (Bool true) in
     let integer =
       string "NA_i" *> return NA_int <|> (take_while1 is_digit >>| fun i -> Int (int_of_string i))
     in
     let str = string "NA_s" *> return NA_str <|> (quotes (take_till is_quote) >>| fun s -> Str s) in
-    boolean <|> integer <|> str >>| fun l -> Lit l in
+    str <|> integer <|> boolean >>| fun l -> Lit l in
 
   (* An identifier
       - starts with a letter or a .
