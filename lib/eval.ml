@@ -159,8 +159,8 @@ let unary op = function
 
 let binary op v1 v2 =
   let arithmetic_op o =
-    let a1, a2 = vector_data v1, vector_data v2 in
-    let t1, t2 = vector_type v1, vector_type v2 in
+    let a1, a2 = (vector_data v1, vector_data v2) in
+    let t1, t2 = (vector_type v1, vector_type v2) in
 
     (* String operands not allowed; but coerce booleans to integers. *)
     if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
@@ -181,8 +181,8 @@ let binary op v1 v2 =
     | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
 
   let relational_op o =
-    let a1, a2 = vector_data v1, vector_data v2 in
-    let t1, t2 = vector_type v1, vector_type v2 in
+    let a1, a2 = (vector_data v1, vector_data v2) in
+    let t1, t2 = (vector_type v1, vector_type v2) in
 
     (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
         We need to properly coerce the operands, but also need to handle numeric values and string
@@ -216,8 +216,8 @@ let binary op v1 v2 =
         | Not_Equal -> relational (fun x y -> Some (x <> y)) ) in
 
   let logical_op o =
-    let a1, a2 = vector_data v1, vector_data v2 in
-    let t1, t2 = vector_type v1, vector_type v2 in
+    let a1, a2 = (vector_data v1, vector_data v2) in
+    let t1, t2 = (vector_type v1, vector_type v2) in
 
     (* String operands not allowed; but coerce integers to booleans. *)
     if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
@@ -331,7 +331,7 @@ let subset2_assign env x idx v =
       if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
       if n3 = 0 || n3 > 1 then raise Invalid_subset_replacement ;
       let t = type_lub t1 t3 in
-      let a1, a3 = (a1 |> coerce_data t1 t), (a3 |> coerce_data t3 t) in
+      let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
       let a2 = a2 |> coerce_data t2 T_Int in
       match get_int a2.(0) with
       | Some i when 1 <= i ->
@@ -339,8 +339,7 @@ let subset2_assign env x idx v =
           a1.(i - 1) <- a3.(0) ;
           let env = Env.add x (vector t a1) env in
           (env, v3)
-      | Some _ | None -> raise Invalid_subset_index
-  )
+      | Some _ | None -> raise Invalid_subset_index )
   | Dataframe _, _, _ -> raise Not_supported
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
@@ -367,9 +366,9 @@ let eval_stmt env stmt =
       let v = eval e in
       let env = Env.add x v env in
       (env, v)
-  | Subset1_Assign (_, _, _) -> raise Todo
-  | Subset2_Assign (x1, se2, e3) ->
-      subset2_assign env x1 (eval_se se2) (eval e3)
+  | Subset1_Assign (x1, None, e3) -> raise Todo
+  | Subset1_Assign (x1, Some se2, e3) -> raise Todo
+  | Subset2_Assign (x1, se2, e3) -> subset2_assign env x1 (eval_se se2) (eval e3)
   | Function_Def (_, _, _) ->
       (* TODO: Restrict parser so that functions can only be defined at top level *)
       raise Todo
