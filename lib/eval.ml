@@ -7,6 +7,7 @@ exception Object_not_found
 exception Invalid_argument_type
 exception Vector_lengths_do_not_match
 exception Invalid_subset_index
+exception Invalid_subset_replacement
 exception Not_supported
 
 let excptn_to_string = function
@@ -14,6 +15,7 @@ let excptn_to_string = function
   | Invalid_argument_type -> "invalid argument type"
   | Vector_lengths_do_not_match -> "vector lengths do not match"
   | Invalid_subset_index -> "invalid subset index"
+  | Invalid_subset_replacement -> "invalid subset replacement"
   | Not_supported -> "not supported"
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
@@ -283,6 +285,17 @@ let bool_to_pos_vector idxs =
          | Some false -> None
          | None -> Some None)
 
+let extend n t a =
+  let m = Array.length a in
+  if m >= n then Array.copy a
+  else
+    let res = Array.make n (na_of t) in
+    for i = 0 to m - 1 do
+      (* Only copy over m elements from a to res; leave the rest as NA. *)
+      res.(i) <- a.(i)
+    done ;
+    res
+
 let subset1 v1 v2 =
   match (v1, v2) with
   | Vector (a1, t1), Vector (a2, t2) -> (
@@ -296,19 +309,40 @@ let subset1 v1 v2 =
           if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
           a2 |> get_at_pos t1 a1 |> vector t1
       | T_Str -> raise Invalid_argument_type )
-  | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
+  | Dataframe _, _ -> raise Not_supported
+  | _, Dataframe _ -> raise Invalid_argument_type
 
 let subset2 v1 v2 =
   match (v1, v2) with
   | Vector (a1, _), Vector (a2, t2) -> (
       let n1, n2 = (vector_length v1, vector_length v2) in
-      if n2 = 0 || n2 > 1 then raise Invalid_subset_index ;
-      if t2 = T_Str then raise Invalid_argument_type ;
+      if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
       let a2 = a2 |> coerce_data t2 T_Int in
       match get_int a2.(0) with
       | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
       | Some _ | None -> raise Invalid_subset_index )
-  | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
+  | Dataframe _, _ -> raise Not_supported
+  | _, Dataframe _ -> raise Invalid_argument_type
+
+let subset2_assign env x idx v =
+  match (lookup env x, idx, v) with
+  | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
+      let n2, n3 = (vector_length v2, vector_length v3) in
+      if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
+      if n3 = 0 || n3 > 1 then raise Invalid_subset_replacement ;
+      let t = type_lub t1 t3 in
+      let a1, a3 = (a1 |> coerce_data t1 t), (a3 |> coerce_data t3 t) in
+      let a2 = a2 |> coerce_data t2 T_Int in
+      match get_int a2.(0) with
+      | Some i when 1 <= i ->
+          let a1 = extend i t a1 in
+          a1.(i - 1) <- a3.(0) ;
+          let env = Env.add x (vector t a1) env in
+          (env, v3)
+      | Some _ | None -> raise Invalid_subset_index
+  )
+  | Dataframe _, _, _ -> raise Not_supported
+  | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
 let eval_expr env expr =
   let eval = eval_simple_expr env in
@@ -327,13 +361,15 @@ let eval_expr env expr =
 
 let eval_stmt env stmt =
   let eval = eval_expr env in
+  let eval_se = eval_simple_expr env in
   match stmt with
   | Assign (x, e) ->
       let v = eval e in
-      let env' = Env.add x v env in
-      (env', v)
+      let env = Env.add x v env in
+      (env, v)
   | Subset1_Assign (_, _, _) -> raise Todo
-  | Subset2_Assign (_, _, _) -> raise Todo
+  | Subset2_Assign (x1, se2, e3) ->
+      subset2_assign env x1 (eval_se se2) (eval e3)
   | Function_Def (_, _, _) ->
       (* TODO: Restrict parser so that functions can only be defined at top level *)
       raise Todo
