@@ -324,6 +324,15 @@ let subset2 v1 v2 =
   | Dataframe _, _ -> raise Not_supported
   | _, Dataframe _ -> raise Invalid_argument_type
 
+let subset1_nothing_assign env x v =
+  match (lookup env x, v) with
+  | (Vector _ as v1), (Vector _ as v3) ->
+      if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
+      let env = Env.add x v3 env in
+      (env, v3)
+  | Dataframe _, _ -> raise Not_supported
+  | _, Dataframe _ -> raise Invalid_argument_type
+
 let subset2_assign env x idx v =
   match (lookup env x, idx, v) with
   | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
@@ -366,8 +375,8 @@ let eval_stmt env stmt =
       let v = eval e in
       let env = Env.add x v env in
       (env, v)
-  | Subset1_Assign (x1, None, e3) -> raise Todo
-  | Subset1_Assign (x1, Some se2, e3) -> raise Todo
+  | Subset1_Assign (x1, None, e3) -> subset1_nothing_assign env x1 (eval e3)
+  | Subset1_Assign (_, Some _, _) -> raise Todo
   | Subset2_Assign (x1, se2, e3) -> subset2_assign env x1 (eval_se se2) (eval e3)
   | Function_Def (_, _, _) ->
       (* TODO: Restrict parser so that functions can only be defined at top level *)
