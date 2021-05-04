@@ -9,6 +9,8 @@ let ( % ) f g x = f (g x)
 module Array = struct
   include Array
 
+  let filter f a = a |> Array.to_list |> List.filter f |> Array.of_list
+
   let filter_map f a = a |> Array.to_list |> List.filter_map f |> Array.of_list
 
   let filter_mapi f a = a |> Array.mapi f |> filter_map Fun.id

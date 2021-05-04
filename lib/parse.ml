@@ -72,8 +72,9 @@ let program =
     let integer =
       string "NA_i" *> return NA_int <|> (take_while1 is_digit >>| fun i -> Int (int_of_string i))
     in
+    let negative = char '-' *> (take_while1 is_digit >>| fun i -> Int ~-(int_of_string i)) in
     let str = string "NA_s" *> return NA_str <|> (quotes (take_till is_quote) >>| fun s -> Str s) in
-    str <|> integer <|> boolean >>| fun l -> Lit l in
+    str <|> integer <|> negative <|> boolean >>| fun l -> Lit l in
 
   (* An identifier
       - starts with a letter or a .

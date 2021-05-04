@@ -260,6 +260,10 @@ let binary op v1 v2 =
   0 and NA are allowed for positive subsetting. *)
 let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x >= 0)
 
+let is_zero_subsetting = Array.for_all (fun x -> x = Some 0)
+
+let contains_na (type t) (a : t option array) = Array.exists (fun x -> x = None) a
+
 (* Uses the indices in `idx` to select elements out of the array `a`:
   - Valid indices are converted from 1-based indexing (R) to 0-based indexing (OCaml).
   - 0 indices are dropped.
@@ -295,6 +299,16 @@ let extend n t a =
       res.(i) <- a.(i)
     done ;
     res
+
+let update_at_pos t a idxs rpl =
+  assert (is_positive_subsetting idxs) ;
+  assert (Array.for_all (fun x -> x <> Some 0) idxs) ;
+  assert (not @@ contains_na idxs) ;
+  let idxs = Array.map Option.get idxs in
+  let max_idx = Array.fold_left (fun mx i -> max mx i) (Array.length a) idxs in
+  let res = extend max_idx t a in
+  Array.iter2 (fun i x -> res.(i - 1) <- x) idxs rpl ;
+  res
 
 let subset1 v1 v2 =
   match (v1, v2) with
@@ -332,6 +346,40 @@ let subset1_nothing_assign env x v =
       (env, v3)
   | Dataframe _, _ -> raise Not_supported
   | _, Dataframe _ -> raise Invalid_argument_type
+
+let subset1_assign env x idx v =
+  match (lookup env x, idx, v) with
+  | (Vector (a1, t1) as v1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
+      let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
+      let t = type_lub t1 t3 in
+      let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
+      match t2 with
+      | T_Bool ->
+          let a2 = a2 |> Array.map get_bool in
+          if contains_na a2 then raise Invalid_subset_index ;
+          if n1 <> n2 then raise Vector_lengths_do_not_match ;
+          let a2 = a2 |> bool_to_pos_vector in
+          let n2 = Array.length a2 in
+          if n2 <> n3 then raise Invalid_subset_replacement ;
+          let res = update_at_pos t a1 a2 a3 in
+          let env = Env.add x (vector t res) env in
+          (env, v3)
+      | T_Int ->
+          let a2 = a2 |> Array.map get_int in
+          if contains_na a2 || (not @@ is_positive_subsetting a2) then raise Invalid_subset_index ;
+          if is_zero_subsetting a2 then
+            let env = Env.add x (vector t a1) env in
+            (env, v3)
+          else
+            let a2 = a2 |> Array.filter (fun x -> x <> Some 0) in
+            let n2 = Array.length a2 in
+            if n2 <> n3 then raise Invalid_subset_replacement ;
+            let res = update_at_pos t a1 a2 a3 in
+            let env = Env.add x (vector t res) env in
+            (env, v3)
+      | T_Str -> raise Invalid_argument_type )
+  | Dataframe _, _, _ -> raise Not_supported
+  | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
 let subset2_assign env x idx v =
   match (lookup env x, idx, v) with
@@ -376,7 +424,7 @@ let eval_stmt env stmt =
       let env = Env.add x v env in
       (env, v)
   | Subset1_Assign (x1, None, e3) -> subset1_nothing_assign env x1 (eval e3)
-  | Subset1_Assign (_, Some _, _) -> raise Todo
+  | Subset1_Assign (x1, Some se2, e3) -> subset1_assign env x1 (eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign env x1 (eval_se se2) (eval e3)
   | Function_Def (_, _, _) ->
       (* TODO: Restrict parser so that functions can only be defined at top level *)
