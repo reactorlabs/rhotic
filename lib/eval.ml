@@ -8,6 +8,8 @@ exception Invalid_argument_type
 exception Vector_lengths_do_not_match
 exception Invalid_subset_index
 exception Invalid_subset_replacement
+exception Condition_length_greater_one
+exception Missing_value_need_true_false
 exception Not_supported
 
 let excptn_to_string = function
@@ -16,6 +18,8 @@ let excptn_to_string = function
   | Vector_lengths_do_not_match -> "vector lengths do not match"
   | Invalid_subset_index -> "invalid subset index"
   | Invalid_subset_replacement -> "invalid subset replacement"
+  | Condition_length_greater_one -> "condition has length > 1"
+  | Missing_value_need_true_false -> "missing value where TRUE/FALSE needed"
   | Not_supported -> "not supported"
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
@@ -410,9 +414,31 @@ let eval_expr env expr =
   | Call (_, _) -> raise Todo
   | Simple_Expression se -> eval se
 
-let eval_stmt env stmt =
+let rec eval_stmt env stmt =
   let eval = eval_expr env in
   let eval_se = eval_simple_expr env in
+
+  let eval_if cond s2 s3 =
+    match cond with
+    | Vector _ as v1 -> (
+        if vector_length v1 <> 1 then raise Condition_length_greater_one ;
+        let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
+        match a1.(0) with
+        | None -> raise Missing_value_need_true_false
+        | Some true -> run_program env s2
+        | Some false -> run_program env s3 )
+    | Dataframe _ -> raise Invalid_argument_type in
+
+  let eval_for var seq stmts =
+    match seq with
+    | Vector (a, _) ->
+        let loop env i =
+          let env = Env.add var (vector_of_lit i) env in
+          Stdlib.fst @@ run_program env stmts in
+        let env = Array.fold_left loop env a in
+        (env, vector T_Bool [||])
+    | Dataframe _ -> raise Not_supported in
+
   match stmt with
   | Assign (x, e) ->
       let v = eval e in
@@ -423,11 +449,11 @@ let eval_stmt env stmt =
   | Function_Def (_, _, _) ->
       (* TODO: Restrict parser so that functions can only be defined at top level *)
       raise Todo
-  | If (_, _, _) -> raise Todo
-  | For (_, _, _) -> raise Todo
+  | If (e1, s2, s3) -> eval_if (eval e1) s2 s3
+  | For (x1, e2, s3) -> eval_for x1 (eval e2) s3
   | Expression e -> (env, eval e)
 
-let rec run_program env (stmts : statement list) =
+and run_program env (stmts : statement list) =
   match stmts with
   | [] -> (env, vector T_Bool [||])
   | [ stmt ] -> eval_stmt env stmt
