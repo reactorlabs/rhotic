@@ -25,6 +25,11 @@ let excptn_to_string = function
       Stdlib.prerr_endline "Unrecognized exception" ;
       raise e
 
+type configuration =
+  { env : environment
+  ; cur_fun : identifier
+  }
+
 let match_vector = function
   | Vector (a, t) -> (a, t)
   | Dataframe _ -> raise Not_supported
@@ -342,12 +347,12 @@ let subset2 v1 v2 =
   | Dataframe _, _ -> raise Not_supported
   | _, Dataframe _ -> raise Invalid_argument_type
 
-let subset1_assign env x idx v =
-  match (lookup env x, idx, v) with
+let subset1_assign conf x idx v =
+  match (lookup conf.env x, idx, v) with
   | (Vector _ as v1), None, (Vector _ as v3) ->
       if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
-      let env = Env.add x v3 env in
-      (env, v3)
+      let conf' = { conf with env = Env.add x v3 conf.env } in
+      (conf', v3)
   | (Vector (a1, t1) as v1), Some (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
       let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
       let t = type_lub t1 t3 in
@@ -361,27 +366,27 @@ let subset1_assign env x idx v =
           let n2 = Array.length a2 in
           if n2 <> n3 then raise Invalid_subset_replacement ;
           let res = update_at_pos t a1 a2 a3 in
-          let env = Env.add x (vector t res) env in
-          (env, v3)
+          let conf' = { conf with env = Env.add x (vector t res) conf.env } in
+          (conf', v3)
       | T_Int ->
           let a2 = a2 |> Array.map get_int in
           if contains_na a2 || (not @@ is_positive_subsetting a2) then raise Invalid_subset_index ;
           if is_zero_subsetting a2 then
-            let env = Env.add x (vector t a1) env in
-            (env, v3)
+            let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
+            (conf', v3)
           else
             let a2 = a2 |> Array.filter (fun x -> x <> Some 0) in
             let n2 = Array.length a2 in
             if n2 <> n3 then raise Invalid_subset_replacement ;
             let res = update_at_pos t a1 a2 a3 in
-            let env = Env.add x (vector t res) env in
-            (env, v3)
+            let conf' = { conf with env = Env.add x (vector t res) conf.env } in
+            (conf', v3)
       | T_Str -> raise Invalid_argument_type )
   | Dataframe _, _, _ -> raise Not_supported
   | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
-let subset2_assign env x idx v =
-  match (lookup env x, idx, v) with
+let subset2_assign conf x idx v =
+  match (lookup conf.env x, idx, v) with
   | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
       let n2, n3 = (vector_length v2, vector_length v3) in
       if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
@@ -393,8 +398,8 @@ let subset2_assign env x idx v =
       | Some i when 1 <= i ->
           let a1 = extend i t a1 in
           a1.(i - 1) <- a3.(0) ;
-          let env = Env.add x (vector t a1) env in
-          (env, v3)
+          let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
+          (conf', v3)
       | Some _ | None -> raise Invalid_subset_index )
   | Dataframe _, _, _ -> raise Not_supported
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
@@ -414,9 +419,9 @@ let eval_expr env expr =
   | Call (_, _) -> raise Todo
   | Simple_Expression se -> eval se
 
-let rec eval_stmt env stmt =
-  let eval = eval_expr env in
-  let eval_se = eval_simple_expr env in
+let rec eval_stmt conf stmt =
+  let eval = eval_expr conf.env in
+  let eval_se = eval_simple_expr conf.env in
 
   let eval_if cond s2 s3 =
     match cond with
@@ -425,41 +430,41 @@ let rec eval_stmt env stmt =
         let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
-        | Some true -> run_program env s2
-        | Some false -> run_program env s3 )
+        | Some true -> run_program conf s2
+        | Some false -> run_program conf s3 )
     | Dataframe _ -> raise Invalid_argument_type in
 
   let eval_for var seq stmts =
     match seq with
     | Vector (a, _) ->
-        let loop env i =
-          let env = Env.add var (vector_of_lit i) env in
-          Stdlib.fst @@ run_program env stmts in
-        let env = Array.fold_left loop env a in
-        (env, vector T_Bool [||])
+        let loop conf i =
+          let conf' = { conf with env = Env.add var (vector_of_lit i) conf.env } in
+          Stdlib.fst @@ run_program conf' stmts in
+        let conf' = Array.fold_left loop conf a in
+        (conf', vector T_Bool [||])
     | Dataframe _ -> raise Not_supported in
 
   match stmt with
   | Assign (x, e) ->
       let v = eval e in
-      let env = Env.add x v env in
-      (env, v)
-  | Subset1_Assign (x1, se2, e3) -> subset1_assign env x1 (Option.map eval_se se2) (eval e3)
-  | Subset2_Assign (x1, se2, e3) -> subset2_assign env x1 (eval_se se2) (eval e3)
+      let conf' = { conf with env = Env.add x v conf.env } in
+      (conf', v)
+  | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
+  | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
   | Function_Def (_, _, _) ->
       (* TODO: Restrict parser so that functions can only be defined at top level *)
       raise Todo
   | If (e1, s2, s3) -> eval_if (eval e1) s2 s3
   | For (x1, e2, s3) -> eval_for x1 (eval e2) s3
-  | Expression e -> (env, eval e)
+  | Expression e -> (conf, eval e)
 
-and run_program env (stmts : statement list) =
+and run_program conf (stmts : statement list) =
   match stmts with
-  | [] -> (env, vector T_Bool [||])
-  | [ stmt ] -> eval_stmt env stmt
+  | [] -> (conf, vector T_Bool [||])
+  | [ stmt ] -> eval_stmt conf stmt
   | stmt :: stmts ->
-      let env', _ = eval_stmt env stmt in
-      (run_program [@tailcall]) env' stmts
+      let conf', _ = eval_stmt conf stmt in
+      (run_program [@tailcall]) conf' stmts
 
 (* TODO: Program state
     program counter
@@ -470,6 +475,8 @@ and run_program env (stmts : statement list) =
     stack of (return value, env, return pc)
 *)
 
+let start = { env = Env.empty; cur_fun = "main$" }
+
 let run s =
   let program = Parse.parse s in
-  print_endline @@ show_val @@ Stdlib.snd @@ run_program Env.empty program
+  print_endline @@ show_val @@ Stdlib.snd @@ run_program start program
