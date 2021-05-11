@@ -16,20 +16,26 @@ type configuration =
 exception Todo
 
 exception Object_not_found
+exception Function_not_found
+exception Invalid_number_of_args
 exception Invalid_argument_type
-exception Vector_lengths_do_not_match
 exception Invalid_subset_index
 exception Invalid_subset_replacement
+exception Repeated_parameter
+exception Vector_lengths_do_not_match
 exception Condition_length_greater_one
 exception Missing_value_need_true_false
 exception Not_supported
 
 let excptn_to_string = function
   | Object_not_found -> "object not found"
+  | Function_not_found -> "function not found"
+  | Invalid_number_of_args -> "invalid number of arguments"
   | Invalid_argument_type -> "invalid argument type"
-  | Vector_lengths_do_not_match -> "vector lengths do not match"
   | Invalid_subset_index -> "invalid subset index"
   | Invalid_subset_replacement -> "invalid subset replacement"
+  | Repeated_parameter -> "repeated parameter in function definition"
+  | Vector_lengths_do_not_match -> "vector lengths do not match"
   | Condition_length_greater_one -> "condition has length > 1"
   | Missing_value_need_true_false -> "missing value where TRUE/FALSE needed"
   | Not_supported -> "not supported"
@@ -414,8 +420,18 @@ let subset2_assign conf x idx v =
   | Dataframe _, _, _ -> raise Not_supported
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
-let eval_expr env expr =
-  let eval = eval_simple_expr env in
+let rec eval_expr conf expr =
+  let eval = eval_simple_expr conf.env in
+
+  let eval_call id args =
+    match FunTab.find_opt id conf.fun_tab with
+    | None -> raise Function_not_found
+    | Some (params, stmts) ->
+        if List.length args <> List.length params then raise Invalid_number_of_args ;
+        let fun_env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
+        let conf' = { conf with env = fun_env; cur_fun = id } in
+        Stdlib.snd @@ run_program conf' stmts in
+
   match expr with
   | Combine [] -> null
   | Combine ses -> combine @@ List.map eval ses
@@ -426,12 +442,18 @@ let eval_expr env expr =
   | Subset1 (se1, None) -> eval se1
   | Subset1 (se1, Some se2) -> subset1 (eval se1) (eval se2)
   | Subset2 (se1, se2) -> subset2 (eval se1) (eval se2)
-  | Call (_, _) -> raise Todo
+  | Call (id, ses) -> eval_call id (List.map eval ses)
   | Simple_Expression se -> eval se
 
-let rec eval_stmt conf stmt =
-  let eval = eval_expr conf.env in
+and eval_stmt conf stmt =
+  let eval = eval_expr conf in
   let eval_se = eval_simple_expr conf.env in
+
+  let eval_fun_def id params stmts =
+    let unique_params = List.sort_uniq String.compare params in
+    if List.length params <> List.length unique_params then raise Repeated_parameter ;
+    let conf' = { conf with fun_tab = FunTab.add id (params, stmts) conf.fun_tab } in
+    (conf', null) in
 
   let eval_if cond s2 s3 =
     match cond with
@@ -461,10 +483,7 @@ let rec eval_stmt conf stmt =
       (conf', v)
   | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
-  | Function_Def (id, args, stmts) ->
-      let fn = (args, stmts) in
-      let conf' = { conf with fun_tab = FunTab.add id fn conf.fun_tab } in
-      (conf', null)
+  | Function_Def (id, params, stmts) -> eval_fun_def id params stmts
   | If (e1, s2, s3) -> eval_if (eval e1) s2 s3
   | For (x1, e2, s3) -> eval_for x1 (eval e2) s3
   | Expression e -> (conf, eval e)
