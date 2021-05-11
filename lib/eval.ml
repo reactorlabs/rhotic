@@ -15,9 +15,14 @@ type configuration =
 
 exception Todo
 
-exception Object_not_found
-exception Function_not_found
-exception Invalid_number_of_args
+type invalid_number =
+  { expected : int
+  ; received : int
+  }
+
+exception Object_not_found of identifier
+exception Function_not_found of identifier
+exception Invalid_number_of_args of invalid_number
 exception Invalid_argument_type
 exception Invalid_subset_index
 exception Invalid_subset_replacement
@@ -28,9 +33,10 @@ exception Missing_value_need_true_false
 exception Not_supported
 
 let excptn_to_string = function
-  | Object_not_found -> "object not found"
-  | Function_not_found -> "function not found"
-  | Invalid_number_of_args -> "invalid number of arguments"
+  | Object_not_found x -> Printf.sprintf "object '%s' not found" x
+  | Function_not_found x -> Printf.sprintf "function '%s' not found" x
+  | Invalid_number_of_args { expected; received } ->
+      Printf.sprintf "invalid number of arguments, expected %d but received %d" expected received
   | Invalid_argument_type -> "invalid argument type"
   | Invalid_subset_index -> "invalid subset index"
   | Invalid_subset_replacement -> "invalid subset replacement"
@@ -104,7 +110,7 @@ let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) (x : li
 
 let lookup env x =
   match Env.find_opt x env with
-  | None -> raise Object_not_found
+  | None -> raise (Object_not_found x)
   | Some v -> v
 
 let eval_simple_expr env = function
@@ -425,9 +431,10 @@ let rec eval_expr conf expr =
 
   let eval_call id args =
     match FunTab.find_opt id conf.fun_tab with
-    | None -> raise Function_not_found
+    | None -> raise (Function_not_found id)
     | Some (params, stmts) ->
-        if List.length args <> List.length params then raise Invalid_number_of_args ;
+        let n1, n2 = (List.length args, List.length params) in
+        if n1 <> n2 then raise (Invalid_number_of_args { expected = n2; received = n1 }) ;
         let fun_env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
         let conf' = { conf with env = fun_env; cur_fun = id } in
         Stdlib.snd @@ run_program conf' stmts in
