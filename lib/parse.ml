@@ -10,7 +10,6 @@ let reserved =
   ; "T"
   ; "NA_i"
   ; "NA_s"
-  ; "combine"
   ; "data.frame"
   ; "as.logical"
   ; "as.integer"
@@ -110,8 +109,8 @@ let program =
     | _ -> fail "not subsetting" in
 
   let expr =
-    (* combine ::= 'combine' '(' simple_expr ',' ... ',' simple_expr ')' *)
-    let combine = string "combine" *> ws *> parens_comma_sep simple_expr >>| fun es -> Combine es in
+    (* combine ::= 'c '(' simple_expr ',' ... ',' simple_expr ')' *)
+    let combine = char 'c' *> ws *> parens_comma_sep simple_expr >>| fun es -> Combine es in
 
     (* dataframe ::= 'data.frame' '( binding ',' ... ',' binding ')
        binding   ::= identifier '=' simple_expr *)
