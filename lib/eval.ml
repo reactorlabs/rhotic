@@ -4,9 +4,13 @@ open Util
 module Env = Map.Make (Identifier)
 type environment = value Env.t
 
+module FunTab = Map.Make (Identifier)
+type function_table = (identifier list * statement list) FunTab.t
+
 type configuration =
   { env : environment
   ; cur_fun : identifier
+  ; fun_tab : function_table
   }
 
 exception Todo
@@ -107,6 +111,9 @@ let type_lub t1 t2 =
   | T_Str, _ | _, T_Str -> T_Str
   | T_Int, _ | _, T_Int -> T_Int
   | T_Bool, _ -> T_Bool
+
+(* We don't have the NULL vector, so for now use an empty boolean vector *)
+let null = vector T_Bool [||]
 
 let coerce_data from_ty to_ty data =
   (* NA is NA_int, true is 1, false is 0 *)
@@ -410,7 +417,7 @@ let subset2_assign conf x idx v =
 let eval_expr env expr =
   let eval = eval_simple_expr env in
   match expr with
-  | Combine [] -> vector T_Bool [||]
+  | Combine [] -> null
   | Combine ses -> combine @@ List.map eval ses
   | Dataframe_Ctor _ -> raise Not_supported
   | Coerce_Op (ty, se) -> coerce_value ty (eval se)
@@ -444,7 +451,7 @@ let rec eval_stmt conf stmt =
           let conf' = { conf with env = Env.add var (vector_of_lit i) conf.env } in
           Stdlib.fst @@ run_program conf' stmts in
         let conf' = Array.fold_left loop conf a in
-        (conf', vector T_Bool [||])
+        (conf', null)
     | Dataframe _ -> raise Not_supported in
 
   match stmt with
@@ -454,14 +461,17 @@ let rec eval_stmt conf stmt =
       (conf', v)
   | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
-  | Function_Def (_, _, _) -> raise Todo
+  | Function_Def (id, args, stmts) ->
+      let fn = (args, stmts) in
+      let conf' = { conf with fun_tab = FunTab.add id fn conf.fun_tab } in
+      (conf', null)
   | If (e1, s2, s3) -> eval_if (eval e1) s2 s3
   | For (x1, e2, s3) -> eval_for x1 (eval e2) s3
   | Expression e -> (conf, eval e)
 
 and run_program conf (stmts : statement list) =
   match stmts with
-  | [] -> (conf, vector T_Bool [||])
+  | [] -> (conf, null)
   | [ stmt ] -> eval_stmt conf stmt
   | stmt :: stmts ->
       let conf', _ = eval_stmt conf stmt in
@@ -476,7 +486,7 @@ and run_program conf (stmts : statement list) =
     stack of (return value, env, return pc)
 *)
 
-let start = { env = Env.empty; cur_fun = "main$" }
+let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
 
 let run s =
   let program = Parse.parse s in
