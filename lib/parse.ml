@@ -184,17 +184,19 @@ let program =
     combine <|> dataframe <|> coerce_op <|> unary_op <|> binary_op <|> subset' <|> call <|> se in
 
   (* stmt_list ::= stmt sep ... sep stmt
-      sep       ::= ; | [\n\r]+
-      block     ::= '{' stmt_list '}' *)
+     sep       ::= ; | [\n\r]+
+     block     ::= '{' stmt_list '}' *)
   let stmt_list stmt =
     let trailing = with_blank (char ';') <|> blank *> return '\n' in
     let seq_sep = with_blank (char ';') <|> take_while1 is_eol *> return '\n' in
     sep_by seq_sep (with_ws stmt) <* trailing in
 
-  let stmt =
+  let arrow = with_ws (string "<-") in
+  let block stmt = braces (stmt_list stmt) in
+
+  let stmt_no_fun =
     fix (fun stmt ->
-        let arrow = with_ws (string "<-") in
-        let block = braces (stmt_list stmt) in
+        let block = block stmt in
 
         (* assign ::= identifier '<-' expr *)
         let assign = lift2 (fun v e -> Assign (v, e)) (identifier <* arrow) expr in
@@ -210,14 +212,6 @@ let program =
             | Subset1 (Var x, se) -> Subset1_Assign (x, se, rhs)
             | Subset2 (Var x, se) -> Subset2_Assign (x, se, rhs) in
           lift2 subset_assign' (subset variable <* arrow) expr in
-
-        (* function_def ::= id <- function ( id , ... , id ) block *)
-        let fun_def =
-          lift3
-            (fun f params stmts -> Function_Def (f, params, stmts))
-            (identifier <* arrow <* string "function")
-            (with_ws @@ parens_comma_sep identifier)
-            block in
 
         (* if ::= if ( expr ) { stmt_list }
                 | if ( expr ) { stmt_list } else { stmt_list } *)
@@ -239,11 +233,27 @@ let program =
 
         let e = expr >>| fun e -> Expression e in
 
-        (* statement ::= assign | subset_assign | fun_def | if_stmt | for_loop | expr *)
-        assign <|> subset_assign <|> fun_def <|> if_stmt <|> for_loop <|> e) in
+        (* statement_no_fun ::= assign | subset_assign | if_stmt | for_loop | expr
 
-  (* program ::= stmt_list *)
-  stmt_list stmt
+           Function definitions are only allowed at the top level, otherwise parser rejects. *)
+        assign <|> subset_assign <|> if_stmt <|> for_loop <|> e) in
+
+  (* function_def ::= id <- function ( id , ... , id ) block
+
+     The block in a function definition may not contain function definition statements. *)
+  let fun_def =
+    lift3
+      (fun f params stmts -> Function_Def (f, params, stmts))
+      (identifier <* arrow <* string "function")
+      (with_ws @@ parens_comma_sep identifier)
+      (block stmt_no_fun) in
+
+  (* program ::= stmt_list
+
+     All statements (including function definitions) are allowed at the top level.
+
+     NOTE: Order is significant! Need to attempt parsing a function definition first. *)
+  stmt_list (fun_def <|> stmt_no_fun)
 
 let parse (str : string) =
   match parse_string ~consume:All program str with

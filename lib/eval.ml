@@ -1,6 +1,14 @@
 open Expr
 open Util
 
+module Env = Map.Make (Identifier)
+type environment = value Env.t
+
+type configuration =
+  { env : environment
+  ; cur_fun : identifier
+  }
+
 exception Todo
 
 exception Object_not_found
@@ -24,11 +32,6 @@ let excptn_to_string = function
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
       raise e
-
-type configuration =
-  { env : environment
-  ; cur_fun : identifier
-  }
 
 let match_vector = function
   | Vector (a, t) -> (a, t)
@@ -451,9 +454,7 @@ let rec eval_stmt conf stmt =
       (conf', v)
   | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
-  | Function_Def (_, _, _) ->
-      (* TODO: Restrict parser so that functions can only be defined at top level *)
-      raise Todo
+  | Function_Def (_, _, _) -> raise Todo
   | If (e1, s2, s3) -> eval_if (eval e1) s2 s3
   | For (x1, e2, s3) -> eval_for x1 (eval e2) s3
   | Expression e -> (conf, eval e)

@@ -105,7 +105,3 @@ let rec show_val = function
         Array.map2 (fun v n -> n ^ " = " ^ show_val v) cols names
         |> Array.to_list |> String.concat "; " in
       "[" ^ inner ^ "]"
-
-module Env = Map.Make (Identifier)
-
-type environment = value Env.t
