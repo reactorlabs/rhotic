@@ -503,15 +503,6 @@ and run_program conf (stmts : statement list) =
       let conf', _ = eval_stmt conf stmt in
       (run_program [@tailcall]) conf' stmts
 
-(* TODO: Program state
-    program counter
-    program (array of statements)
-    environment
-    current function
-    function table
-    stack of (return value, env, return pc)
-*)
-
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
 
 let run s =
