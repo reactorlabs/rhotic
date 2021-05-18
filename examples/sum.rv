@@ -1,0 +1,6 @@
+X <- c(1,1,2,NA)
+sum <- 0
+for (x in X) {
+  sum <- sum + x
+}
+sum

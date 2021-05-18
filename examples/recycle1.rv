@@ -1,0 +1,13 @@
+rep_over <- function(x, len_vec) {
+  res <- c()
+  for (i in len_vec) { res <- c(x, res) }
+  res
+}
+
+f <- function(x) {
+  y <- rep_over(1, x)
+  x + y
+}
+
+x <- c(1,2,3)
+f(x)
