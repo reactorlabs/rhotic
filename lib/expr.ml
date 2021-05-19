@@ -67,6 +67,7 @@ type binary_op =
   | Arithmetic of arithmetic_op
   | Relational of relational_op
   | Logical    of logical_op
+  | Seq
 [@@deriving eq, show { with_path = false }]
 
 type expression =

@@ -162,7 +162,8 @@ let program =
         <|> with_ws (string "&&") *> return (Logical And)
         <|> with_ws (string "||") *> return (Logical Or)
         <|> with_ws (char '&') *> return (Logical Elementwise_And)
-        <|> with_ws (char '|') *> return (Logical Elementwise_Or) in
+        <|> with_ws (char '|') *> return (Logical Elementwise_Or)
+        <|> with_ws (char ':') *> return Seq in
       lift3 (fun se1 op se2 -> Binary_Op (op, se1, se2)) simple_expr b_op simple_expr in
 
     (* subset  ::= subset1 | subset2
@@ -178,9 +179,11 @@ let program =
     let se = simple_expr >>| fun se -> Simple_Expression se in
 
     (* expression ::= combine | dataframe
-                    | coerce_op | unary_op | binary_op
-                    | subset | call | simple_expr *)
-    combine <|> dataframe <|> coerce_op <|> unary_op <|> binary_op <|> subset' <|> call <|> se in
+                       | coerce_op | binary_op | unary_op
+                       | subset | call | simple_expr
+       NOTE: Order is significant, want to parse binary ops before unary ops, so that -4 is parsed
+       as a literal rather than a unary op. *)
+    combine <|> dataframe <|> coerce_op <|> binary_op <|> unary_op <|> subset' <|> call <|> se in
 
   (* stmt_list ::= stmt sep ... sep stmt
      sep       ::= ; | [\n\r]+

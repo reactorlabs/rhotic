@@ -28,8 +28,10 @@ exception Invalid_subset_index
 exception Invalid_subset_replacement
 exception Repeated_parameter
 exception Vector_lengths_do_not_match
-exception Condition_length_greater_one
+exception Vector_length_greater_one
+exception Argument_length_zero
 exception Missing_value_need_true_false
+exception NA_not_allowed
 exception Not_supported
 
 let excptn_to_string = function
@@ -42,8 +44,10 @@ let excptn_to_string = function
   | Invalid_subset_replacement -> "invalid subset replacement"
   | Repeated_parameter -> "repeated parameter in function definition"
   | Vector_lengths_do_not_match -> "vector lengths do not match"
-  | Condition_length_greater_one -> "condition has length > 1"
+  | Vector_length_greater_one -> "vector has length > 1"
+  | Argument_length_zero -> "argument of length 0"
   | Missing_value_need_true_false -> "missing value where TRUE/FALSE needed"
+  | NA_not_allowed -> "NA not allowed"
   | Not_supported -> "not supported"
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
@@ -277,6 +281,29 @@ let binary op v1 v2 =
     | Elementwise_And -> elementwise and'
     | Elementwise_Or -> elementwise or' in
 
+  let sequence_op =
+    let a1, a2 = (vector_data v1, vector_data v2) in
+    let t1, t2 = (vector_type v1, vector_type v2) in
+
+    if Array.length a1 = 0 || Array.length a2 = 0 then raise Argument_length_zero ;
+    if Array.length a1 > 1 || Array.length a2 > 1 then raise Vector_length_greater_one ;
+
+    (* Everything gets coerced to integer *)
+    let a1 = a1 |> coerce_data t1 T_Int |> Array.map get_int in
+    let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
+
+    match (a1.(0), a2.(0)) with
+    | Some e1, Some e2 ->
+        (* We actually want the opposite sign of Stdlib.compare: + if e1 < e2 *)
+        let sign = Stdlib.compare e2 e1 in
+        let len = (Stdlib.abs (e2 - e1)) + 1 in
+        let res = Array.make len None in
+        for i = 0 to len - 1 do
+          res.(i) <- Some (e1 + (sign * i))
+        done ;
+        res |> Array.map put_int |> vector T_Int
+    | None, None | None, _ | _, None -> raise NA_not_allowed in
+
   match (v1, v2) with
   | Vector _, Vector _ -> (
       (* Both vectors must have the same length. *)
@@ -284,7 +311,8 @@ let binary op v1 v2 =
       match op with
       | Arithmetic o -> arithmetic_op o
       | Relational o -> relational_op o
-      | Logical o -> logical_op o )
+      | Logical o -> logical_op o
+      | Seq -> sequence_op )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
 (* Checks that all elements are non-negative or NA.
@@ -465,7 +493,8 @@ and eval_stmt conf stmt =
   let eval_if cond s2 s3 =
     match cond with
     | Vector _ as v1 -> (
-        if vector_length v1 <> 1 then raise Condition_length_greater_one ;
+        if vector_length v1 = 0 then raise Argument_length_zero ;
+        if vector_length v1 > 1 then raise Vector_length_greater_one ;
         let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
