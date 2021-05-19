@@ -26,3 +26,10 @@ cd rhotic
 make deps # install dependencies
 make
 ```
+
+Running rhotic
+--------------
+
+Running `./rhotic` without arguments starts an interactive REPL.
+
+`./rhotic -f examples/sum.rv` runs the sum example.
