@@ -1,0 +1,39 @@
+length <- function(x) {
+  len <- 0
+  for (i in x) {
+    len <- len + 1
+  }
+  len
+}
+
+rep <- function(x, times) {
+  if (times == 0) {
+    x
+  } else {
+    res <- c()
+    for (i in 1:times) {
+        res <- c(x, res)
+    }
+    res
+  }
+}
+
+recycle <- function(x, len) {
+  x_len <- length(x)
+  times <- len / x_len
+  rep(x, times)
+}
+
+x <- c(1,2,3)
+y <- c(10,20,30,40,50,60)
+
+l1 <- length(x)
+l2 <- length(y)
+
+if (l1 < l2) {
+  x <- recycle(x, l2)
+} else {
+  y <- recycle(y, l1)
+}
+
+x+y

@@ -281,7 +281,8 @@ let binary op v1 v2 =
     | Elementwise_And -> elementwise and'
     | Elementwise_Or -> elementwise or' in
 
-  let sequence_op =
+  (* This needs to be a function, not a constant, because it might raise an exception *)
+  let sequence_op () =
     let a1, a2 = (vector_data v1, vector_data v2) in
     let t1, t2 = (vector_type v1, vector_type v2) in
 
@@ -296,7 +297,7 @@ let binary op v1 v2 =
     | Some e1, Some e2 ->
         (* We actually want the opposite sign of Stdlib.compare: + if e1 < e2 *)
         let sign = Stdlib.compare e2 e1 in
-        let len = (Stdlib.abs (e2 - e1)) + 1 in
+        let len = Stdlib.abs (e2 - e1) + 1 in
         let res = Array.make len None in
         for i = 0 to len - 1 do
           res.(i) <- Some (e1 + (sign * i))
@@ -312,7 +313,7 @@ let binary op v1 v2 =
       | Arithmetic o -> arithmetic_op o
       | Relational o -> relational_op o
       | Logical o -> logical_op o
-      | Seq -> sequence_op )
+      | Seq -> sequence_op () )
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
 (* Checks that all elements are non-negative or NA.

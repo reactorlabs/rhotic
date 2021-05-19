@@ -1,6 +1,8 @@
 rep_over <- function(x, len_vec) {
   res <- c()
-  for (i in len_vec) { res <- c(x, res) }
+  for (i in len_vec) {
+    res <- c(x, res)
+  }
   res
 }
 
