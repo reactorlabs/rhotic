@@ -43,13 +43,13 @@ let to_r stmt_list =
         match op with
         | T_Bool -> coerce "as.logical"
         | T_Int -> coerce "as.integer"
-        | T_Str -> coerce "as.character" )
+        | T_Str -> coerce "as.character")
     | Unary_Op (op, se) -> (
         let unary op = Printf.sprintf "%s%s" op (simple_expr_to_r se) in
         match op with
         | Logical_Not -> unary "!"
         | Unary_Plus -> unary "+"
-        | Unary_Minus -> unary "-" )
+        | Unary_Minus -> unary "-")
     | Binary_Op (op, se1, se2) -> (
         let binary op = Printf.sprintf "%s%s%s" (simple_expr_to_r se1) op (simple_expr_to_r se2) in
         match op with
@@ -59,7 +59,7 @@ let to_r stmt_list =
             | Minus -> binary " - "
             | Times -> binary " * "
             | Int_Divide -> binary " %/% "
-            | Modulo -> binary " %% " )
+            | Modulo -> binary " %% ")
         | Relational o -> (
             match o with
             | Less -> binary " < "
@@ -67,14 +67,14 @@ let to_r stmt_list =
             | Greater -> binary " > "
             | Greater_Equal -> binary " >= "
             | Equal -> binary " == "
-            | Not_Equal -> binary " != " )
+            | Not_Equal -> binary " != ")
         | Logical o -> (
             match o with
             | And -> binary " && "
             | Or -> binary " || "
             | Elementwise_And -> binary " & "
-            | Elementwise_Or -> binary " | " )
-        | Seq -> binary ":" )
+            | Elementwise_Or -> binary " | ")
+        | Seq -> binary ":")
     | Subset1 (se1, None) -> Printf.sprintf "%s[]" (simple_expr_to_r se1)
     | Subset1 (se1, Some se2) ->
         Printf.sprintf "%s[%s]" (simple_expr_to_r se1) (simple_expr_to_r se2)

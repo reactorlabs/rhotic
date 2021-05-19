@@ -189,7 +189,7 @@ let unary op = function
           a |> coerce_data t T_Int |> vector T_Int
       | Unary_Minus ->
           (* Coerce to integer, apply unary negation *)
-          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int )
+          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int)
   | Dataframe _ -> raise Not_supported
 
 let binary op v1 v2 =
@@ -235,7 +235,7 @@ let binary op v1 v2 =
         | Greater -> relational (fun x y -> Some (String.compare x y > 0))
         | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
         | Equal -> relational (fun x y -> Some (String.compare x y = 0))
-        | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)) )
+        | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)))
     | T_Int, _ | _, T_Int | T_Bool, _ -> (
         let a1 = a1 |> coerce_data t1 T_Int in
         let a2 = a2 |> coerce_data t2 T_Int in
@@ -248,7 +248,7 @@ let binary op v1 v2 =
         | Greater -> relational (fun x y -> Some (x > y))
         | Greater_Equal -> relational (fun x y -> Some (x >= y))
         | Equal -> relational (fun x y -> Some (x = y))
-        | Not_Equal -> relational (fun x y -> Some (x <> y)) ) in
+        | Not_Equal -> relational (fun x y -> Some (x <> y))) in
 
   let logical_op o =
     let a1, a2 = (vector_data v1, vector_data v2) in
@@ -313,7 +313,7 @@ let binary op v1 v2 =
       | Arithmetic o -> arithmetic_op o
       | Relational o -> relational_op o
       | Logical o -> logical_op o
-      | Seq -> sequence_op () )
+      | Seq -> sequence_op ())
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
 
 (* Checks that all elements are non-negative or NA.
@@ -382,7 +382,7 @@ let subset1 v1 v2 =
           let a2 = a2 |> Array.map get_int in
           if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
           a2 |> get_at_pos t1 a1 |> vector t1
-      | T_Str -> raise Invalid_argument_type )
+      | T_Str -> raise Invalid_argument_type)
   | Dataframe _, _ -> raise Not_supported
   | _, Dataframe _ -> raise Invalid_argument_type
 
@@ -394,7 +394,7 @@ let subset2 v1 v2 =
       let a2 = a2 |> coerce_data t2 T_Int in
       match get_int a2.(0) with
       | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
-      | Some _ | None -> raise Invalid_subset_index )
+      | Some _ | None -> raise Invalid_subset_index)
   | Dataframe _, _ -> raise Not_supported
   | _, Dataframe _ -> raise Invalid_argument_type
 
@@ -432,7 +432,7 @@ let subset1_assign conf x idx v =
             let res = update_at_pos t a1 a2 a3 in
             let conf' = { conf with env = Env.add x (vector t res) conf.env } in
             (conf', v3)
-      | T_Str -> raise Invalid_argument_type )
+      | T_Str -> raise Invalid_argument_type)
   | Dataframe _, _, _ -> raise Not_supported
   | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
@@ -451,7 +451,7 @@ let subset2_assign conf x idx v =
           a1.(i - 1) <- a3.(0) ;
           let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
           (conf', v3)
-      | Some _ | None -> raise Invalid_subset_index )
+      | Some _ | None -> raise Invalid_subset_index)
   | Dataframe _, _, _ -> raise Not_supported
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
@@ -500,7 +500,7 @@ and eval_stmt conf stmt =
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
         | Some true -> run_program conf s2
-        | Some false -> run_program conf s3 )
+        | Some false -> run_program conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
   let eval_for var seq stmts =

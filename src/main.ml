@@ -9,9 +9,9 @@ let parse_and_run ?(conf = Eval.start) input =
     (* return the new configuration *)
     conf'
   with e ->
-    ( match e with
+    (match e with
     | Parse.Parse_error msg -> Printf.printf "Parse error%s\n" msg
-    | e -> Printf.printf "Error: %s\n" @@ Eval.excptn_to_string e ) ;
+    | e -> Printf.printf "Error: %s\n" @@ Eval.excptn_to_string e) ;
     (* return the old configuration *)
     conf
 
@@ -40,7 +40,7 @@ let repl () =
     let input = Stdlib.read_line () in
     if String.prefix ~pre:"#" input then (
       handle_directive input ;
-      conf )
+      conf)
     else if String.trim input = "" then conf
     else parse_and_run ~conf input in
 

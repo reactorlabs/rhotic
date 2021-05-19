@@ -20,7 +20,7 @@ Getting Started
 Install [opam](https://opam.ocaml.org/). Then run the following:
 
 ```
-opam switch create ocaml.4.10.0
+opam switch create 4.12.0
 git clone https://github.com/reactorlabs/rhotic.git
 cd rhotic
 make deps # install dependencies
