@@ -215,21 +215,23 @@ let program =
             | Subset2 (Var x, se) -> Subset2_Assign (x, se, rhs) in
           lift2 subset_assign' (subset variable <* arrow) expr in
 
-        (* if ::= if ( expr ) { stmt_list }
-                | if ( expr ) { stmt_list } else { stmt_list } *)
+        (* if ::= if ( simple_expr ) { stmt_list }
+                | if ( simple_expr ) { stmt_list } else { stmt_list } *)
         let if_stmt =
           lift3
-            (fun e s1 s2 -> If (e, s1, s2))
-            (string "if" *> ws *> parens expr)
+            (fun se s1 s2 -> If (se, s1, s2))
+            (string "if" *> ws *> parens simple_expr)
             block
             (with_ws (string "else") *> block)
-          <|> lift2 (fun e s -> If (e, s, [])) (string "if" *> ws *> parens expr) block in
+          <|> lift2 (fun se s -> If (se, s, [])) (string "if" *> ws *> parens simple_expr) block
+        in
 
-        (* for ::= 'for '(' id 'in' expr ')' block *)
+        (* for ::= 'for '(' id 'in' simple_expr ')' block *)
         let for_loop =
-          let loop_expr = lift2 (fun id e -> (id, e)) (identifier <* with_ws (string "in")) expr in
+          let loop_expr =
+            lift2 (fun id se -> (id, se)) (identifier <* with_ws (string "in")) simple_expr in
           lift2
-            (fun (id, e) stmts -> For (id, e, stmts))
+            (fun (id, se) stmts -> For (id, se, stmts))
             (string "for" *> ws *> parens loop_expr)
             block in
 

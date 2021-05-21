@@ -102,10 +102,10 @@ let to_r stmt_list =
     | Function_Def (f, params, stmts) ->
         let params' = params |> String.concat ", " in
         Printf.sprintf "%s <- function (%s) %s" f params' (block_to_r stmts)
-    | If (e, s1, []) -> Printf.sprintf "if (%s) %s" (expr_to_r e) (block_to_r s1)
-    | If (e, s1, s2) ->
-        Printf.sprintf "if (%s) %s else %s" (expr_to_r e) (block_to_r s1) (block_to_r s2)
-    | For (x, e, s) -> Printf.sprintf "for (%s in %s) %s" x (expr_to_r e) (block_to_r s)
+    | If (se, s1, []) -> Printf.sprintf "if (%s) %s" (simple_expr_to_r se) (block_to_r s1)
+    | If (se, s1, s2) ->
+        Printf.sprintf "if (%s) %s else %s" (simple_expr_to_r se) (block_to_r s1) (block_to_r s2)
+    | For (x, se, s) -> Printf.sprintf "for (%s in %s) %s" x (simple_expr_to_r se) (block_to_r s)
     | Expression e -> expr_to_r e in
 
   stmt_list |> List.map stmt_to_r |> String.concat "\n"

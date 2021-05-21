@@ -521,8 +521,8 @@ and eval_stmt conf stmt =
   | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
   | Function_Def (id, params, stmts) -> eval_fun_def id params stmts
-  | If (e1, s2, s3) -> eval_if (eval e1) s2 s3
-  | For (x1, e2, s3) -> eval_for x1 (eval e2) s3
+  | If (se1, s2, s3) -> eval_if (eval_se se1) s2 s3
+  | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
   | Expression e -> (conf, eval e)
 
 and run_program conf (stmts : statement list) =
