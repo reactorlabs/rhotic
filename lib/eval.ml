@@ -1,19 +1,7 @@
 open Expr
 open Util
 
-module Env = Map.Make (Identifier)
-type environment = value Env.t
-
-module FunTab = Map.Make (Identifier)
-type function_table = (identifier list * statement list) FunTab.t
-
-type configuration =
-  { env : environment
-  ; cur_fun : identifier
-  ; fun_tab : function_table
-  }
-
-exception Todo
+let m = new Monitor.monitor
 
 type invalid_number =
   { expected : int
@@ -32,7 +20,6 @@ exception Vector_length_greater_one
 exception Argument_length_zero
 exception Missing_value_need_true_false
 exception NA_not_allowed
-exception Not_supported
 
 let excptn_to_string = function
   | Object_not_found x -> Printf.sprintf "object '%s' not found" x
@@ -52,21 +39,6 @@ let excptn_to_string = function
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
       raise e
-
-let match_vector = function
-  | Vector (a, t) -> (a, t)
-  | Dataframe _ -> raise Not_supported
-let vector_data = Stdlib.fst % match_vector
-let vector_type = Stdlib.snd % match_vector
-let vector_length = Array.length % vector_data
-
-let get_tag = function
-  | Bool _ | NA_bool -> T_Bool
-  | Int _ | NA_int -> T_Int
-  | Str _ | NA_str -> T_Str
-
-let vector_of_lit l = Vector ([| l |], get_tag l)
-let vector t v = Vector (v, t)
 
 let na_of = function
   | T_Bool -> NA_bool
@@ -466,7 +438,7 @@ let rec eval_expr conf expr =
         if n1 <> n2 then raise (Invalid_number_of_args { expected = n2; received = n1 }) ;
         let fun_env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
         let conf' = { conf with env = fun_env; cur_fun = id } in
-        Stdlib.snd @@ run_program conf' stmts in
+        Stdlib.snd @@ run_statements conf' stmts in
 
   match expr with
   | Combine [] -> null
@@ -478,7 +450,11 @@ let rec eval_expr conf expr =
   | Subset1 (se1, None) -> eval se1
   | Subset1 (se1, Some se2) -> subset1 (eval se1) (eval se2)
   | Subset2 (se1, se2) -> subset2 (eval se1) (eval se2)
-  | Call (id, ses) -> eval_call id (List.map eval ses)
+  | Call (id, ses) ->
+      let args = List.map eval ses in
+      let res = eval_call id args in
+      m#record_call conf res id args ;
+      res
   | Simple_Expression se -> eval se
 
 and eval_stmt conf stmt =
@@ -499,8 +475,8 @@ and eval_stmt conf stmt =
         let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
-        | Some true -> run_program conf s2
-        | Some false -> run_program conf s3)
+        | Some true -> run_statements conf s2
+        | Some false -> run_statements conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
   let eval_for var seq stmts =
@@ -508,7 +484,7 @@ and eval_stmt conf stmt =
     | Vector (a, _) ->
         let loop conf i =
           let conf' = { conf with env = Env.add var (vector_of_lit i) conf.env } in
-          Stdlib.fst @@ run_program conf' stmts in
+          Stdlib.fst @@ run_statements conf' stmts in
         let conf' = Array.fold_left loop conf a in
         (conf', null)
     | Dataframe _ -> raise Not_supported in
@@ -520,21 +496,34 @@ and eval_stmt conf stmt =
       (conf', v)
   | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
-  | Function_Def (id, params, stmts) -> eval_fun_def id params stmts
+  | Function_Def (id, params, stmts) ->
+      let res = eval_fun_def id params stmts in
+      m#record_fun_def conf id params ;
+      res
   | If (se1, s2, s3) -> eval_if (eval_se se1) s2 s3
   | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
   | Expression e -> (conf, eval e)
 
-and run_program conf (stmts : statement list) =
+and run_statements conf (stmts : statement list) =
   match stmts with
-  | [] -> (conf, null)
-  | [ stmt ] -> eval_stmt conf stmt
+  | [] ->
+      (* This is to handle the empty program *)
+      (conf, null)
+  | [ stmt ] ->
+      (* This is the base case; we want to return a value *)
+      let res = eval_stmt conf stmt in
+      res
   | stmt :: stmts ->
       let conf', _ = eval_stmt conf stmt in
-      (run_program [@tailcall]) conf' stmts
+      (run_statements [@tailcall]) conf' stmts
+
+let run_program conf stmts =
+  let res = run_statements conf stmts in
+  m#dump_table ;
+  res
 
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
 
 let run s =
   let program = Parse.parse s in
-  print_endline @@ show_val @@ Stdlib.snd @@ run_program start program
+  Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_program start program
