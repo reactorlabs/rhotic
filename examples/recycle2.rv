@@ -7,11 +7,13 @@ length <- function(x) {
 }
 
 rep <- function(x, times) {
-  if (times == 0) {
+  cond <- times == 0
+  if (cond) {
     x
   } else {
     res <- c()
-    for (i in 1:times) {
+    seq <- 1:times
+    for (i in seq) {
         res <- c(x, res)
     }
     res
@@ -30,7 +32,8 @@ y <- c(10,20,30,40,50,60)
 l1 <- length(x)
 l2 <- length(y)
 
-if (l1 < l2) {
+cond <- l1 < l2
+if (cond) {
   x <- recycle(x, l2)
 } else {
   y <- recycle(y, l1)
