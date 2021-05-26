@@ -1,7 +1,7 @@
 open Expr
 open Util
 
-let m = new Monitor.monitor
+let m = new FunctionTypesElementwiseMerge.monitor
 
 type invalid_number =
   { expected : int
