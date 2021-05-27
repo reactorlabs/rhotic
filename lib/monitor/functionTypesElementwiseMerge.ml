@@ -50,7 +50,7 @@ type abstract_function_types = abstract_type list FunTab.t
 
 class monitor =
   object
-    val mutable recorded_functions = FunTab.empty
+    val mutable recorded_functions : abstract_function_types = FunTab.empty
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)

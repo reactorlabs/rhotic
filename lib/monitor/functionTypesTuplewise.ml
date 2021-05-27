@@ -9,11 +9,11 @@ end)
 (* Map of function ID to abstract signature
    The abstract signature is a set of concrete signatures, where the FIRST element is the return
    type and the rest of the list represents the parameter types, in order *)
-type abstract_function_types = SignatureSet.t FunTab.t
+type function_types = SignatureSet.t FunTab.t
 
 class monitor =
   object
-    val mutable recorded_functions = FunTab.empty
+    val mutable recorded_functions : function_types = FunTab.empty
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)

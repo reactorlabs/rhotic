@@ -3,7 +3,8 @@ open Common
 open Util
 
 let monitors =
-  [ new FunctionTypesTuplewise.monitor
+  [ new FunctionObservedNA.monitor
+  ; new FunctionTypesTuplewise.monitor
   ; new FunctionTypesElementwiseSet.monitor
   ; new FunctionTypesElementwiseMerge.monitor
   ]
