@@ -45,5 +45,3 @@ module String = struct
       Some (String.sub s len_p (String.length s - len_p))
     else None
 end
-
-exception Todo

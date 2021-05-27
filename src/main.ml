@@ -11,7 +11,7 @@ let parse_and_run ?(conf = Eval.start) input =
   with e ->
     (match e with
     | Parse.Parse_error msg -> Printf.printf "Parse error%s\n" msg
-    | e -> Printf.printf "Error: %s\n" @@ Eval.excptn_to_string e) ;
+    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
     (* return the old configuration *)
     conf
 

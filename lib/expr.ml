@@ -1,5 +1,3 @@
-exception Not_supported
-
 type literal =
   | NA_bool
   | Bool    of bool
@@ -20,11 +18,6 @@ type type_tag =
   | T_Int [@printer fun fmt _ -> fprintf fmt "Int"]
   | T_Str [@printer fun fmt _ -> fprintf fmt "Str"]
 [@@deriving eq, show { with_path = false }]
-
-let get_tag = function
-  | Bool _ | NA_bool -> T_Bool
-  | Int _ | NA_int -> T_Int
-  | Str _ | NA_str -> T_Str
 
 module Identifier = struct
   type t = string
@@ -113,25 +106,3 @@ let rec show_val = function
         Array.map2 (fun v n -> n ^ " = " ^ show_val v) cols names
         |> Array.to_list |> String.concat "; " in
       "[" ^ inner ^ "]"
-
-let match_vector = function
-  | Vector (a, t) -> (a, t)
-  | Dataframe _ -> raise Not_supported
-let vector_data v = Stdlib.fst @@ match_vector v
-let vector_type v = Stdlib.snd @@ match_vector v
-let vector_length v = Array.length @@ vector_data v
-
-let vector_of_lit l = Vector ([| l |], get_tag l)
-let vector t v = Vector (v, t)
-
-module Env = Map.Make (Identifier)
-type environment = value Env.t
-
-module FunTab = Map.Make (Identifier)
-type function_table = (identifier list * statement list) FunTab.t
-
-type configuration =
-  { env : environment
-  ; cur_fun : identifier
-  ; fun_tab : function_table
-  }
