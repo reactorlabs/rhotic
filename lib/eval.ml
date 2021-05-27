@@ -2,7 +2,8 @@ open Expr
 open Common
 open Util
 
-let m = new FunctionTypesElementwiseMerge.monitor
+let monitors =
+  [ new FunctionTypesElementwiseSet.monitor; new FunctionTypesElementwiseMerge.monitor ]
 
 let lookup env x =
   match Env.find_opt x env with
@@ -370,7 +371,7 @@ let rec eval_expr conf expr =
   | Call (id, ses) ->
       let args = List.map eval ses in
       let res = eval_call id args in
-      m#record_call conf res id args ;
+      List.iter (fun m -> m#record_call conf res id args) monitors ;
       res
   | Simple_Expression se -> eval se
 
@@ -415,7 +416,7 @@ and eval_stmt conf stmt =
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
   | Function_Def (id, params, stmts) ->
       let res = eval_fun_def id params stmts in
-      m#record_fun_def conf id params ;
+      List.iter (fun m -> m#record_fun_def conf id params) monitors ;
       res
   | If (se1, s2, s3) -> eval_if (eval_se se1) s2 s3
   | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
@@ -436,7 +437,7 @@ and run_statements conf (stmts : statement list) =
 
 let run_program conf stmts =
   let res = run_statements conf stmts in
-  m#dump_table ;
+  List.iter (fun m -> m#dump_table) monitors ;
   res
 
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }

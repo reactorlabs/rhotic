@@ -44,7 +44,7 @@ let to_abstract_type = function
   | T_Str -> Str
 
 (* Map of function ID to abstract signature
-   The abstract signature is a list of abstract types, where the FIRST element is the return type 
+   The abstract signature is a list of abstract types, where the FIRST element is the return type
    and the rest of the list represents the parameter types, in order *)
 type abstract_function_types = abstract_type list FunTab.t
 
@@ -70,13 +70,11 @@ class monitor =
       let init = List.init n (fun _ -> Bot) in
       recorded_functions <- FunTab.add id init recorded_functions
 
-    method dump_table =
-      let bindings = FunTab.to_seq recorded_functions in
+    method dump_table : unit =
+      Stdlib.print_endline ">>> FunctionTypesElementwiseMerge: dumping table <<<" ;
       let f (id, types) =
         let type_str = List.map show_abstract_type types in
         let ret, args = (List.hd type_str, List.tl type_str) in
         Printf.printf "\t%s: (%s) -> %s\n" id (String.concat ", " args) ret in
-      Stdlib.print_endline ">>> Dumping table of function types <<<" ;
-      Seq.iter f bindings ;
-      Stdlib.print_endline ">>> Finished <<<"
+      FunTab.to_seq recorded_functions |> Seq.iter f
   end

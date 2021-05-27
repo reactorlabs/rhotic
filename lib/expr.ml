@@ -17,7 +17,7 @@ type type_tag =
   | T_Bool [@printer fun fmt _ -> fprintf fmt "Bool"]
   | T_Int [@printer fun fmt _ -> fprintf fmt "Int"]
   | T_Str [@printer fun fmt _ -> fprintf fmt "Str"]
-[@@deriving eq, show { with_path = false }]
+[@@deriving eq, ord, show { with_path = false }]
 
 module Identifier = struct
   type t = string
