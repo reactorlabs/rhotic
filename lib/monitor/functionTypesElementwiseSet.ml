@@ -1,6 +1,5 @@
 open Expr
 open Common
-(* open Util *)
 
 module TypeSet = Set.Make (struct
   type t = type_tag
@@ -32,7 +31,7 @@ class monitor =
       let init = List.init n (fun _ -> TypeSet.empty) in
       recorded_functions <- FunTab.add id init recorded_functions
 
-    method dump_table : unit =
+    method dump_table () : unit =
       Stdlib.print_endline ">>> FunctionTypesElementwiseSet: dumping table <<<" ;
       let f (id, types) =
         let set_to_s ts =

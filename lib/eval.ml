@@ -3,7 +3,10 @@ open Common
 open Util
 
 let monitors =
-  [ new FunctionTypesElementwiseSet.monitor; new FunctionTypesElementwiseMerge.monitor ]
+  [ new FunctionTypesTuplewise.monitor
+  ; new FunctionTypesElementwiseSet.monitor
+  ; new FunctionTypesElementwiseMerge.monitor
+  ]
 
 let lookup env x =
   match Env.find_opt x env with
@@ -437,7 +440,7 @@ and run_statements conf (stmts : statement list) =
 
 let run_program conf stmts =
   let res = run_statements conf stmts in
-  List.iter (fun m -> m#dump_table) monitors ;
+  List.iter (fun m -> m#dump_table ()) monitors ;
   res
 
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }

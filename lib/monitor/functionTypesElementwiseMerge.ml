@@ -70,7 +70,7 @@ class monitor =
       let init = List.init n (fun _ -> Bot) in
       recorded_functions <- FunTab.add id init recorded_functions
 
-    method dump_table : unit =
+    method dump_table () : unit =
       Stdlib.print_endline ">>> FunctionTypesElementwiseMerge: dumping table <<<" ;
       let f (id, types) =
         let type_str = List.map show_abstract_type types in
