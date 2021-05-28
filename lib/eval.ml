@@ -2,7 +2,7 @@ open Expr
 open Common
 open Util
 
-let monitors =
+let monitors : Monitor.monitor list =
   [ new FunctionObservedNA.monitor
   ; new FunctionTypesTuplewise.monitor
   ; new FunctionTypesElementwiseSet.monitor
@@ -441,7 +441,7 @@ and run_statements conf (stmts : statement list) =
 
 let run_program conf stmts =
   let res = run_statements conf stmts in
-  List.iter (fun m -> m#dump_table ()) monitors ;
+  List.iter (fun m -> m#dump_table) monitors ;
   res
 
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }

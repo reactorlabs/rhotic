@@ -13,11 +13,13 @@ type function_types = SignatureSet.t FunTab.t
 
 class monitor =
   object
+    inherit Monitor.monitor
+
     val mutable recorded_functions : function_types = FunTab.empty
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)
-    method record_call (_ : configuration) (ret : value) (id : identifier) (args : value list)
+    method! record_call (_ : configuration) (ret : value) (id : identifier) (args : value list)
         : unit =
       let recorded_types = FunTab.find id recorded_functions in
       let observed_types = vector_type ret :: List.map vector_type args in
@@ -25,10 +27,10 @@ class monitor =
       recorded_functions <- FunTab.add id new_types recorded_functions
 
     (* Create an empty entry, with the args list initialized to Bot *)
-    method record_fun_def (_ : configuration) (id : identifier) (_ : identifier list) : unit =
+    method! record_fun_def (_ : configuration) (id : identifier) (_ : identifier list) : unit =
       recorded_functions <- FunTab.add id SignatureSet.empty recorded_functions
 
-    method dump_table () : unit =
+    method! dump_table : unit =
       Stdlib.print_endline ">>> FunctionTypesTuplewise: dumping table <<<" ;
       let f (id, sig_set) =
         Printf.printf "\t%s\n" id ;

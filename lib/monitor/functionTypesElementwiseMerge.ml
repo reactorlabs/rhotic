@@ -50,11 +50,13 @@ type abstract_function_types = abstract_type list FunTab.t
 
 class monitor =
   object
+    inherit Monitor.monitor
+
     val mutable recorded_functions : abstract_function_types = FunTab.empty
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)
-    method record_call (_ : configuration) (ret : value) (id : identifier) (args : value list)
+    method! record_call (_ : configuration) (ret : value) (id : identifier) (args : value list)
         : unit =
       let recorded_types = FunTab.find id recorded_functions in
       let abstract_arg_types =
@@ -64,13 +66,13 @@ class monitor =
       recorded_functions <- FunTab.add id new_types recorded_functions
 
     (* Create an empty entry, with the args list initialized to Bot *)
-    method record_fun_def (_ : configuration) (id : identifier) (params : identifier list) : unit =
+    method! record_fun_def (_ : configuration) (id : identifier) (params : identifier list) : unit =
       (* Add 1 for the return type *)
       let n = List.length params + 1 in
       let init = List.init n (fun _ -> Bot) in
       recorded_functions <- FunTab.add id init recorded_functions
 
-    method dump_table () : unit =
+    method! dump_table : unit =
       Stdlib.print_endline ">>> FunctionTypesElementwiseMerge: dumping table <<<" ;
       let f (id, types) =
         let type_str = List.map show_abstract_type types in
