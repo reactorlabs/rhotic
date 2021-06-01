@@ -55,24 +55,47 @@ let repl monitors =
   try loop Eval.start with End_of_file -> Stdlib.print_endline "\nGoodbye!"
 
 let () =
-  let monitors : Monitor.monitor list =
-    [ new FunctionObservedNA.monitor
-    ; new FunctionTypesTuplewise.monitor
-    ; new FunctionTypesElementwiseSet.monitor
-    ; new FunctionTypesElementwiseMerge.monitor
-    ] in
+  let create_monitors spec =
+    let spec_to_monitor = function
+      | "fun_na" -> new FunctionObservedNA.monitor
+      | "fun_types1" -> new FunctionTypesTuplewise.monitor
+      | "fun_types2" -> new FunctionTypesElementwiseSet.monitor
+      | "fun_types3" -> new FunctionTypesElementwiseMerge.monitor
+      | m -> raise (Monitor.Unknown_monitor m) in
+    try List.map spec_to_monitor spec
+    with Monitor.Unknown_monitor m ->
+      Printf.printf "Unknown monitor \"%s\". Available monitors:\n" m ;
+      Stdlib.print_endline
+        "  fun_na\tFunctionObservedNA: record whether a function observed NAs in its inputs or \
+         outputs" ;
+      Stdlib.print_endline
+        "  fun_types1\tFunctionTypesTuplewise: record function signatures, maintaining a set of \
+         signatures" ;
+      Stdlib.print_endline
+        "  fun_types2\tFunctionTypesElementwiseSet: record function signatures, where each type in \
+         a signature is a set of concrete types" ;
+      Stdlib.print_endline
+        "  fun_types3\tFunctionTypesElementwiseMerge: record function signatures, where each type \
+         in a signature is a single abstract type" ;
+      Stdlib.exit 1 in
 
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
 
   let path = ref "" in
   let to_r = ref false in
+  let monitor_spec = ref [] in
 
   let cmd_args =
     [ ("-f", Arg.Set_string path, "rhotic file to run")
     ; ("--to-r", Arg.Set to_r, "Translate rhotic code to R")
+    ; ( "--monitor"
+      , Arg.String (fun s -> monitor_spec := String.split_on_char ',' s)
+      , "Enable monitors" )
     ] in
 
   Arg.parse cmd_args (fun s -> raise @@ Arg.Bad ("Invalid argument " ^ s)) usage_msg ;
+
+  let monitors = create_monitors !monitor_spec in
 
   if !path = "" then repl monitors
   else
