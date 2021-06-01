@@ -28,7 +28,7 @@ class monitor =
       table <- FunTab.add id false table
 
     method! dump_table : unit =
-      Stdlib.print_endline ">>> FunctionObservedNA: dumping table <<<" ;
+      Stdlib.print_endline ">>> FunctionObservedNA <<<" ;
 
       let f (id, observed) =
         Printf.printf "\tObserved NAs for %s? " id ;

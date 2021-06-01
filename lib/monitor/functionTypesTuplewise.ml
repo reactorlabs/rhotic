@@ -31,7 +31,7 @@ class monitor =
       recorded_functions <- FunTab.add id SignatureSet.empty recorded_functions
 
     method! dump_table : unit =
-      Stdlib.print_endline ">>> FunctionTypesTuplewise: dumping table <<<" ;
+      Stdlib.print_endline ">>> FunctionTypesTuplewise <<<" ;
       let f (id, sig_set) =
         Printf.printf "\t%s\n" id ;
         let g types =

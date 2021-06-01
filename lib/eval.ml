@@ -2,13 +2,6 @@ open Expr
 open Common
 open Util
 
-let monitors : Monitor.monitor list =
-  [ new FunctionObservedNA.monitor
-  ; new FunctionTypesTuplewise.monitor
-  ; new FunctionTypesElementwiseSet.monitor
-  ; new FunctionTypesElementwiseMerge.monitor
-  ]
-
 let lookup env x =
   match Env.find_opt x env with
   | None -> raise (Object_not_found x)
@@ -349,7 +342,8 @@ let subset2_assign conf x idx v =
   | Dataframe _, _, _ -> raise Not_supported
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
-let rec eval_expr conf expr =
+let rec eval_expr monitors conf expr =
+  let run_stmts conf stmts = run_statements monitors conf stmts in
   let eval = eval_simple_expr conf.env in
 
   let eval_call id args =
@@ -360,7 +354,7 @@ let rec eval_expr conf expr =
         if n1 <> n2 then raise (Invalid_number_of_args { expected = n2; received = n1 }) ;
         let fun_env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
         let conf' = { conf with env = fun_env; cur_fun = id } in
-        Stdlib.snd @@ run_statements conf' stmts in
+        Stdlib.snd @@ run_stmts conf' stmts in
 
   match expr with
   | Combine [] -> null
@@ -379,8 +373,9 @@ let rec eval_expr conf expr =
       res
   | Simple_Expression se -> eval se
 
-and eval_stmt conf stmt =
-  let eval = eval_expr conf in
+and eval_stmt monitors conf stmt =
+  let run_stmts conf stmts = run_statements monitors conf stmts in
+  let eval = eval_expr monitors conf in
   let eval_se = eval_simple_expr conf.env in
 
   let eval_fun_def id params stmts =
@@ -397,8 +392,8 @@ and eval_stmt conf stmt =
         let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
-        | Some true -> run_statements conf s2
-        | Some false -> run_statements conf s3)
+        | Some true -> run_stmts conf s2
+        | Some false -> run_stmts conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
   let eval_for var seq stmts =
@@ -406,7 +401,7 @@ and eval_stmt conf stmt =
     | Vector (a, _) ->
         let loop conf i =
           let conf' = { conf with env = Env.add var (vector_of_lit i) conf.env } in
-          Stdlib.fst @@ run_statements conf' stmts in
+          Stdlib.fst @@ run_stmts conf' stmts in
         let conf' = Array.fold_left loop conf a in
         (conf', null)
     | Dataframe _ -> raise Not_supported in
@@ -426,26 +421,21 @@ and eval_stmt conf stmt =
   | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
   | Expression e -> (conf, eval e)
 
-and run_statements conf (stmts : statement list) =
+and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts : statement list) =
   match stmts with
   | [] ->
       (* This is to handle the empty program *)
       (conf, null)
   | [ stmt ] ->
       (* This is the base case; we want to return a value *)
-      let res = eval_stmt conf stmt in
+      let res = eval_stmt monitors conf stmt in
       res
   | stmt :: stmts ->
-      let conf', _ = eval_stmt conf stmt in
-      (run_statements [@tailcall]) conf' stmts
-
-let run_program conf stmts =
-  let res = run_statements conf stmts in
-  List.iter (fun m -> m#dump_table) monitors ;
-  res
+      let conf', _ = eval_stmt monitors conf stmt in
+      (run_statements [@tailcall]) monitors conf' stmts
 
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
 
-let run s =
-  let program = Parse.parse s in
-  Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_program start program
+let run ?(monitors : Monitor.monitors = []) str =
+  let program = Parse.parse str in
+  Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_statements monitors start program

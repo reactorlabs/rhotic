@@ -34,13 +34,13 @@ class monitor =
       recorded_functions <- FunTab.add id init recorded_functions
 
     method! dump_table : unit =
-      Stdlib.print_endline ">>> FunctionTypesElementwiseSet: dumping table <<<" ;
+      Stdlib.print_endline ">>> FunctionTypesElementwiseSet <<<" ;
       let f (id, types) =
         let set_to_s ts =
           let inner = TypeSet.elements ts |> List.map show_type_tag |> String.concat "," in
           "{" ^ inner ^ "}" in
         let type_str = List.map set_to_s types in
         let ret, args = (List.hd type_str, List.tl type_str) in
-        Printf.printf "\t%s: (%s) -> %s\n" id (String.concat ", " args) ret in
+        Printf.printf "\t%s:\t(%s) -> %s\n" id (String.concat ", " args) ret in
       FunTab.to_seq recorded_functions |> Seq.iter f
   end

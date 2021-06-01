@@ -9,3 +9,7 @@ class virtual monitor =
 
     method dump_table : unit = ()
   end
+
+let dump_state monitors = List.iter (fun m -> m#dump_table) monitors
+
+type monitors = monitor list

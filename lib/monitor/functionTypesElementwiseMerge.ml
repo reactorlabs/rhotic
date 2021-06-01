@@ -73,10 +73,10 @@ class monitor =
       recorded_functions <- FunTab.add id init recorded_functions
 
     method! dump_table : unit =
-      Stdlib.print_endline ">>> FunctionTypesElementwiseMerge: dumping table <<<" ;
+      Stdlib.print_endline ">>> FunctionTypesElementwiseMerge <<<" ;
       let f (id, types) =
         let type_str = List.map show_abstract_type types in
         let ret, args = (List.hd type_str, List.tl type_str) in
-        Printf.printf "\t%s: (%s) -> %s\n" id (String.concat ", " args) ret in
+        Printf.printf "\t%s:\t(%s) -> %s\n" id (String.concat ", " args) ret in
       FunTab.to_seq recorded_functions |> Seq.iter f
   end
