@@ -122,23 +122,21 @@ let program =
         lift2 (fun id se -> (id, se)) (identifier <* with_blank (char '=')) simple_expr in
       string "data.frame" *> ws *> parens_comma_sep binding >>| fun bs -> Dataframe_Ctor bs in
 
-    (* coerce_op ::= c_op simple_expr
-       c_op      ::= 'as.logical' | 'as.integer' | 'as.character' *)
-    let coerce_op =
-      let c_op =
-        string "as.logical" *> ws *> return T_Bool
-        <|> string "as.integer" *> ws *> return T_Int
-        <|> string "as.character" *> ws *> return T_Str in
-      lift2 (fun op se -> Coerce_Op (op, se)) c_op (parens simple_expr) in
-
-    (* unary_op ::= u_op simple_Expr
-       u_op     ::= '!' | '+' | '-' *)
+    (* unary_op ::= u_op simple_expr | c_op '(' simple_expr ')'
+       u_op     ::= '!' | '+' | '-'
+       c_op     ::= 'as.logical' | 'as.integer' | 'as.character' *)
     let unary_op =
       let u_op =
         char '!' *> ws *> return Logical_Not
         <|> char '+' *> ws *> return Unary_Plus
         <|> char '-' *> ws *> return Unary_Minus in
-      lift2 (fun op se -> Unary_Op (op, se)) u_op simple_expr in
+      let c_op =
+        string "as.logical" *> ws *> return As_Logical
+        <|> string "as.integer" *> ws *> return As_Integer
+        <|> string "as.character" *> ws *> return As_Character in
+      let unary = lift2 (fun op se -> Unary_Op (op, se)) u_op simple_expr in
+      let coerce = lift2 (fun op se -> Unary_Op (op, se)) c_op (parens simple_expr) in
+      unary <|> coerce in
 
     (* binary_op ::= simple_expr b_op simple_expr
        b_op      ::=  '+' |  '-' | '*' | '/' | '%'
@@ -182,11 +180,11 @@ let program =
     let se = simple_expr >>| fun se -> Simple_Expression se in
 
     (* expression ::= combine | dataframe
-                       | coerce_op | binary_op | unary_op
+                       | binary_op | unary_op
                        | subset | call | simple_expr
        NOTE: Order is significant, want to parse binary ops before unary ops, so that -4 is parsed
        as a literal rather than a unary op. *)
-    combine <|> dataframe <|> coerce_op <|> binary_op <|> unary_op <|> subset' <|> call <|> se in
+    combine <|> dataframe <|> binary_op <|> unary_op <|> subset' <|> call <|> se in
 
   (* stmt_list ::= stmt sep ... sep stmt
      sep       ::= ; | [\n\r]+

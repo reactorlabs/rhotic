@@ -62,21 +62,26 @@ let combine values =
   let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
   vector ty data
 
-(* Boolean and integer values get coerced; strings cannot be coerced.
-   Unary operations on data frames are not supported. *)
+(* Boolean and integer values get coerced for Logical_Not, Unary_Plus, and Unary_Minus;
+   strings cannot be coerced. Unary operations on data frames are not supported. *)
 let unary op = function
-  | Vector (a, t) -> (
-      if t = T_Str then raise Invalid_argument_type ;
+  | Vector (a, t) as v -> (
       match op with
       | Logical_Not ->
           (* Coerce to boolean, apply logical not *)
+          if t = T_Str then raise Invalid_argument_type ;
           a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
       | Unary_Plus ->
           (* Nop for integers, but coerces booleans to integers *)
+          if t = T_Str then raise Invalid_argument_type ;
           a |> coerce_data t T_Int |> vector T_Int
       | Unary_Minus ->
           (* Coerce to integer, apply unary negation *)
-          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int)
+          if t = T_Str then raise Invalid_argument_type ;
+          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
+      | As_Logical -> coerce_value T_Bool v
+      | As_Integer -> coerce_value T_Int v
+      | As_Character -> coerce_value T_Str v)
   | Dataframe _ -> raise Not_supported
 
 let binary op v1 v2 =
@@ -360,7 +365,6 @@ let rec eval_expr monitors conf expr =
   | Combine [] -> null
   | Combine ses -> combine @@ List.map eval ses
   | Dataframe_Ctor _ -> raise Not_supported
-  | Coerce_Op (ty, se) -> coerce_value ty (eval se)
   | Unary_Op (op, se) -> unary op (eval se)
   | Binary_Op (op, se1, se2) -> binary op (eval se1) (eval se2)
   | Subset1 (se1, None) -> eval se1

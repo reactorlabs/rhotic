@@ -38,18 +38,16 @@ let to_r stmt_list =
         let binding_to_r (b, se) = Printf.sprintf "%s = %s" b (simple_expr_to_r se) in
         let inner = bs |> List.map binding_to_r |> String.concat ", " in
         Printf.sprintf "data.frame(%s)" inner
-    | Coerce_Op (op, se) -> (
-        let coerce op = Printf.sprintf "%s(%s)" op (simple_expr_to_r se) in
-        match op with
-        | T_Bool -> coerce "as.logical"
-        | T_Int -> coerce "as.integer"
-        | T_Str -> coerce "as.character")
     | Unary_Op (op, se) -> (
         let unary op = Printf.sprintf "%s%s" op (simple_expr_to_r se) in
+        let func op = Printf.sprintf "%s(%s)" op (simple_expr_to_r se) in
         match op with
         | Logical_Not -> unary "!"
         | Unary_Plus -> unary "+"
-        | Unary_Minus -> unary "-")
+        | Unary_Minus -> unary "-"
+        | As_Logical -> func "as.logical"
+        | As_Integer -> func "as.integer"
+        | As_Character -> func "as.character")
     | Binary_Op (op, se1, se2) -> (
         let binary op = Printf.sprintf "%s%s%s" (simple_expr_to_r se1) op (simple_expr_to_r se2) in
         match op with

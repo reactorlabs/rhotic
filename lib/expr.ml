@@ -37,6 +37,9 @@ type unary_op =
   | Logical_Not
   | Unary_Plus
   | Unary_Minus
+  | As_Logical
+  | As_Integer
+  | As_Character
 [@@deriving eq, show { with_path = false }]
 
 type arithmetic_op =
@@ -73,7 +76,6 @@ type binary_op =
 type expression =
   | Combine           of simple_expression list
   | Dataframe_Ctor    of (identifier * simple_expression) list
-  | Coerce_Op         of type_tag * simple_expression
   | Unary_Op          of unary_op * simple_expression
   | Binary_Op         of binary_op * simple_expression * simple_expression
   | Subset1           of simple_expression * simple_expression option
