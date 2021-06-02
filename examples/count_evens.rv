@@ -12,9 +12,3 @@ count_evens <- function(x) {
 
 ints <- 1:5
 count_evens(ints)
-
-bools <- T
-count_evens(bools)
-
-nas <- c(1,2,NA)
-count_evens(nas)

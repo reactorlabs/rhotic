@@ -14,6 +14,10 @@ let reserved =
   ; "as.logical"
   ; "as.integer"
   ; "as.character"
+  ; "is.logical"
+  ; "is.integer"
+  ; "is.character"
+  ; "is.na"
   ; "function"
   ; "if"
   ; "else"
@@ -124,18 +128,24 @@ let program =
 
     (* unary_op ::= u_op simple_expr | c_op '(' simple_expr ')'
        u_op     ::= '!' | '+' | '-'
-       c_op     ::= 'as.logical' | 'as.integer' | 'as.character' *)
+       f_op     ::= 'as.logical' | 'as.integer' | 'as.character'
+                    'is.logical' | 'is.integer' | 'is.character'
+                    'is.na' *)
     let unary_op =
       let u_op =
         char '!' *> ws *> return Logical_Not
         <|> char '+' *> ws *> return Unary_Plus
         <|> char '-' *> ws *> return Unary_Minus in
-      let c_op =
+      let f_op =
         string "as.logical" *> ws *> return As_Logical
         <|> string "as.integer" *> ws *> return As_Integer
-        <|> string "as.character" *> ws *> return As_Character in
+        <|> string "as.character" *> ws *> return As_Character
+        <|> string "is.logical" *> ws *> return Is_Logical
+        <|> string "is.integer" *> ws *> return Is_Integer
+        <|> string "is.character" *> ws *> return Is_Character
+        <|> string "is.na" *> ws *> return Is_NA in
       let unary = lift2 (fun op se -> Unary_Op (op, se)) u_op simple_expr in
-      let coerce = lift2 (fun op se -> Unary_Op (op, se)) c_op (parens simple_expr) in
+      let coerce = lift2 (fun op se -> Unary_Op (op, se)) f_op (parens simple_expr) in
       unary <|> coerce in
 
     (* binary_op ::= simple_expr b_op simple_expr

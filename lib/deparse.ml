@@ -47,7 +47,11 @@ let to_r stmt_list =
         | Unary_Minus -> unary "-"
         | As_Logical -> func "as.logical"
         | As_Integer -> func "as.integer"
-        | As_Character -> func "as.character")
+        | As_Character -> func "as.character"
+        | Is_Logical -> func "is.logical"
+        | Is_Integer -> func "is.integer"
+        | Is_Character -> func "is.character"
+        | Is_NA -> func "is.na")
     | Binary_Op (op, se1, se2) -> (
         let binary op = Printf.sprintf "%s%s%s" (simple_expr_to_r se1) op (simple_expr_to_r se2) in
         match op with

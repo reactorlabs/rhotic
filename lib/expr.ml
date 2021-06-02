@@ -40,6 +40,10 @@ type unary_op =
   | As_Logical
   | As_Integer
   | As_Character
+  | Is_Logical
+  | Is_Integer
+  | Is_Character
+  | Is_NA
 [@@deriving eq, show { with_path = false }]
 
 type arithmetic_op =

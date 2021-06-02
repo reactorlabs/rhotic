@@ -55,6 +55,12 @@ let coerce_value to_ty = function
   | Vector (data, from_ty) -> coerce_data from_ty to_ty data |> vector to_ty
   | Dataframe _ -> raise Not_supported
 
+let check_type ty = function
+  | Vector (data, vector_ty) ->
+      assert (Array.for_all (fun x -> get_tag x = vector_ty) data) ;
+      Some (ty = vector_ty) |> put_bool |> vector_of_lit
+  | Dataframe _ -> raise Not_supported
+
 let combine values =
   (* Get the least upper bound of all types
      Then coerce all vectors to that type, extract, and concatenate the data *)
@@ -81,7 +87,11 @@ let unary op = function
           a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
       | As_Logical -> coerce_value T_Bool v
       | As_Integer -> coerce_value T_Int v
-      | As_Character -> coerce_value T_Str v)
+      | As_Character -> coerce_value T_Str v
+      | Is_Logical -> check_type T_Bool v
+      | Is_Integer -> check_type T_Int v
+      | Is_Character -> check_type T_Str v
+      | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool)
   | Dataframe _ -> raise Not_supported
 
 let binary op v1 v2 =

@@ -63,6 +63,10 @@ let na_of = function
   | T_Int -> NA_int
   | T_Str -> NA_str
 
+let is_na = function
+  | NA_bool | NA_int | NA_str -> true
+  | Bool _ | Int _ | Str _ -> false
+
 let match_vector = function
   | Vector (a, t) -> (a, t)
   | Dataframe _ -> raise Not_supported
