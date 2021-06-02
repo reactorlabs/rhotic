@@ -1,0 +1,20 @@
+count_evens <- function(x) {
+  len <- 0
+  for (i in x) {
+    mod <- i % 2
+    cond <- mod == 0
+    if (cond) {
+        len <- len + 1
+    }
+  }
+  len
+}
+
+ints <- 1:5
+count_evens(ints)
+
+bools <- T
+count_evens(bools)
+
+nas <- c(1,2,NA)
+count_evens(nas)
