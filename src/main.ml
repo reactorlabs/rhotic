@@ -40,7 +40,8 @@ let repl monitors =
 
     Stdlib.print_string "> " ;
     let input = Stdlib.read_line () in
-    if String.prefix ~pre:"#" input then (
+    if String.prefix ~pre:"# " input then conf
+    else if String.prefix ~pre:"#" input then (
       handle_directive input ;
       conf)
     else if String.trim input = "" then conf

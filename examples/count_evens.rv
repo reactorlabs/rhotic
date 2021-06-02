@@ -1,8 +1,20 @@
+# An example function we want to infer the specification for
+# We know that because cond is used in an if, it cannot be NA
+# By propagating this constraint backwards, we conclude that mod cannot be NA,
+# and i cannot be NA, therefore x cannot contain NAs.
+
 count_evens <- function(x) {
   len <- 0
   for (i in x) {
+    # i: cannot be NA, must be numeric
+    # mod: cannot be NA, must be integer
     mod <- i % 2
+
+    # mod: cannot be NA
+    # cond: cannot be NA, must be boolean and scalar
     cond <- mod == 0
+
+    # cond: cannot be NA, must be numeric and scalar
     if (cond) {
         len <- len + 1
     }
@@ -12,3 +24,7 @@ count_evens <- function(x) {
 
 ints <- 1:5
 count_evens(ints)
+
+# This will cause an error
+# nas <- c(1,2,NA)
+# count_evens(nas)

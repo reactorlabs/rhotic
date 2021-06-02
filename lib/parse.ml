@@ -200,9 +200,10 @@ let program =
      sep       ::= ; | [\n\r]+
      block     ::= '{' stmt_list '}' *)
   let stmt_list stmt =
+    let prefix = blank *> return '\n' in
     let trailing = with_blank (char ';') <|> blank *> return '\n' in
     let seq_sep = with_blank (char ';') <|> take_while1 is_eol *> return '\n' in
-    sep_by seq_sep (with_ws stmt) <* trailing in
+    prefix *> sep_by seq_sep (with_ws stmt) <* trailing in
 
   let arrow = with_ws (string "<-") in
   let block stmt = braces (stmt_list stmt) in
@@ -270,7 +271,24 @@ let program =
      NOTE: Order is significant! Need to attempt parsing a function definition first. *)
   stmt_list (fun_def <|> stmt_no_fun)
 
+(* Ugly hack to handle comments and excessive newlines:
+    - split string on \n
+    - remove anything that follows a #
+    - remove empty lines
+    - rejoin string
+   Repeat for \r *)
+let remove_comments input =
+  let chop line =
+    match String.index_from_opt line 0 '#' with
+    | Some i -> String.sub line 0 i
+    | None -> line in
+  let run_with crnl s =
+    s |> String.split_on_char crnl |> List.map chop
+    |> List.filter (fun s -> String.trim s <> "")
+    |> String.concat (String.make 1 crnl) in
+  input |> run_with '\n' |> run_with '\r'
+
 let parse (str : string) =
-  match parse_string ~consume:All program str with
+  match parse_string ~consume:All program @@ remove_comments str with
   | Ok v -> v
   | Error msg -> raise (Parse_error msg)
