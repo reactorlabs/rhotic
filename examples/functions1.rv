@@ -1,0 +1,13 @@
+length <- function(x) {
+  len <- 0
+  for (i in x) {
+    len <- len + 1
+  }
+  len
+}
+
+ints <- 1:5
+length(ints)
+
+bools <- T
+length(bools)

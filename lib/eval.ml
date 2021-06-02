@@ -1,116 +1,6 @@
 open Expr
+open Common
 open Util
-
-module Env = Map.Make (Identifier)
-type environment = value Env.t
-
-module FunTab = Map.Make (Identifier)
-type function_table = (identifier list * statement list) FunTab.t
-
-type configuration =
-  { env : environment
-  ; cur_fun : identifier
-  ; fun_tab : function_table
-  }
-
-exception Todo
-
-type invalid_number =
-  { expected : int
-  ; received : int
-  }
-
-exception Object_not_found of identifier
-exception Function_not_found of identifier
-exception Invalid_number_of_args of invalid_number
-exception Invalid_argument_type
-exception Invalid_subset_index
-exception Invalid_subset_replacement
-exception Repeated_parameter
-exception Vector_lengths_do_not_match
-exception Vector_length_greater_one
-exception Argument_length_zero
-exception Missing_value_need_true_false
-exception NA_not_allowed
-exception Not_supported
-
-let excptn_to_string = function
-  | Object_not_found x -> Printf.sprintf "object '%s' not found" x
-  | Function_not_found x -> Printf.sprintf "function '%s' not found" x
-  | Invalid_number_of_args { expected; received } ->
-      Printf.sprintf "invalid number of arguments, expected %d but received %d" expected received
-  | Invalid_argument_type -> "invalid argument type"
-  | Invalid_subset_index -> "invalid subset index"
-  | Invalid_subset_replacement -> "invalid subset replacement"
-  | Repeated_parameter -> "repeated parameter in function definition"
-  | Vector_lengths_do_not_match -> "vector lengths do not match"
-  | Vector_length_greater_one -> "vector has length > 1"
-  | Argument_length_zero -> "argument of length 0"
-  | Missing_value_need_true_false -> "missing value where TRUE/FALSE needed"
-  | NA_not_allowed -> "NA not allowed"
-  | Not_supported -> "not supported"
-  | e ->
-      Stdlib.prerr_endline "Unrecognized exception" ;
-      raise e
-
-let match_vector = function
-  | Vector (a, t) -> (a, t)
-  | Dataframe _ -> raise Not_supported
-let vector_data = Stdlib.fst % match_vector
-let vector_type = Stdlib.snd % match_vector
-let vector_length = Array.length % vector_data
-
-let get_tag = function
-  | Bool _ | NA_bool -> T_Bool
-  | Int _ | NA_int -> T_Int
-  | Str _ | NA_str -> T_Str
-
-let vector_of_lit l = Vector ([| l |], get_tag l)
-let vector t v = Vector (v, t)
-
-let na_of = function
-  | T_Bool -> NA_bool
-  | T_Int -> NA_int
-  | T_Str -> NA_str
-
-(* rhotic to OCaml conversion.
-   These helpers take a rhotic value and return an OCaml value, wrapped in an option. None
-   represents an NA rhotic value. *)
-let get_bool = function
-  | Bool b -> Some b
-  | NA_bool -> None
-  | Int _ | NA_int | Str _ | NA_str -> assert false
-let get_int = function
-  | Int i -> Some i
-  | NA_int -> None
-  | Bool _ | NA_bool | Str _ | NA_str -> assert false
-let get_str = function
-  | Str s -> Some s
-  | NA_str -> None
-  | Bool _ | NA_bool | Int _ | NA_int -> assert false
-
-(* OCaml option to rhotic conversion.
-   These helpers take an OCaml value, wrapped in an option, and return a rhotic value. *)
-let put_bool = function
-  | Some b -> Bool b
-  | None -> NA_bool
-let put_int = function
-  | Some i -> Int i
-  | None -> NA_int
-let put_str = function
-  | Some s -> Str s
-  | None -> NA_str
-
-(* Takes an OCaml function that operates on OCaml option values, and lifts it so it operates
-   on rhotic values, i.e., it does the rhotic-to-OCaml unwrapping and OCaml-to-rhotic wrapping.
-
-   Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
-   f to handle None/NA values as inputs *)
-let bool, int, str = ((get_bool, put_bool), (get_int, put_int), (get_str, put_str))
-let lift (type a) (unwrap, wrap) (f : a option -> a option) (x : literal) = f (unwrap x) |> wrap
-let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) (x : literal) (y : literal)
-    =
-  f (unwrap x) (unwrap y) |> wrap
 
 let lookup env x =
   match Env.find_opt x env with
@@ -127,9 +17,6 @@ let type_lub t1 t2 =
   | T_Str, _ | _, T_Str -> T_Str
   | T_Int, _ | _, T_Int -> T_Int
   | T_Bool, _ -> T_Bool
-
-(* We don't have the NULL vector, so for now use an empty boolean vector *)
-let null = vector T_Bool [||]
 
 let coerce_data from_ty to_ty data =
   (* NA is NA_int, true is 1, false is 0 *)
@@ -455,7 +342,8 @@ let subset2_assign conf x idx v =
   | Dataframe _, _, _ -> raise Not_supported
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
-let rec eval_expr conf expr =
+let rec eval_expr monitors conf expr =
+  let run_stmts conf stmts = run_statements monitors conf stmts in
   let eval = eval_simple_expr conf.env in
 
   let eval_call id args =
@@ -466,7 +354,7 @@ let rec eval_expr conf expr =
         if n1 <> n2 then raise (Invalid_number_of_args { expected = n2; received = n1 }) ;
         let fun_env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
         let conf' = { conf with env = fun_env; cur_fun = id } in
-        Stdlib.snd @@ run_program conf' stmts in
+        Stdlib.snd @@ run_stmts conf' stmts in
 
   match expr with
   | Combine [] -> null
@@ -478,11 +366,16 @@ let rec eval_expr conf expr =
   | Subset1 (se1, None) -> eval se1
   | Subset1 (se1, Some se2) -> subset1 (eval se1) (eval se2)
   | Subset2 (se1, se2) -> subset2 (eval se1) (eval se2)
-  | Call (id, ses) -> eval_call id (List.map eval ses)
+  | Call (id, ses) ->
+      let args = List.map eval ses in
+      let res = eval_call id args in
+      List.iter (fun m -> m#record_call conf res id args) monitors ;
+      res
   | Simple_Expression se -> eval se
 
-and eval_stmt conf stmt =
-  let eval = eval_expr conf in
+and eval_stmt monitors conf stmt =
+  let run_stmts conf stmts = run_statements monitors conf stmts in
+  let eval = eval_expr monitors conf in
   let eval_se = eval_simple_expr conf.env in
 
   let eval_fun_def id params stmts =
@@ -499,8 +392,8 @@ and eval_stmt conf stmt =
         let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
-        | Some true -> run_program conf s2
-        | Some false -> run_program conf s3)
+        | Some true -> run_stmts conf s2
+        | Some false -> run_stmts conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
   let eval_for var seq stmts =
@@ -508,7 +401,7 @@ and eval_stmt conf stmt =
     | Vector (a, _) ->
         let loop conf i =
           let conf' = { conf with env = Env.add var (vector_of_lit i) conf.env } in
-          Stdlib.fst @@ run_program conf' stmts in
+          Stdlib.fst @@ run_stmts conf' stmts in
         let conf' = Array.fold_left loop conf a in
         (conf', null)
     | Dataframe _ -> raise Not_supported in
@@ -520,21 +413,29 @@ and eval_stmt conf stmt =
       (conf', v)
   | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
-  | Function_Def (id, params, stmts) -> eval_fun_def id params stmts
+  | Function_Def (id, params, stmts) ->
+      let res = eval_fun_def id params stmts in
+      List.iter (fun m -> m#record_fun_def conf id params) monitors ;
+      res
   | If (se1, s2, s3) -> eval_if (eval_se se1) s2 s3
   | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
   | Expression e -> (conf, eval e)
 
-and run_program conf (stmts : statement list) =
+and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts : statement list) =
   match stmts with
-  | [] -> (conf, null)
-  | [ stmt ] -> eval_stmt conf stmt
+  | [] ->
+      (* This is to handle the empty program *)
+      (conf, null)
+  | [ stmt ] ->
+      (* This is the base case; we want to return a value *)
+      let res = eval_stmt monitors conf stmt in
+      res
   | stmt :: stmts ->
-      let conf', _ = eval_stmt conf stmt in
-      (run_program [@tailcall]) conf' stmts
+      let conf', _ = eval_stmt monitors conf stmt in
+      (run_statements [@tailcall]) monitors conf' stmts
 
 let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
 
-let run s =
-  let program = Parse.parse s in
-  print_endline @@ show_val @@ Stdlib.snd @@ run_program start program
+let run ?(monitors : Monitor.monitors = []) str =
+  let program = Parse.parse str in
+  Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_statements monitors start program
