@@ -8,8 +8,8 @@ let reserved =
   [ "NA"
   ; "F"
   ; "T"
-  ; "NA_i"
-  ; "NA_s"
+  ; "NA_integer_"
+  ; "NA_character_"
   ; "data.frame"
   ; "as.logical"
   ; "as.integer"
@@ -58,21 +58,24 @@ let parens_comma_sep p = parens @@ sep_by (char ',') (with_blank p)
 let program =
   (* literal ::= boolean | integer | string
      boolean ::= 'NA | 'F' | 'T'
-     integer ::= 'NA_i' | [0-9]+
-     string  ::= 'NA_s' | '"' [any non-quote character]* '"'
+     integer ::= 'NA_integer_' | [0-9]+
+     string  ::= 'NA_character_' | '"' [any non-quote character]* '"'
 
-     NOTE: Order is significant! Need to attempt parsing "NA_i" and "NA_s" before "NA". Otherwise
-     NA_i (and NA_s) will be accepted as NA and _i (and _s) will be rejected. *)
+     NOTE: Order is significant! Need to attempt parsing "NA_integer_" and "NA_character_" before
+     "NA". Otherwise NA_integer_ (and NA_character_) will be accepted as NA and _integer_
+     (and _character_) will be rejected. *)
   let literal =
     let boolean =
       string "NA" *> return NA_bool
       <|> string "F" *> return (Bool false)
       <|> string "T" *> return (Bool true) in
     let integer =
-      string "NA_i" *> return NA_int <|> (take_while1 is_digit >>| fun i -> Int (int_of_string i))
-    in
+      string "NA_integer_" *> return NA_int
+      <|> (take_while1 is_digit >>| fun i -> Int (int_of_string i)) in
     let negative = char '-' *> (take_while1 is_digit >>| fun i -> Int ~-(int_of_string i)) in
-    let str = string "NA_s" *> return NA_str <|> (quotes (take_till is_quote) >>| fun s -> Str s) in
+    let str =
+      string "NA_character_" *> return NA_str <|> (quotes (take_till is_quote) >>| fun s -> Str s)
+    in
     str <|> integer <|> negative <|> boolean >>| fun l -> Lit l in
 
   (* An identifier
