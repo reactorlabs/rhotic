@@ -18,13 +18,18 @@ class monitor =
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)
-    method! record_call (_ : configuration) (ret : value) (id : identifier) (args : value list)
-        : unit =
+    method! record_call
+        (_ : configuration)
+        (id : identifier)
+        (_ : simple_expression list)
+        (args : value list)
+        (ret : value) : unit =
       let res = FunTab.find id table || contains_na ret || List.exists contains_na args in
       table <- FunTab.add id res table
 
     (* Create an empty entry, with the args list initialized to Bot *)
-    method! record_fun_def (_ : configuration) (id : identifier) (_ : identifier list) : unit =
+    method! record_fun_def
+        (_ : configuration) (id : identifier) (_ : identifier list) (_ : statement list) : unit =
       table <- FunTab.add id false table
 
     method! dump_table : unit =

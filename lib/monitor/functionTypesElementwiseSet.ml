@@ -19,15 +19,21 @@ class monitor =
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)
-    method! record_call (_ : configuration) (ret : value) (id : identifier) (args : value list)
-        : unit =
+    method! record_call
+        (_ : configuration)
+        (id : identifier)
+        (_ : simple_expression list)
+        (args : value list)
+        (ret : value) : unit =
       let recorded_types = FunTab.find id recorded_functions in
       let observed_types = vector_type ret :: List.map vector_type args in
       let new_types = List.map2 (fun set t -> TypeSet.add t set) recorded_types observed_types in
       recorded_functions <- FunTab.add id new_types recorded_functions
 
     (* Create an empty entry, with the args list initialized to Bot *)
-    method! record_fun_def (_ : configuration) (id : identifier) (params : identifier list) : unit =
+    method! record_fun_def
+        (_ : configuration) (id : identifier) (params : identifier list) (_ : statement list) : unit
+        =
       (* Add 1 for the return type *)
       let n = List.length params + 1 in
       let init = List.init n (fun _ -> TypeSet.empty) in

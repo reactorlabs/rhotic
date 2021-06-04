@@ -383,7 +383,7 @@ let rec eval_expr monitors conf expr =
   | Call (id, ses) ->
       let args = List.map eval ses in
       let res = eval_call id args in
-      List.iter (fun m -> m#record_call conf res id args) monitors ;
+      List.iter (fun m -> m#record_call conf id ses args res) monitors ;
       res
   | Simple_Expression se -> eval se
 
@@ -429,7 +429,7 @@ and eval_stmt monitors conf stmt =
   | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
   | Function_Def (id, params, stmts) ->
       let res = eval_fun_def id params stmts in
-      List.iter (fun m -> m#record_fun_def conf id params) monitors ;
+      List.iter (fun m -> m#record_fun_def conf id params stmts) monitors ;
       res
   | If (se1, s2, s3) -> eval_if (eval_se se1) s2 s3
   | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
