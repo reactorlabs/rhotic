@@ -96,11 +96,11 @@ let to_r stmt_list =
       Printf.sprintf "{\n%s\n%s}" stmts' (padding depth) in
     match stmt with
     | Assign (x, e) -> Printf.sprintf "%s <- %s" x (expr_to_r e)
-    | Subset1_Assign (x, None, e) -> Printf.sprintf "%s[] <- %s" x (expr_to_r e)
-    | Subset1_Assign (x, Some se, e) ->
-        Printf.sprintf "%s[%s] <- %s" x (simple_expr_to_r se) (expr_to_r e)
-    | Subset2_Assign (x, se, e) ->
-        Printf.sprintf "%s[[%s]] <- %s" x (simple_expr_to_r se) (expr_to_r e)
+    | Subset1_Assign (x, None, se) -> Printf.sprintf "%s[] <- %s" x (simple_expr_to_r se)
+    | Subset1_Assign (x, Some se1, se2) ->
+        Printf.sprintf "%s[%s] <- %s" x (simple_expr_to_r se1) (simple_expr_to_r se2)
+    | Subset2_Assign (x, se1, se2) ->
+        Printf.sprintf "%s[[%s]] <- %s" x (simple_expr_to_r se1) (simple_expr_to_r se2)
     | Function_Def (f, params, stmts) ->
         let params' = params |> String.concat ", " in
         Printf.sprintf "%s <- function (%s) %s" f params' (block_to_r stmts)

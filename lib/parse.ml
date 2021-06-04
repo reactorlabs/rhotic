@@ -216,16 +216,16 @@ let program =
         let assign = lift2 (fun v e -> Assign (v, e)) (identifier <* arrow) expr in
 
         (* subset_assign  ::= subset1_assign | subset2_assign
-           subset1_assign ::= identifier  '['              ']' '<-' expr
-                             | identifier  '[' simple_expr  ']' '<-' expr
-           subset2_assign ::= identifier '[[' simple_expr ']]' '<-' expr
-                             | identifier  '$' identifier       '<-' expr *)
+           subset1_assign ::= identifier  '['              ']' '<-' simple_expr
+                            | identifier  '[' simple_expr  ']' '<-' simple_expr
+           subset2_assign ::= identifier '[[' simple_expr ']]' '<-' simple_expr
+                            | identifier  '$' identifier       '<-' simple_expr *)
         let subset_assign =
           let[@warning "-4-8"] subset_assign' lhs rhs =
             match lhs with
             | Subset1 (Var x, se) -> Subset1_Assign (x, se, rhs)
             | Subset2 (Var x, se) -> Subset2_Assign (x, se, rhs) in
-          lift2 subset_assign' (subset variable <* arrow) expr in
+          lift2 subset_assign' (subset variable <* arrow) simple_expr in
 
         (* if ::= if ( simple_expr ) { stmt_list }
                 | if ( simple_expr ) { stmt_list } else { stmt_list } *)

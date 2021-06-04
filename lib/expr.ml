@@ -90,8 +90,8 @@ type expression =
 
 type statement =
   | Assign         of identifier * expression
-  | Subset1_Assign of identifier * simple_expression option * expression
-  | Subset2_Assign of identifier * simple_expression * expression
+  | Subset1_Assign of identifier * simple_expression option * simple_expression
+  | Subset2_Assign of identifier * simple_expression * simple_expression
   | Function_Def   of identifier * identifier list * statement list
   | If             of simple_expression * statement list * statement list
   | For            of identifier * simple_expression * statement list

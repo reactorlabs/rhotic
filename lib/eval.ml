@@ -425,8 +425,8 @@ and eval_stmt monitors conf stmt =
       let v = eval e in
       let conf' = { conf with env = Env.add x v conf.env } in
       (conf', v)
-  | Subset1_Assign (x1, se2, e3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval e3)
-  | Subset2_Assign (x1, se2, e3) -> subset2_assign conf x1 (eval_se se2) (eval e3)
+  | Subset1_Assign (x1, se2, se3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval_se se3)
+  | Subset2_Assign (x1, se2, se3) -> subset2_assign conf x1 (eval_se se2) (eval_se se3)
   | Function_Def (id, params, stmts) ->
       let res = eval_fun_def id params stmts in
       List.iter (fun m -> m#record_fun_def conf id params stmts) monitors ;
