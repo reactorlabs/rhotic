@@ -11,10 +11,21 @@ class virtual monitor =
         (_ : value) : unit =
       ()
 
+    method record_assign (_ : configuration) (_ : identifier) (_ : expression) (_ : value) : unit =
+      ()
+
     method record_if
         (_ : configuration)
         (_ : simple_expression)
         (_ : statement list)
+        (_ : statement list)
+        (_ : value) : unit =
+      ()
+
+    method record_for
+        (_ : configuration)
+        (_ : identifier)
+        (_ : simple_expression)
         (_ : statement list)
         (_ : value) : unit =
       ()

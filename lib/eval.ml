@@ -412,12 +412,14 @@ and eval_stmt monitors conf stmt =
         | Some false -> run_stmts conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
-  let eval_for var seq stmts =
+  let eval_for x1 se2 s3 =
+    let seq = eval_se se2 in
+    List.iter (fun m -> m#record_for conf x1 se2 s3 seq) monitors ;
     match seq with
     | Vector (a, _) ->
         let loop conf i =
-          let conf' = { conf with env = Env.add var (vector_of_lit i) conf.env } in
-          Stdlib.fst @@ run_stmts conf' stmts in
+          let conf' = { conf with env = Env.add x1 (vector_of_lit i) conf.env } in
+          Stdlib.fst @@ run_stmts conf' s3 in
         let conf' = Array.fold_left loop conf a in
         (conf', null)
     | Dataframe _ -> raise Not_supported in
@@ -426,6 +428,7 @@ and eval_stmt monitors conf stmt =
   | Assign (x, e) ->
       let v = eval e in
       let conf' = { conf with env = Env.add x v conf.env } in
+      List.iter (fun m -> m#record_assign conf x e v) monitors ;
       (conf', v)
   | Subset1_Assign (x1, se2, se3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval_se se3)
   | Subset2_Assign (x1, se2, se3) -> subset2_assign conf x1 (eval_se se2) (eval_se se3)
@@ -434,7 +437,7 @@ and eval_stmt monitors conf stmt =
       List.iter (fun m -> m#record_fun_def conf id params stmts) monitors ;
       res
   | If (se1, s2, s3) -> eval_if se1 s2 s3
-  | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
+  | For (x1, se2, s3) -> eval_for x1 se2 s3
   | Expression e -> (conf, eval e)
 
 and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts : statement list) =
