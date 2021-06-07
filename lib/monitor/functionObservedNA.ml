@@ -35,8 +35,8 @@ class monitor =
     method! dump_table : unit =
       Stdlib.print_endline ">>> FunctionObservedNA <<<" ;
 
-      let f (id, observed) =
+      let f id observed =
         Printf.printf "\tObserved NAs for %s? " id ;
         if observed then Printf.printf "Yes\n" else Printf.printf "No\n" in
-      FunTab.to_seq table |> Seq.iter f
+      FunTab.iter f table
   end

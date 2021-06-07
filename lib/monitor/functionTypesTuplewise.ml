@@ -37,12 +37,12 @@ class monitor =
 
     method! dump_table : unit =
       Stdlib.print_endline ">>> FunctionTypesTuplewise <<<" ;
-      let f (id, sig_set) =
+      let f id sig_set =
         Printf.printf "\t%s\n" id ;
         let g types =
           let type_str = List.map show_type_tag types in
           let ret, args = (List.hd type_str, List.tl type_str) in
           Printf.printf "\t\t(%s) -> %s\n" (String.concat ", " args) ret in
         SignatureSet.iter g sig_set in
-      FunTab.to_seq recorded_functions |> Seq.iter f
+      FunTab.iter f recorded_functions
   end
