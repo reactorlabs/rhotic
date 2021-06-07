@@ -398,7 +398,9 @@ and eval_stmt monitors conf stmt =
     let conf' = { conf with fun_tab = FunTab.add id (params, stmts) conf.fun_tab } in
     (conf', null) in
 
-  let eval_if cond s2 s3 =
+  let eval_if se1 s2 s3 =
+    let cond = eval_se se1 in
+    List.iter (fun m -> m#record_if conf se1 s2 s3 cond) monitors ;
     match cond with
     | Vector _ as v1 -> (
         if vector_length v1 = 0 then raise Argument_length_zero ;
@@ -431,7 +433,7 @@ and eval_stmt monitors conf stmt =
       let res = eval_fun_def id params stmts in
       List.iter (fun m -> m#record_fun_def conf id params stmts) monitors ;
       res
-  | If (se1, s2, s3) -> eval_if (eval_se se1) s2 s3
+  | If (se1, s2, s3) -> eval_if se1 s2 s3
   | For (x1, se2, s3) -> eval_for x1 (eval_se se2) s3
   | Expression e -> (conf, eval e)
 

@@ -62,6 +62,7 @@ let () =
       | "fun_types1" -> new FunctionTypesTuplewise.monitor
       | "fun_types2" -> new FunctionTypesElementwiseSet.monitor
       | "fun_types3" -> new FunctionTypesElementwiseMerge.monitor
+      | "infer" -> new InferSpec.monitor
       | m -> raise (Monitor.Unknown_monitor m) in
     try List.map spec_to_monitor spec
     with Monitor.Unknown_monitor m ->
@@ -78,6 +79,7 @@ let () =
       Stdlib.print_endline
         "  fun_types3\tFunctionTypesElementwiseMerge: record function signatures, where each type \
          in a signature is a single abstract type" ;
+      Stdlib.print_endline "  infer\t\tInferSpec: infer which variables must not be NAs" ;
       Stdlib.exit 1 in
 
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
