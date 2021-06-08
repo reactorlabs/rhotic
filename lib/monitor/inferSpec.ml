@@ -1,5 +1,6 @@
 open Expr
 open Common
+open Util
 
 (* TODO: More places where NA not allowed:
   - seq
@@ -10,15 +11,27 @@ open Common
   - scope constraints to function
   - other constraints (e.g. types)
   - better abstraction/modularity for constraints
-    - there's duplicate code for adding constraints and var dependencies *)
+    - how to run with multiple constraints
+*)
 
-let rec propagate_constraints var_deps constraints =
-  let new_constraints =
-    constraints |> VarSet.elements
-    |> List.map (fun v -> if Env.mem v var_deps then Env.find v var_deps else VarSet.empty)
-    |> List.fold_left (fun acc vs -> VarSet.union acc vs) constraints in
-  if new_constraints = constraints then constraints
-  else propagate_constraints var_deps new_constraints
+module ConstraintNotNA = struct
+  type c = VarSet.t
+  type d = VarSet.t Env.t
+
+  let gen_constraint xs constraints = VarSet.union xs constraints
+
+  let add_deps x deps dep_map =
+    match Env.find_opt x dep_map with
+    | Some old -> Env.add x (VarSet.union old deps) dep_map
+    | None -> Env.add x deps dep_map
+
+  let rec propagate deps constraints =
+    let new_constraints =
+      constraints |> VarSet.elements
+      |> List.map (fun v -> Env.get_or v deps ~default:VarSet.empty)
+      |> List.fold_left (fun acc vs -> VarSet.union acc vs) constraints in
+    if new_constraints = constraints then constraints else propagate deps new_constraints
+end
 
 class monitor =
   object
@@ -28,12 +41,8 @@ class monitor =
     val mutable must_not_be_na = VarSet.empty
 
     method! record_assign (_ : configuration) (x : identifier) (e : expression) (_ : value) : unit =
-      let deps = VarSet.collect_e e in
-      (match Env.find_opt x var_dependencies with
-      | Some old -> var_dependencies <- Env.add x (VarSet.union old deps) var_dependencies
-      | None -> var_dependencies <- Env.add x deps var_dependencies) ;
-      (* Propagate constraints *)
-      must_not_be_na <- propagate_constraints var_dependencies must_not_be_na
+      var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_e e) var_dependencies ;
+      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_subset1_assign
         (_ : configuration)
@@ -45,14 +54,10 @@ class monitor =
         (_ : value) : unit =
       (* se2 cannot be NA *)
       if Option.is_some se2 then
-        must_not_be_na <- VarSet.union (VarSet.collect_se @@ Option.get se2) must_not_be_na ;
-      (* Update dependencies for x *)
-      let operands = VarSet.collect_se se3 in
-      (match Env.find_opt x var_dependencies with
-      | Some old -> var_dependencies <- Env.add x (VarSet.union old operands) var_dependencies
-      | None -> var_dependencies <- Env.add x operands var_dependencies) ;
-      (* Propagate constraints *)
-      must_not_be_na <- propagate_constraints var_dependencies must_not_be_na
+        must_not_be_na <-
+          ConstraintNotNA.gen_constraint (VarSet.collect_se @@ Option.get se2) must_not_be_na ;
+      var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_se se3) var_dependencies ;
+      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_subset2_assign
         (_ : configuration)
@@ -63,14 +68,9 @@ class monitor =
         (_ : value)
         (_ : value) : unit =
       (* se2 cannot be NA *)
-      must_not_be_na <- VarSet.union (VarSet.collect_se se2) must_not_be_na ;
-      (* Update dependencies for x *)
-      let operands = VarSet.collect_se se3 in
-      (match Env.find_opt x var_dependencies with
-      | Some old -> var_dependencies <- Env.add x (VarSet.union old operands) var_dependencies
-      | None -> var_dependencies <- Env.add x operands var_dependencies) ;
-      (* Propagate constraints *)
-      must_not_be_na <- propagate_constraints var_dependencies must_not_be_na
+      must_not_be_na <- ConstraintNotNA.gen_constraint (VarSet.collect_se se2) must_not_be_na ;
+      var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_se se3) var_dependencies ;
+      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_if
         (_ : configuration)
@@ -78,9 +78,8 @@ class monitor =
         (_ : statement list)
         (_ : statement list)
         (_ : value) : unit =
-      must_not_be_na <- VarSet.union (VarSet.collect_se se) must_not_be_na ;
-      (* Propagate constraints *)
-      must_not_be_na <- propagate_constraints var_dependencies must_not_be_na
+      must_not_be_na <- ConstraintNotNA.gen_constraint (VarSet.collect_se se) must_not_be_na ;
+      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_for
         (_ : configuration)
@@ -88,12 +87,8 @@ class monitor =
         (se : simple_expression)
         (_ : statement list)
         (_ : value) : unit =
-      let operands = VarSet.collect_se se in
-      (match Env.find_opt x var_dependencies with
-      | Some old -> var_dependencies <- Env.add x (VarSet.union old operands) var_dependencies
-      | None -> var_dependencies <- Env.add x operands var_dependencies) ;
-      (* Propagate constraints *)
-      must_not_be_na <- propagate_constraints var_dependencies must_not_be_na
+      var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_se se) var_dependencies ;
+      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! dump_table : unit =
       Stdlib.print_endline ">>> InferSpec <<<" ;

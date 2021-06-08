@@ -16,6 +16,19 @@ module Array = struct
   let filter_mapi f a = a |> Array.mapi f |> filter_map Fun.id
 end
 
+module Map = struct
+  module Make (O : Map.OrderedType) = struct
+    module M = Map.Make (O)
+
+    include M
+
+    let get_or k m ~default =
+      match find_opt k m with
+      | None -> default
+      | Some v -> v
+  end
+end
+
 module Option = struct
   include Option
 
