@@ -1,7 +1,7 @@
 open Lib
 open Util
 
-let parse_and_run monitors ?(conf = Eval.start) input =
+let parse_and_run monitors ?(conf = Eval.start) ?(exit_on_error = false) input =
   try
     let stmts = Parse.parse input in
     let conf', result = Eval.run_statements monitors conf stmts in
@@ -13,7 +13,7 @@ let parse_and_run monitors ?(conf = Eval.start) input =
     | Parse.Parse_error msg -> Printf.printf "Parse error%s\n" msg
     | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
     (* return the old configuration *)
-    conf
+    if exit_on_error then exit 255 else conf
 
 let parse_to_r input =
   try
@@ -106,5 +106,6 @@ let () =
     let input = Stdlib.really_input_string chan @@ Stdlib.in_channel_length chan in
     Stdlib.close_in chan ;
 
-    if !to_r then parse_to_r input else Stdlib.ignore @@ parse_and_run monitors input ;
+    if !to_r then parse_to_r input
+    else Stdlib.ignore @@ parse_and_run monitors ~exit_on_error:true input ;
     Monitor.dump_state monitors
