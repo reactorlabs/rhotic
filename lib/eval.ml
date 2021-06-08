@@ -300,63 +300,6 @@ let subset2 v1 v2 =
   | Dataframe _, _ -> raise Not_supported
   | _, Dataframe _ -> raise Invalid_argument_type
 
-let subset1_assign conf x idx v =
-  match (lookup conf.env x, idx, v) with
-  | (Vector _ as v1), None, (Vector _ as v3) ->
-      if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
-      let conf' = { conf with env = Env.add x v3 conf.env } in
-      (conf', v3)
-  | (Vector (a1, t1) as v1), Some (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
-      let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
-      let t = type_lub t1 t3 in
-      let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
-      match t2 with
-      | T_Bool ->
-          let a2 = a2 |> Array.map get_bool in
-          if contains_na a2 then raise Invalid_subset_index ;
-          if n1 <> n2 then raise Vector_lengths_do_not_match ;
-          let a2 = a2 |> bool_to_pos_vector in
-          let n2 = Array.length a2 in
-          if n2 <> n3 then raise Invalid_subset_replacement ;
-          let res = update_at_pos t a1 a2 a3 in
-          let conf' = { conf with env = Env.add x (vector t res) conf.env } in
-          (conf', v3)
-      | T_Int ->
-          let a2 = a2 |> Array.map get_int in
-          if contains_na a2 || (not @@ is_positive_subsetting a2) then raise Invalid_subset_index ;
-          if is_zero_subsetting a2 then
-            let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
-            (conf', v3)
-          else
-            let a2 = a2 |> Array.filter (fun x -> x <> Some 0) in
-            let n2 = Array.length a2 in
-            if n2 <> n3 then raise Invalid_subset_replacement ;
-            let res = update_at_pos t a1 a2 a3 in
-            let conf' = { conf with env = Env.add x (vector t res) conf.env } in
-            (conf', v3)
-      | T_Str -> raise Invalid_argument_type)
-  | Dataframe _, _, _ -> raise Not_supported
-  | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type
-
-let subset2_assign conf x idx v =
-  match (lookup conf.env x, idx, v) with
-  | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
-      let n2, n3 = (vector_length v2, vector_length v3) in
-      if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
-      if n3 = 0 || n3 > 1 then raise Invalid_subset_replacement ;
-      let t = type_lub t1 t3 in
-      let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
-      let a2 = a2 |> coerce_data t2 T_Int in
-      match get_int a2.(0) with
-      | Some i when 1 <= i ->
-          let a1 = extend i t a1 in
-          a1.(i - 1) <- a3.(0) ;
-          let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
-          (conf', v3)
-      | Some _ | None -> raise Invalid_subset_index)
-  | Dataframe _, _, _ -> raise Not_supported
-  | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
-
 let rec eval_expr monitors conf expr =
   let run_stmts conf stmts = run_statements monitors conf stmts in
   let eval = eval_simple_expr conf.env in
@@ -391,6 +334,63 @@ and eval_stmt monitors conf stmt =
   let run_stmts conf stmts = run_statements monitors conf stmts in
   let eval = eval_expr monitors conf in
   let eval_se = eval_simple_expr conf.env in
+
+  let eval_subset1_assign x idx v =
+    match (lookup conf.env x, idx, v) with
+    | (Vector _ as v1), None, (Vector _ as v3) ->
+        if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
+        let conf' = { conf with env = Env.add x v3 conf.env } in
+        (conf', v3)
+    | (Vector (a1, t1) as v1), Some (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
+        let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
+        let t = type_lub t1 t3 in
+        let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
+        match t2 with
+        | T_Bool ->
+            let a2 = a2 |> Array.map get_bool in
+            if contains_na a2 then raise Invalid_subset_index ;
+            if n1 <> n2 then raise Vector_lengths_do_not_match ;
+            let a2 = a2 |> bool_to_pos_vector in
+            let n2 = Array.length a2 in
+            if n2 <> n3 then raise Invalid_subset_replacement ;
+            let res = update_at_pos t a1 a2 a3 in
+            let conf' = { conf with env = Env.add x (vector t res) conf.env } in
+            (conf', v3)
+        | T_Int ->
+            let a2 = a2 |> Array.map get_int in
+            if contains_na a2 || (not @@ is_positive_subsetting a2) then raise Invalid_subset_index ;
+            if is_zero_subsetting a2 then
+              let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
+              (conf', v3)
+            else
+              let a2 = a2 |> Array.filter (fun x -> x <> Some 0) in
+              let n2 = Array.length a2 in
+              if n2 <> n3 then raise Invalid_subset_replacement ;
+              let res = update_at_pos t a1 a2 a3 in
+              let conf' = { conf with env = Env.add x (vector t res) conf.env } in
+              (conf', v3)
+        | T_Str -> raise Invalid_argument_type)
+    | Dataframe _, _, _ -> raise Not_supported
+    | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type in
+
+  let eval_subset2_assign x idx v =
+    match (lookup conf.env x, idx, v) with
+    | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
+        let n2, n3 = (vector_length v2, vector_length v3) in
+        if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
+        if n3 = 0 || n3 > 1 then raise Invalid_subset_replacement ;
+        let t = type_lub t1 t3 in
+        let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
+        let a2 = a2 |> coerce_data t2 T_Int in
+        match get_int a2.(0) with
+        | Some i when 1 <= i ->
+            let a1 = extend i t a1 in
+            a1.(i - 1) <- a3.(0) ;
+            let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
+            (conf', v3)
+        | Some _ | None -> raise Invalid_subset_index)
+    | Dataframe _, _, _ -> raise Not_supported
+    | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type in
 
   let eval_fun_def id params stmts =
     let unique_params = List.sort_uniq String.compare params in
@@ -428,17 +428,30 @@ and eval_stmt monitors conf stmt =
   | Assign (x, e) ->
       let v = eval e in
       let conf' = { conf with env = Env.add x v conf.env } in
-      List.iter (fun m -> m#record_assign conf x e v) monitors ;
+      List.iter (fun m -> m#record_assign conf' x e v) monitors ;
       (conf', v)
-  | Subset1_Assign (x1, se2, se3) -> subset1_assign conf x1 (Option.map eval_se se2) (eval_se se3)
-  | Subset2_Assign (x1, se2, se3) -> subset2_assign conf x1 (eval_se se2) (eval_se se3)
+  | Subset1_Assign (x1, se2, se3) ->
+      let idx = Option.map eval_se se2 in
+      let v = eval_se se3 in
+      let conf', res = eval_subset1_assign x1 (Option.map eval_se se2) (eval_se se3) in
+      List.iter (fun m -> m#record_subset1_assign conf x1 se2 se3 idx v res) monitors ;
+      (conf', res)
+  | Subset2_Assign (x1, se2, se3) ->
+      let idx = eval_se se2 in
+      let v = eval_se se3 in
+      let conf', res = eval_subset2_assign x1 idx v in
+      List.iter (fun m -> m#record_subset2_assign conf x1 se2 se3 idx v res) monitors ;
+      (conf', res)
   | Function_Def (id, params, stmts) ->
-      let res = eval_fun_def id params stmts in
-      List.iter (fun m -> m#record_fun_def conf id params stmts) monitors ;
-      res
+      let conf', res = eval_fun_def id params stmts in
+      List.iter (fun m -> m#record_fun_def conf' id params stmts) monitors ;
+      (conf', res)
   | If (se1, s2, s3) -> eval_if se1 s2 s3
   | For (x1, se2, s3) -> eval_for x1 se2 s3
-  | Expression e -> (conf, eval e)
+  | Expression e ->
+      let res = eval e in
+      List.iter (fun m -> m#record_expr_stmt conf e res) monitors ;
+      (conf, res)
 
 and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts : statement list) =
   match stmts with
