@@ -1,7 +1,15 @@
 open Expr
 open Common
 
-(* TODO subset1_assign, subset2_assign *)
+(* TODO: More places where NA not allowed:
+  - seq
+  - subset2 index
+*)
+
+(* TODO:
+  - other constraints
+  - better abstraction/modularity for constraints
+    - there's duplicate code for adding constraints and var dependencies *)
 
 class monitor =
   object
@@ -15,6 +23,39 @@ class monitor =
       match Env.find_opt x var_dependencies with
       | Some old -> var_dependencies <- Env.add x (VarSet.union old deps) var_dependencies
       | None -> var_dependencies <- Env.add x deps var_dependencies
+
+    method! record_subset1_assign
+        (_ : configuration)
+        (x : identifier)
+        (se2 : simple_expression option)
+        (se3 : simple_expression)
+        (_ : value option)
+        (_ : value)
+        (_ : value) : unit =
+      (* se2 cannot be NA *)
+      if Option.is_some se2 then
+        must_not_be_na <- VarSet.union (VarSet.collect_se @@ Option.get se2) must_not_be_na ;
+      (* Update dependencies for x *)
+      let operands = VarSet.collect_se se3 in
+      match Env.find_opt x var_dependencies with
+      | Some old -> var_dependencies <- Env.add x (VarSet.union old operands) var_dependencies
+      | None -> var_dependencies <- Env.add x operands var_dependencies
+
+    method! record_subset2_assign
+        (_ : configuration)
+        (x : identifier)
+        (se2 : simple_expression)
+        (se3 : simple_expression)
+        (_ : value)
+        (_ : value)
+        (_ : value) : unit =
+      (* se2 cannot be NA *)
+      must_not_be_na <- VarSet.union (VarSet.collect_se se2) must_not_be_na ;
+      (* Update dependencies for x *)
+      let operands = VarSet.collect_se se3 in
+      match Env.find_opt x var_dependencies with
+      | Some old -> var_dependencies <- Env.add x (VarSet.union old operands) var_dependencies
+      | None -> var_dependencies <- Env.add x operands var_dependencies
 
     method! record_if
         (_ : configuration)
