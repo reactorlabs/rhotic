@@ -417,9 +417,7 @@ and eval_stmt monitors conf stmt =
     let conf' = { conf with fun_tab = FunTab.add id (params, stmts) conf.fun_tab } in
     (conf', null) in
 
-  let eval_if se1 s2 s3 =
-    let cond = eval_se se1 in
-    List.iter (fun m -> m#record_if conf se1 s2 s3 cond) monitors ;
+  let eval_if cond s2 s3 =
     match cond with
     | Vector _ as v1 -> (
         if vector_length v1 = 0 then raise Argument_length_zero ;
@@ -431,9 +429,7 @@ and eval_stmt monitors conf stmt =
         | Some false -> run_stmts conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
-  let eval_for x1 se2 s3 =
-    let seq = eval_se se2 in
-    List.iter (fun m -> m#record_for conf x1 se2 s3 seq) monitors ;
+  let eval_for x1 seq s3 =
     match seq with
     | Vector (a, _) ->
         let loop conf i =
@@ -463,8 +459,16 @@ and eval_stmt monitors conf stmt =
       let conf', res = eval_fun_def id params stmts in
       List.iter (fun m -> m#record_fun_def conf' id params stmts) monitors ;
       (conf', res)
-  | If (se1, s2, s3) -> eval_if se1 s2 s3
-  | For (x1, se2, s3) -> eval_for x1 se2 s3
+  | If (se1, s2, s3) ->
+      let cond = eval_se se1 in
+      let conf', res = eval_if cond s2 s3 in
+      List.iter (fun m -> m#record_if conf se1 s2 s3 cond) monitors ;
+      (conf', res)
+  | For (x1, se2, s3) ->
+      let seq = eval_se se2 in
+      let conf', res = eval_for x1 seq s3 in
+      List.iter (fun m -> m#record_for conf x1 se2 s3 seq) monitors ;
+      (conf', res)
   | Expression e ->
       let res = eval e in
       List.iter (fun m -> m#record_expr_stmt conf e res) monitors ;
