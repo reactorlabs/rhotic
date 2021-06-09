@@ -40,17 +40,16 @@ class monitor =
     val mutable var_dependencies = Env.empty
     val mutable must_not_be_na = VarSet.empty
 
-    method! record_assign (_ : configuration) (x : identifier) (e : expression) (_ : value) : unit =
+    method! record_assign (_ : configuration) (x : identifier) ((e, _) : expression * value) : unit
+        =
       var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_e e) var_dependencies ;
       must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_subset1_assign
         (_ : configuration)
         (x : identifier)
-        (se2 : simple_expression option)
-        (se3 : simple_expression)
-        (_ : value option)
-        (_ : value)
+        ((se2, _) : simple_expression option * value option)
+        ((se3, _) : simple_expression * value)
         (_ : value) : unit =
       (* se2 cannot be NA *)
       if Option.is_some se2 then
@@ -62,10 +61,8 @@ class monitor =
     method! record_subset2_assign
         (_ : configuration)
         (x : identifier)
-        (se2 : simple_expression)
-        (se3 : simple_expression)
-        (_ : value)
-        (_ : value)
+        ((se2, _) : simple_expression * value)
+        ((se3, _) : simple_expression * value)
         (_ : value) : unit =
       (* se2 cannot be NA *)
       must_not_be_na <- ConstraintNotNA.gen_constraint (VarSet.collect_se se2) must_not_be_na ;
@@ -74,19 +71,17 @@ class monitor =
 
     method! record_if
         (_ : configuration)
-        (se : simple_expression)
+        ((se, _) : simple_expression * value)
         (_ : statement list)
-        (_ : statement list)
-        (_ : value) : unit =
+        (_ : statement list) : unit =
       must_not_be_na <- ConstraintNotNA.gen_constraint (VarSet.collect_se se) must_not_be_na ;
       must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_for
         (_ : configuration)
         (x : identifier)
-        (se : simple_expression)
-        (_ : statement list)
-        (_ : value) : unit =
+        ((se, _) : simple_expression * value)
+        (_ : statement list) : unit =
       var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_se se) var_dependencies ;
       must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 

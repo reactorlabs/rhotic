@@ -319,33 +319,33 @@ let rec eval_expr monitors conf expr =
   | Combine ses ->
       let vs = List.map eval ses in
       let res = eval_combine vs in
-      List.iter (fun m -> m#record_combine conf ses vs res) monitors ;
+      List.iter (fun m -> m#record_combine conf (ses, vs) res) monitors ;
       res
   | Dataframe_Ctor _ -> raise Not_supported
   | Unary_Op (op, se) ->
       let operand = eval se in
       let res = eval_unary op operand in
-      List.iter (fun m -> m#record_unary_op conf op se operand res) monitors ;
+      List.iter (fun m -> m#record_unary_op conf op (se, operand) res) monitors ;
       res
   | Binary_Op (op, se1, se2) ->
-      let op1, op2 = (eval se1, eval se2) in
-      let res = eval_binary op op1 op2 in
-      List.iter (fun m -> m#record_binary_op conf op se1 se2 op1 op2 res) monitors ;
+      let v1, v2 = (eval se1, eval se2) in
+      let res = eval_binary op v1 v2 in
+      List.iter (fun m -> m#record_binary_op conf op (se1, v1) (se2, v2) res) monitors ;
       res
   | Subset1 (se1, se2) ->
       let idx, v = (eval se1, Option.map eval se2) in
       let res = eval_subset1 idx v in
-      List.iter (fun m -> m#record_subset1 conf se1 se2 idx v res) monitors ;
+      List.iter (fun m -> m#record_subset1 conf (se1, idx) (se2, v) res) monitors ;
       res
   | Subset2 (se1, se2) ->
       let idx, v = (eval se1, eval se2) in
       let res = eval_subset2 idx v in
-      List.iter (fun m -> m#record_subset2 conf se1 se2 idx v res) monitors ;
+      List.iter (fun m -> m#record_subset2 conf (se1, idx) (se2, v) res) monitors ;
       res
   | Call (id, ses) ->
       let args = List.map eval ses in
       let res = eval_call id args in
-      List.iter (fun m -> m#record_call conf id ses args res) monitors ;
+      List.iter (fun m -> m#record_call conf id (ses, args) res) monitors ;
       res
   | Simple_Expression se -> eval se
 
@@ -443,17 +443,17 @@ and eval_stmt monitors conf stmt =
   | Assign (x, e) ->
       let v = eval e in
       let conf' = { conf with env = Env.add x v conf.env } in
-      List.iter (fun m -> m#record_assign conf' x e v) monitors ;
+      List.iter (fun m -> m#record_assign conf' x (e, v)) monitors ;
       (conf', v)
   | Subset1_Assign (x1, se2, se3) ->
       let idx, v = (Option.map eval_se se2, eval_se se3) in
       let conf', res = eval_subset1_assign x1 (Option.map eval_se se2) (eval_se se3) in
-      List.iter (fun m -> m#record_subset1_assign conf x1 se2 se3 idx v res) monitors ;
+      List.iter (fun m -> m#record_subset1_assign conf x1 (se2, idx) (se3, v) res) monitors ;
       (conf', res)
   | Subset2_Assign (x1, se2, se3) ->
       let idx, v = (eval_se se2, eval_se se3) in
       let conf', res = eval_subset2_assign x1 idx v in
-      List.iter (fun m -> m#record_subset2_assign conf x1 se2 se3 idx v res) monitors ;
+      List.iter (fun m -> m#record_subset2_assign conf x1 (se2, idx) (se3, v) res) monitors ;
       (conf', res)
   | Function_Def (id, params, stmts) ->
       let conf', res = eval_fun_def id params stmts in
@@ -462,16 +462,16 @@ and eval_stmt monitors conf stmt =
   | If (se1, s2, s3) ->
       let cond = eval_se se1 in
       let conf', res = eval_if cond s2 s3 in
-      List.iter (fun m -> m#record_if conf se1 s2 s3 cond) monitors ;
+      List.iter (fun m -> m#record_if conf (se1, cond) s2 s3) monitors ;
       (conf', res)
   | For (x1, se2, s3) ->
       let seq = eval_se se2 in
       let conf', res = eval_for x1 seq s3 in
-      List.iter (fun m -> m#record_for conf x1 se2 s3 seq) monitors ;
+      List.iter (fun m -> m#record_for conf x1 (se2, seq) s3) monitors ;
       (conf', res)
   | Expression e ->
       let res = eval e in
-      List.iter (fun m -> m#record_expr_stmt conf e res) monitors ;
+      List.iter (fun m -> m#record_expr_stmt conf (e, res)) monitors ;
       (conf, res)
 
 and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts : statement list) =
