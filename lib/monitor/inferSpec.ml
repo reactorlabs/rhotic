@@ -2,11 +2,6 @@ open Expr
 open Common
 open Util
 
-(* TODO: More places where NA not allowed:
-  - seq
-  - subset2 index
-*)
-
 (* TODO:
   - scope constraints to function
   - other constraints (e.g. types)
@@ -39,6 +34,27 @@ class monitor =
 
     val mutable var_dependencies = Env.empty
     val mutable must_not_be_na = VarSet.empty
+
+    method! record_binary_op
+        (_ : configuration)
+        (op : binary_op)
+        ((se1, _) : simple_expression * value)
+        ((se2, _) : simple_expression * value)
+        (_ : value) : unit =
+      match op with
+      | Seq ->
+          let vars = VarSet.union (VarSet.collect_se se1) (VarSet.collect_se se2) in
+          must_not_be_na <- ConstraintNotNA.gen_constraint vars must_not_be_na ;
+          must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
+      | Arithmetic _ | Relational _ | Logical _ -> ()
+
+    method! record_subset2
+        (_ : configuration)
+        (_ : simple_expression * value)
+        ((se, _) : simple_expression * value)
+        (_ : value) : unit =
+      must_not_be_na <- ConstraintNotNA.gen_constraint (VarSet.collect_se se) must_not_be_na ;
+      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
 
     method! record_assign (_ : configuration) (x : identifier) ((e, _) : expression * value) : unit
         =
