@@ -9,7 +9,6 @@
 # If we can infer that g does not return NA if its argument is not NA, then we
 # can infer that i should not be NA, therefore x cannot contain NAs.
 
-
 # x2: may or may not be NA
 g <- function(x2) {
   2 * x2       # or any other expression of x

@@ -3,6 +3,42 @@ open Common
 
 class virtual monitor =
   object
+    method record_combine
+        (_ : configuration) (_ : simple_expression list) (_ : value list) (_ : value) : unit =
+      ()
+
+    method record_unary_op
+        (_ : configuration) (_ : unary_op) (_ : simple_expression) (_ : value) (_ : value) : unit =
+      ()
+
+    method record_binary_op
+        (_ : configuration)
+        (_ : binary_op)
+        (_ : simple_expression)
+        (_ : simple_expression)
+        (_ : value)
+        (_ : value)
+        (_ : value) : unit =
+      ()
+
+    method record_subset1
+        (_ : configuration)
+        (_ : simple_expression)
+        (_ : simple_expression option)
+        (_ : value)
+        (_ : value option)
+        (_ : value) : unit =
+      ()
+
+    method record_subset2
+        (_ : configuration)
+        (_ : simple_expression)
+        (_ : simple_expression)
+        (_ : value)
+        (_ : value)
+        (_ : value) : unit =
+      ()
+
     method record_call
         (_ : configuration)
         (_ : identifier)

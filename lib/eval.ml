@@ -61,163 +61,6 @@ let check_type ty = function
       Some (ty = vector_ty) |> put_bool |> vector_of_lit
   | Dataframe _ -> raise Not_supported
 
-let combine values =
-  (* Get the least upper bound of all types
-     Then coerce all vectors to that type, extract, and concatenate the data *)
-  let ty = values |> List.map vector_type |> List.fold_left type_lub T_Bool in
-  let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
-  vector ty data
-
-(* Boolean and integer values get coerced for Logical_Not, Unary_Plus, and Unary_Minus;
-   strings cannot be coerced. Unary operations on data frames are not supported. *)
-let unary op = function
-  | Vector (a, t) as v -> (
-      match op with
-      | Logical_Not ->
-          (* Coerce to boolean, apply logical not *)
-          if t = T_Str then raise Invalid_argument_type ;
-          a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
-      | Unary_Plus ->
-          (* Nop for integers, but coerces booleans to integers *)
-          if t = T_Str then raise Invalid_argument_type ;
-          a |> coerce_data t T_Int |> vector T_Int
-      | Unary_Minus ->
-          (* Coerce to integer, apply unary negation *)
-          if t = T_Str then raise Invalid_argument_type ;
-          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
-      | As_Logical -> coerce_value T_Bool v
-      | As_Integer -> coerce_value T_Int v
-      | As_Character -> coerce_value T_Str v
-      | Is_Logical -> check_type T_Bool v
-      | Is_Integer -> check_type T_Int v
-      | Is_Character -> check_type T_Str v
-      | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool)
-  | Dataframe _ -> raise Not_supported
-
-let binary op v1 v2 =
-  let arithmetic_op o =
-    let a1, a2 = (vector_data v1, vector_data v2) in
-    let t1, t2 = (vector_type v1, vector_type v2) in
-
-    (* String operands not allowed; but coerce booleans to integers. *)
-    if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
-    let a1 = a1 |> coerce_data t1 T_Int in
-    let a2 = a2 |> coerce_data t2 T_Int in
-
-    (* R uses "floored" modulo while OCaml uses "truncated" modulo.
-        E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
-    let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
-    let mod' x y = x - (y * div' x y) in
-
-    let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
-    match o with
-    | Plus -> arithmetic (fun x y -> Some (x + y))
-    | Minus -> arithmetic (fun x y -> Some (x - y))
-    | Times -> arithmetic (fun x y -> Some (x * y))
-    | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
-    | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
-
-  let relational_op o =
-    let a1, a2 = (vector_data v1, vector_data v2) in
-    let t1, t2 = (vector_type v1, vector_type v2) in
-
-    (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
-        We need to properly coerce the operands, but also need to handle numeric values and string
-        values differently. *)
-    match (t1, t2) with
-    | T_Str, _ | _, T_Str -> (
-        let a1 = a1 |> coerce_data t1 T_Str in
-        let a2 = a2 |> coerce_data t2 T_Str in
-        let relational f =
-          Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) a1 a2
-          |> vector T_Bool in
-        match o with
-        | Less -> relational (fun x y -> Some (String.compare x y < 0))
-        | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
-        | Greater -> relational (fun x y -> Some (String.compare x y > 0))
-        | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
-        | Equal -> relational (fun x y -> Some (String.compare x y = 0))
-        | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)))
-    | T_Int, _ | _, T_Int | T_Bool, _ -> (
-        let a1 = a1 |> coerce_data t1 T_Int in
-        let a2 = a2 |> coerce_data t2 T_Int in
-        let relational f =
-          Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) a1 a2
-          |> vector T_Bool in
-        match o with
-        | Less -> relational (fun x y -> Some (x < y))
-        | Less_Equal -> relational (fun x y -> Some (x <= y))
-        | Greater -> relational (fun x y -> Some (x > y))
-        | Greater_Equal -> relational (fun x y -> Some (x >= y))
-        | Equal -> relational (fun x y -> Some (x = y))
-        | Not_Equal -> relational (fun x y -> Some (x <> y))) in
-
-  let logical_op o =
-    let a1, a2 = (vector_data v1, vector_data v2) in
-    let t1, t2 = (vector_type v1, vector_type v2) in
-
-    (* String operands not allowed; but coerce integers to booleans. *)
-    if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
-    let a1 = a1 |> coerce_data t1 T_Bool in
-    let a2 = a2 |> coerce_data t2 T_Bool in
-
-    (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
-    let and' x y =
-      match (x, y) with
-      | Some true, Some true -> Some true
-      | Some false, _ | _, Some false -> Some false
-      | _ -> None in
-    let or' x y =
-      match (x, y) with
-      | Some false, Some false -> Some false
-      | Some true, _ | _, Some true -> Some true
-      | _ -> None in
-
-    (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
-    let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
-    let e1 = if Array.length a1 = 0 then None else get_bool a1.(0) in
-    let e2 = if Array.length a2 = 0 then None else get_bool a2.(0) in
-    match o with
-    | And -> and' e1 e2 |> put_bool |> vector_of_lit
-    | Or -> or' e1 e2 |> put_bool |> vector_of_lit
-    | Elementwise_And -> elementwise and'
-    | Elementwise_Or -> elementwise or' in
-
-  (* This needs to be a function, not a constant, because it might raise an exception *)
-  let sequence_op () =
-    let a1, a2 = (vector_data v1, vector_data v2) in
-    let t1, t2 = (vector_type v1, vector_type v2) in
-
-    if Array.length a1 = 0 || Array.length a2 = 0 then raise Argument_length_zero ;
-    if Array.length a1 > 1 || Array.length a2 > 1 then raise Vector_length_greater_one ;
-
-    (* Everything gets coerced to integer *)
-    let a1 = a1 |> coerce_data t1 T_Int |> Array.map get_int in
-    let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
-
-    match (a1.(0), a2.(0)) with
-    | Some e1, Some e2 ->
-        (* We actually want the opposite sign of Stdlib.compare: + if e1 < e2 *)
-        let sign = Stdlib.compare e2 e1 in
-        let len = Stdlib.abs (e2 - e1) + 1 in
-        let res = Array.make len None in
-        for i = 0 to len - 1 do
-          res.(i) <- Some (e1 + (sign * i))
-        done ;
-        res |> Array.map put_int |> vector T_Int
-    | None, None | None, _ | _, None -> raise NA_not_allowed in
-
-  match (v1, v2) with
-  | Vector _, Vector _ -> (
-      (* Both vectors must have the same length. *)
-      if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
-      match op with
-      | Arithmetic o -> arithmetic_op o
-      | Relational o -> relational_op o
-      | Logical o -> logical_op o
-      | Seq -> sequence_op ())
-  | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported
-
 (* Checks that all elements are non-negative or NA.
   0 and NA are allowed for positive subsetting. *)
 let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x >= 0)
@@ -272,37 +115,166 @@ let update_at_pos t a idxs rpl =
   Array.iter2 (fun i x -> res.(i - 1) <- x) idxs rpl ;
   res
 
-let subset1 v1 v2 =
-  match (v1, v2) with
-  | Vector (a1, t1), Vector (a2, t2) -> (
-      match t2 with
-      | T_Bool ->
-          (* Both vectors must have the same length. *)
-          if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
-          a2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos t1 a1 |> vector t1
-      | T_Int ->
-          let a2 = a2 |> Array.map get_int in
-          if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
-          a2 |> get_at_pos t1 a1 |> vector t1
-      | T_Str -> raise Invalid_argument_type)
-  | Dataframe _, _ -> raise Not_supported
-  | _, Dataframe _ -> raise Invalid_argument_type
-
-let subset2 v1 v2 =
-  match (v1, v2) with
-  | Vector (a1, _), Vector (a2, t2) -> (
-      let n1, n2 = (vector_length v1, vector_length v2) in
-      if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
-      let a2 = a2 |> coerce_data t2 T_Int in
-      match get_int a2.(0) with
-      | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
-      | Some _ | None -> raise Invalid_subset_index)
-  | Dataframe _, _ -> raise Not_supported
-  | _, Dataframe _ -> raise Invalid_argument_type
-
 let rec eval_expr monitors conf expr =
   let run_stmts conf stmts = run_statements monitors conf stmts in
   let eval = eval_simple_expr conf.env in
+
+  let eval_combine values =
+    (* Get the least upper bound of all types
+       Then coerce all vectors to that type, extract, and concatenate the data *)
+    let ty = values |> List.map vector_type |> List.fold_left type_lub T_Bool in
+    let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
+    vector ty data in
+
+  (* Boolean and integer values get coerced for Logical_Not, Unary_Plus, and Unary_Minus;
+     strings cannot be coerced. Unary operations on data frames are not supported. *)
+  let eval_unary op = function
+    | Vector (a, t) as v -> (
+        match op with
+        | Logical_Not ->
+            (* Coerce to boolean, apply logical not *)
+            if t = T_Str then raise Invalid_argument_type ;
+            a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
+        | Unary_Plus ->
+            (* Nop for integers, but coerces booleans to integers *)
+            if t = T_Str then raise Invalid_argument_type ;
+            a |> coerce_data t T_Int |> vector T_Int
+        | Unary_Minus ->
+            (* Coerce to integer, apply unary negation *)
+            if t = T_Str then raise Invalid_argument_type ;
+            a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
+        | As_Logical -> coerce_value T_Bool v
+        | As_Integer -> coerce_value T_Int v
+        | As_Character -> coerce_value T_Str v
+        | Is_Logical -> check_type T_Bool v
+        | Is_Integer -> check_type T_Int v
+        | Is_Character -> check_type T_Str v
+        | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool)
+    | Dataframe _ -> raise Not_supported in
+
+  let eval_binary op v1 v2 =
+    let arithmetic_op o =
+      let a1, a2 = (vector_data v1, vector_data v2) in
+      let t1, t2 = (vector_type v1, vector_type v2) in
+
+      (* String operands not allowed; but coerce booleans to integers. *)
+      if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+      let a1 = a1 |> coerce_data t1 T_Int in
+      let a2 = a2 |> coerce_data t2 T_Int in
+
+      (* R uses "floored" modulo while OCaml uses "truncated" modulo.
+          E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
+      let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
+      let mod' x y = x - (y * div' x y) in
+
+      let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
+      match o with
+      | Plus -> arithmetic (fun x y -> Some (x + y))
+      | Minus -> arithmetic (fun x y -> Some (x - y))
+      | Times -> arithmetic (fun x y -> Some (x * y))
+      | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
+      | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
+
+    let relational_op o =
+      let a1, a2 = (vector_data v1, vector_data v2) in
+      let t1, t2 = (vector_type v1, vector_type v2) in
+
+      (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
+         We need to properly coerce the operands, but also need to handle numeric values and string
+         values differently. *)
+      match (t1, t2) with
+      | T_Str, _ | _, T_Str -> (
+          let a1 = a1 |> coerce_data t1 T_Str in
+          let a2 = a2 |> coerce_data t2 T_Str in
+          let relational f =
+            Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) a1 a2
+            |> vector T_Bool in
+          match o with
+          | Less -> relational (fun x y -> Some (String.compare x y < 0))
+          | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
+          | Greater -> relational (fun x y -> Some (String.compare x y > 0))
+          | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
+          | Equal -> relational (fun x y -> Some (String.compare x y = 0))
+          | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)))
+      | T_Int, _ | _, T_Int | T_Bool, _ -> (
+          let a1 = a1 |> coerce_data t1 T_Int in
+          let a2 = a2 |> coerce_data t2 T_Int in
+          let relational f =
+            Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) a1 a2
+            |> vector T_Bool in
+          match o with
+          | Less -> relational (fun x y -> Some (x < y))
+          | Less_Equal -> relational (fun x y -> Some (x <= y))
+          | Greater -> relational (fun x y -> Some (x > y))
+          | Greater_Equal -> relational (fun x y -> Some (x >= y))
+          | Equal -> relational (fun x y -> Some (x = y))
+          | Not_Equal -> relational (fun x y -> Some (x <> y))) in
+
+    let logical_op o =
+      let a1, a2 = (vector_data v1, vector_data v2) in
+      let t1, t2 = (vector_type v1, vector_type v2) in
+
+      (* String operands not allowed; but coerce integers to booleans. *)
+      if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+      let a1 = a1 |> coerce_data t1 T_Bool in
+      let a2 = a2 |> coerce_data t2 T_Bool in
+
+      (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
+      let and' x y =
+        match (x, y) with
+        | Some true, Some true -> Some true
+        | Some false, _ | _, Some false -> Some false
+        | _ -> None in
+      let or' x y =
+        match (x, y) with
+        | Some false, Some false -> Some false
+        | Some true, _ | _, Some true -> Some true
+        | _ -> None in
+
+      (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
+      let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
+      let e1 = if Array.length a1 = 0 then None else get_bool a1.(0) in
+      let e2 = if Array.length a2 = 0 then None else get_bool a2.(0) in
+      match o with
+      | And -> and' e1 e2 |> put_bool |> vector_of_lit
+      | Or -> or' e1 e2 |> put_bool |> vector_of_lit
+      | Elementwise_And -> elementwise and'
+      | Elementwise_Or -> elementwise or' in
+
+    (* This needs to be a function, not a constant, because it might raise an exception *)
+    let sequence_op () =
+      let a1, a2 = (vector_data v1, vector_data v2) in
+      let t1, t2 = (vector_type v1, vector_type v2) in
+
+      if Array.length a1 = 0 || Array.length a2 = 0 then raise Argument_length_zero ;
+      if Array.length a1 > 1 || Array.length a2 > 1 then raise Vector_length_greater_one ;
+
+      (* Everything gets coerced to integer *)
+      let a1 = a1 |> coerce_data t1 T_Int |> Array.map get_int in
+      let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
+
+      match (a1.(0), a2.(0)) with
+      | Some e1, Some e2 ->
+          (* We actually want the opposite sign of Stdlib.compare: + if e1 < e2 *)
+          let sign = Stdlib.compare e2 e1 in
+          let len = Stdlib.abs (e2 - e1) + 1 in
+          let res = Array.make len None in
+          for i = 0 to len - 1 do
+            res.(i) <- Some (e1 + (sign * i))
+          done ;
+          res |> Array.map put_int |> vector T_Int
+      | None, None | None, _ | _, None -> raise NA_not_allowed in
+
+    match (v1, v2) with
+    | Vector _, Vector _ -> (
+        (* Both vectors must have the same length. *)
+        if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
+        match op with
+        | Arithmetic o -> arithmetic_op o
+        | Relational o -> relational_op o
+        | Logical o -> logical_op o
+        | Seq -> sequence_op ())
+    | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported in
 
   let eval_call id args =
     match FunTab.find_opt id conf.fun_tab with
@@ -314,15 +286,62 @@ let rec eval_expr monitors conf expr =
         let conf' = { conf with env = fun_env; cur_fun = id } in
         Stdlib.snd @@ run_stmts conf' stmts in
 
+  let eval_subset1 v1 v2 =
+    match (v1, v2) with
+    | Vector (_, _), None -> v1
+    | Vector (a1, t1), Some (Vector (a2, t2) as v2) -> (
+        match t2 with
+        | T_Bool ->
+            (* Both vectors must have the same length. *)
+            if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
+            a2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos t1 a1 |> vector t1
+        | T_Int ->
+            let a2 = a2 |> Array.map get_int in
+            if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
+            a2 |> get_at_pos t1 a1 |> vector t1
+        | T_Str -> raise Invalid_argument_type)
+    | Dataframe _, _ -> raise Not_supported
+    | _, Some (Dataframe _) -> raise Invalid_argument_type in
+
+  let eval_subset2 v1 v2 =
+    match (v1, v2) with
+    | Vector (a1, _), Vector (a2, t2) -> (
+        let n1, n2 = (vector_length v1, vector_length v2) in
+        if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
+        let a2 = a2 |> coerce_data t2 T_Int in
+        match get_int a2.(0) with
+        | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
+        | Some _ | None -> raise Invalid_subset_index)
+    | Dataframe _, _ -> raise Not_supported
+    | _, Dataframe _ -> raise Invalid_argument_type in
+
   match expr with
-  | Combine [] -> null
-  | Combine ses -> combine @@ List.map eval ses
+  | Combine ses ->
+      let vs = List.map eval ses in
+      let res = eval_combine vs in
+      List.iter (fun m -> m#record_combine conf ses vs res) monitors ;
+      res
   | Dataframe_Ctor _ -> raise Not_supported
-  | Unary_Op (op, se) -> unary op (eval se)
-  | Binary_Op (op, se1, se2) -> binary op (eval se1) (eval se2)
-  | Subset1 (se1, None) -> eval se1
-  | Subset1 (se1, Some se2) -> subset1 (eval se1) (eval se2)
-  | Subset2 (se1, se2) -> subset2 (eval se1) (eval se2)
+  | Unary_Op (op, se) ->
+      let operand = eval se in
+      let res = eval_unary op operand in
+      List.iter (fun m -> m#record_unary_op conf op se operand res) monitors ;
+      res
+  | Binary_Op (op, se1, se2) ->
+      let op1, op2 = (eval se1, eval se2) in
+      let res = eval_binary op op1 op2 in
+      List.iter (fun m -> m#record_binary_op conf op se1 se2 op1 op2 res) monitors ;
+      res
+  | Subset1 (se1, se2) ->
+      let idx, v = (eval se1, Option.map eval se2) in
+      let res = eval_subset1 idx v in
+      List.iter (fun m -> m#record_subset1 conf se1 se2 idx v res) monitors ;
+      res
+  | Subset2 (se1, se2) ->
+      let idx, v = (eval se1, eval se2) in
+      let res = eval_subset2 idx v in
+      List.iter (fun m -> m#record_subset2 conf se1 se2 idx v res) monitors ;
+      res
   | Call (id, ses) ->
       let args = List.map eval ses in
       let res = eval_call id args in
@@ -431,14 +450,12 @@ and eval_stmt monitors conf stmt =
       List.iter (fun m -> m#record_assign conf' x e v) monitors ;
       (conf', v)
   | Subset1_Assign (x1, se2, se3) ->
-      let idx = Option.map eval_se se2 in
-      let v = eval_se se3 in
+      let idx, v = (Option.map eval_se se2, eval_se se3) in
       let conf', res = eval_subset1_assign x1 (Option.map eval_se se2) (eval_se se3) in
       List.iter (fun m -> m#record_subset1_assign conf x1 se2 se3 idx v res) monitors ;
       (conf', res)
   | Subset2_Assign (x1, se2, se3) ->
-      let idx = eval_se se2 in
-      let v = eval_se se3 in
+      let idx, v = (eval_se se2, eval_se se3) in
       let conf', res = eval_subset2_assign x1 idx v in
       List.iter (fun m -> m#record_subset2_assign conf x1 se2 se3 idx v res) monitors ;
       (conf', res)
