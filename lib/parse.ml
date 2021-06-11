@@ -7,7 +7,9 @@ exception Parse_error of string
 let reserved =
   [ "NA"
   ; "F"
+  ; "FALSE"
   ; "T"
+  ; "TRUE"
   ; "NA_integer_"
   ; "NA_character_"
   ; "data.frame"
@@ -71,6 +73,8 @@ let program =
   let literal =
     let boolean =
       string "NA" *> return NA_bool
+      <|> string "FALSE" *> return (Bool false)
+      <|> string "TRUE" *> return (Bool true)
       <|> string "F" *> return (Bool false)
       <|> string "T" *> return (Bool true) in
     let integer =
