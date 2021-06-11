@@ -10,8 +10,14 @@
 # can infer that i should not be NA, therefore x cannot contain NAs.
 
 # x2: may or may not be NA
-g <- function(x2) {
-  2 * x2       # or any other expression of x
+g <- function(x) {
+  # these variables should be treated separately from f's
+  res <- T
+  if (res) { 1 } else { 0 }
+  foo <- 1
+  t <- foo
+
+  2 * x       # or any other expression of x
 }
 
 f <- function(x) {
