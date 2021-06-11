@@ -58,8 +58,15 @@ class monitor =
 
     method! record_assign (_ : configuration) (x : identifier) ((e, _) : expression * value) : unit
         =
-      var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_e e) var_dependencies ;
-      must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
+      match e with
+      | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
+      | Simple_Expression _ ->
+          var_dependencies <- ConstraintNotNA.add_deps x (VarSet.collect_e e) var_dependencies ;
+          must_not_be_na <- ConstraintNotNA.propagate var_dependencies must_not_be_na
+      | Call _ ->
+          (* arguments are not dependencies *)
+          (* TODO: later, we'll want special handling of function calls *)
+          ()
 
     method! record_subset1_assign
         (_ : configuration)
