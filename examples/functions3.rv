@@ -1,22 +1,22 @@
 # f on its own does not generate any constraints.
 #
-# But within g, t2 cannot be NA. When we propagate this constraint, we find
-# that x2 cannot be NA. Therefore, g's arguments cannot be NA.
+# But within g, t cannot be NA. When we propagate this constraint, we find
+# that x cannot be NA. Therefore, g's arguments cannot be NA.
 #
 # Within f, we can use the constraints on g to determine that i cannot be NA,
 # therefore x cannot contain NAs.
 
 # g: argument cannot be NA
-g <- function(x2) {
-  # x2: cannot be NA
-  # t2: cannot be NA
-  t2 <- x2 == 5
+g <- function(x) {
+  # x: cannot be NA
+  # t: cannot be NA
+  t <- x == 5
 
-  # t2: cannot be NA
-  if (t2) {
+  # t: cannot be NA
+  if (t) {
     10
   } else {
-    x2
+    x
   }
 }
 
