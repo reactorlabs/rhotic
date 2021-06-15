@@ -12,26 +12,36 @@ open Util
 *)
 
 module ConstraintNotNA = struct
-  type constraints = VarSet.t
-  type dependencies = VarSet.t Env.t
+  type constr =
+    | May_be_NA
+    | Must_not_be_NA
+
+  type constraint_map = constr Env.t
+  type dependency_map = VarSet.t Env.t
+
   type local_state =
-    { constrs : constraints
-    ; deps : dependencies
+    { constrs : constraint_map
+    ; deps : dependency_map
     }
   type t = local_state FunTab.t
 
-  let empty = { constrs = VarSet.empty; deps = Env.empty }
+  let empty = { constrs = Env.empty; deps = Env.empty }
 
-  let rec propagate (deps : dependencies) (constraints : constraints) =
-    let new_constraints =
-      constraints |> VarSet.elements
-      |> List.map (fun v -> Env.get_or v deps ~default:VarSet.empty)
-      |> List.fold_left (fun acc vs -> VarSet.union acc vs) constraints in
-    if new_constraints = constraints then constraints else propagate deps new_constraints
+  let rec propagate (deps : dependency_map) (constrs : constraint_map) =
+    (* Initial accumulator is the constraints map.
+       We iterate over the constraints and for each v, add v's dependencies to the accumulator. *)
+    let constrs' =
+      Env.fold
+        (fun x _ acc ->
+          let new_deps = Env.get_or x deps ~default:VarSet.empty in
+          VarSet.fold (fun x acc -> Env.add x Must_not_be_NA acc) new_deps acc)
+        constrs constrs in
+    if constrs' = constrs then constrs else propagate deps constrs'
 
-  let add_constraint (cur_fun : identifier) (xs : VarSet.t) (state : t) =
+  let add_constraints (cur_fun : identifier) (xs : VarSet.t) (state : t) =
     let { constrs; deps } = FunTab.get_or cur_fun state ~default:empty in
-    let constrs = VarSet.union xs constrs |> propagate deps in
+    let constrs =
+      VarSet.fold (fun v acc -> Env.add v Must_not_be_NA acc) xs constrs |> propagate deps in
     Env.add cur_fun { constrs; deps } state
 
   let add_deps (cur_fun : identifier) (x : identifier) (vars : VarSet.t) (state : t) =
@@ -57,7 +67,7 @@ class monitor =
       match op with
       | Seq ->
           let vars = VarSet.union (VarSet.collect_se se1) (VarSet.collect_se se2) in
-          state <- ConstraintNotNA.add_constraint conf.cur_fun vars state
+          state <- ConstraintNotNA.add_constraints conf.cur_fun vars state
       | Arithmetic _ | Relational _ | Logical _ -> ()
 
     method! record_subset2
@@ -65,7 +75,7 @@ class monitor =
         (_ : simple_expression * value)
         ((se, _) : simple_expression * value)
         (_ : value) : unit =
-      state <- ConstraintNotNA.add_constraint conf.cur_fun (VarSet.collect_se se) state
+      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
     method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
         : unit =
@@ -85,7 +95,8 @@ class monitor =
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
       (match se2 with
-      | Some se -> state <- ConstraintNotNA.add_constraint conf.cur_fun (VarSet.collect_se se) state
+      | Some se ->
+          state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
       | None -> ()) ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state
 
@@ -95,7 +106,7 @@ class monitor =
         ((se2, _) : simple_expression * value)
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
-      state <- ConstraintNotNA.add_constraint conf.cur_fun (VarSet.collect_se se2) state ;
+      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se2) state ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state
 
     method! record_if
@@ -103,7 +114,7 @@ class monitor =
         ((se, _) : simple_expression * value)
         (_ : statement list)
         (_ : statement list) : unit =
-      state <- ConstraintNotNA.add_constraint conf.cur_fun (VarSet.collect_se se) state
+      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
     method! record_for
         (conf : configuration)
@@ -116,7 +127,9 @@ class monitor =
       let dump_function f ({ constrs; deps } : ConstraintNotNA.local_state) =
         Printf.printf "function %s\n" f ;
         Stdlib.print_endline "\tMust not be NA:" ;
-        VarSet.iter (fun x -> Printf.printf "\t\t%s\n" x) constrs ;
+        Env.iter
+          (fun x c -> if c = ConstraintNotNA.Must_not_be_NA then Printf.printf "\t\t%s\n" x)
+          constrs ;
 
         Stdlib.print_endline "\tDependencies:" ;
         Env.iter

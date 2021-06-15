@@ -12,6 +12,10 @@ g <- function(x) {
   # t: cannot be NA
   t <- x == 5
 
+  # this assignment would override the above line
+  # so x could be NA, if this line were not commented out
+  # t <- 4
+
   # t: cannot be NA
   if (t) {
     10
