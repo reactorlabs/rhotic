@@ -1,0 +1,43 @@
+# f on its own does not generate any constraints.
+#
+# But within g, t cannot be NA. When we propagate this constraint, we find
+# that x cannot be NA. Therefore, g's arguments cannot be NA.
+#
+# Within f, we can use the constraints on g to determine that i cannot be NA,
+# therefore x cannot contain NAs.
+
+# g: argument cannot be NA
+g <- function(x) {
+  # x: cannot be NA
+  # t: cannot be NA
+  t <- x == 5
+
+  # this assignment would override the above line
+  # so x could be NA, if this line were not commented out
+  # t <- 4
+
+  # t: cannot be NA
+  if (t) {
+    10
+  } else {
+    x
+  }
+}
+
+# f: argument cannot contain NA
+f <- function(x) {
+  y <- 0
+
+  # x: cannot contain NA
+  for (i in x) {
+    # i: cannot be NA
+    # g: argument cannot be NA
+    j <- g(i)
+    y <- y + j
+  }
+  y
+}
+
+v <- 1:9
+f(v)
+

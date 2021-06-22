@@ -1,0 +1,53 @@
+# Within f, we can infer that t cannot be NA, because it's used in an if.
+# By propagating constraints, we conclude that y and j cannot be NA.
+#
+# However, we should not propagate this constraint into g, and infer that
+# x2 cannot be NA: g may be called at other sites (e.g. the second call below,
+# with NA), and g itself has no constraints on x2.
+#
+# On the other hand, at this particular call site in f, g must not return NA.
+# If we can infer that g does not return NA if its argument is not NA, then we
+# can infer that i should not be NA, therefore x cannot contain NAs.
+
+# x2: may or may not be NA
+g <- function(x) {
+  # these variables should be treated separately from f's
+  res <- T
+  if (res) { 1 } else { 0 }
+  foo <- 1
+  t <- foo
+
+  2 * x       # or any other expression of x
+}
+
+f <- function(x) {
+  y <- 0
+  for (i in x) {
+    # we should not propagate this constraint into g
+    # g cannot return NA here, so i cannot be NA
+    # j: cannot be NA
+    j <- g(i)
+
+    # This is OK, g can return NA here
+    k <- g(NA)
+
+    # j: cannot be NA
+    # y: cannot be NA
+    y <- y + j
+  }
+  res <- NA
+
+  # y: cannot be NA
+  # t: cannot be NA
+  t <- y > 0
+
+  # t: cannot be NA
+  if (t) {
+    res <- "TRUE"
+  } else {
+    res <- "FALSE"
+  }
+}
+
+v <- 1:9
+f(v)

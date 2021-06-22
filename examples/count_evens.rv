@@ -1,5 +1,6 @@
-# An example function we want to infer the specification for
-# We know that because cond is used in an if, it cannot be NA
+# An example function we want to infer the specification for.
+#
+# We know that because cond is used in an if, it cannot be NA.
 # By propagating this constraint backwards, we conclude that mod cannot be NA,
 # and i cannot be NA, therefore x cannot contain NAs.
 

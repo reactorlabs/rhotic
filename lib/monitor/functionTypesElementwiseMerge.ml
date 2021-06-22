@@ -59,8 +59,7 @@ class monitor =
     method! record_call
         (_ : configuration)
         (id : identifier)
-        (_ : simple_expression list)
-        (args : value list)
+        ((_, args) : simple_expression list * value list)
         (ret : value) : unit =
       let recorded_types = FunTab.find id recorded_functions in
       let abstract_arg_types =

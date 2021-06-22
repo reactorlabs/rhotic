@@ -21,8 +21,7 @@ class monitor =
     method! record_call
         (_ : configuration)
         (id : identifier)
-        (_ : simple_expression list)
-        (args : value list)
+        ((_, args) : simple_expression list * value list)
         (ret : value) : unit =
       let res = FunTab.find id table || contains_na ret || List.exists contains_na args in
       table <- FunTab.add id res table
