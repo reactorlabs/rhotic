@@ -1,0 +1,31 @@
+# i cannot be NA, but only if cond is false
+# i can be NA if cond is true, because idx(i) is a constant function
+# therefore even elements of x cannot be NA
+
+idx <- function(i) {
+  5
+}
+
+weird_sum3 <- function(x, y, z) {
+  len <- 0
+  sum <- 0
+  for (i in x) {
+     len <- len + 1
+      mod <- len % 2
+      cond <- mod == 0
+      if (cond) {
+        a <- idx(i)
+        d <- y[[a]]
+      } else {
+        d <- z[[i]]
+      }
+      sum <- sum + d
+  }
+  sum
+}
+
+x <- c(5, NA, 3, NA, 1)
+y <- c(NA, 2, NA, 4, 5)
+z <- c(1, NA, 3, NA, 5)
+
+weird_sum3(x, y, z)

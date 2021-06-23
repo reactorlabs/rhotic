@@ -1,0 +1,26 @@
+# i cannot be NA, but only if cond (length of x > 3) holds
+
+weird_sum4 <- function(x) {
+  len <- 0
+  sum <- 0
+  flag <- 0
+  res <- 0
+  for (i in x) {
+    len <- len + 1
+    cond <- len > 3
+    if (cond) {
+      t <- i > 42
+      if (t) {
+        flag <- flag + 1
+      }
+    }
+    sum <- sum + i
+  }
+  sum + flag
+}
+
+a <- c(9, 23)
+weird_sum4(a)
+
+b <- c(17, 49, 1, 87, 13, 64)
+weird_sum4(b)
