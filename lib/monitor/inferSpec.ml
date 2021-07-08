@@ -52,11 +52,23 @@ module ConstraintNotNA = struct
     Env.add cur_fun { constrs; deps } state
 end
 
+type stack_frame =
+  { fun_id : identifier
+  ; params : identifier list
+  ; deps : identifier Env.t [@default Env.empty]
+  ; cur_vars : VarSet.t [@default VarSet.empty]
+  }
+[@@deriving make]
+
 class monitor =
   object
     inherit Monitor.monitor
 
     val mutable state : ConstraintNotNA.t = FunTab.empty
+
+    val mutable stack : stack_frame list = [ make_stack_frame ~fun_id:"main$" () ]
+
+    val mutable last_popped_frame : stack_frame option = None
 
     method! record_binary_op
         (conf : configuration)
@@ -76,6 +88,32 @@ class monitor =
         ((se, _) : simple_expression * value)
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
+
+    method! record_call_entry
+        (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
+        : unit =
+      (* TODO: How to handle call args? *)
+      let params = FunTab.find fun_id conf.fun_tab |> Stdlib.fst in
+      let frame = make_stack_frame ~fun_id ~params () in
+      stack <- frame :: stack ;
+      last_popped_frame <- None ;
+      let n = List.length stack - 2 in
+      Stdlib.print_string (String.make (n * 2) ' ') ;
+      Printf.printf "--> Entering %s(%s)\n" fun_id (String.concat "," params) ;
+      ()
+
+    method! record_call_exit
+        (_ : configuration) (id : identifier) (_ : simple_expression list * value list) (_ : value)
+        : unit =
+      match stack with
+      | ({ fun_id; _ } as frame) :: rest ->
+          assert (fun_id = id) ;
+          stack <- rest ;
+          last_popped_frame <- Some frame ;
+          let n = List.length stack - 1 in
+          Stdlib.print_string (String.make (n * 2) ' ') ;
+          Printf.printf "<-- Exiting %s\n" fun_id
+      | _ -> assert false
 
     method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
         : unit =
@@ -124,20 +162,21 @@ class monitor =
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state
 
     method! dump_table : unit =
-      let dump_function f ({ constrs; deps } : ConstraintNotNA.local_state) =
-        Printf.printf "function %s\n" f ;
-        Stdlib.print_endline "\tMust not be NA:" ;
-        Env.iter
-          (fun x c -> if c = ConstraintNotNA.Must_not_be_NA then Printf.printf "\t\t%s\n" x)
-          constrs ;
-
-        Stdlib.print_endline "\tDependencies:" ;
-        Env.iter
-          (fun id deps ->
-            let set_to_s s = VarSet.elements s |> String.concat ", " in
-            Printf.printf "\t\t%s: %s\n" id (set_to_s deps))
-          deps in
-
-      Stdlib.print_endline ">>> InferSpec <<<" ;
-      FunTab.iter dump_function state
+      (* let dump_function f ({ constrs; deps } : ConstraintNotNA.local_state) = *)
+      (*   Printf.printf "function %s\n" f ; *)
+      (*   Stdlib.print_endline "\tMust not be NA:" ; *)
+      (*   Env.iter *)
+      (*     (fun x c -> if c = ConstraintNotNA.Must_not_be_NA then Printf.printf "\t\t%s\n" x) *)
+      (*     constrs ; *)
+      (*  *)
+      (*   Stdlib.print_endline "\tDependencies:" ; *)
+      (*   Env.iter *)
+      (*     (fun id deps -> *)
+      (*       let set_to_s s = VarSet.elements s |> String.concat ", " in *)
+      (*       Printf.printf "\t\t%s: %s\n" id (set_to_s deps)) *)
+      (*     deps in *)
+      (*  *)
+      (* Stdlib.print_endline ">>> InferSpec <<<" ; *)
+      (* FunTab.iter dump_function state *)
+      ()
   end

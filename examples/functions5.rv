@@ -1,0 +1,23 @@
+f <- function(a, b, c) {
+  d <- a + b
+  d
+}
+
+g <- function(x, y) {
+  cond <- x > 0
+  if (cond) {
+    f1 <- f(x, x, x)
+    f2 <- f(y, y, y)
+  } else {
+    f1 <- f(x, x, x)
+    f2 <- 0
+  }
+  f1 + f2
+}
+
+h <- function(x,y) {
+  g(x, 0)
+}
+
+h(-1, -1)
+h(1,1)
