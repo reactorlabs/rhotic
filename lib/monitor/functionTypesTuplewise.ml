@@ -19,7 +19,7 @@ class monitor =
 
     (* Update the entry for the called function.
        If this method is called, then the function must exist. *)
-    method! record_call
+    method! record_call_exit
         (_ : configuration)
         (id : identifier)
         ((_, args) : simple_expression list * value list)
