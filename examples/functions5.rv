@@ -1,4 +1,6 @@
 f <- function(a, b, c) {
+  e <- 42
+  f <- e
   d <- a + b
   d
 }

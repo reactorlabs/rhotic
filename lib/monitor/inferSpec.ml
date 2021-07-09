@@ -53,23 +53,49 @@ module ConstraintNotNA = struct
 end
 
 type stack_frame =
-  { fun_id : identifier
-  ; params : identifier list
-  ; deps : identifier Env.t [@default Env.empty]
+  { fun_id : identifier [@default Common.main_function]
+  ; deps : VarSet.t Env.t [@default Env.empty]
   ; cur_vars : VarSet.t [@default VarSet.empty]
   }
 [@@deriving make]
 
 class monitor =
-  object
+  object (self)
     inherit Monitor.monitor
 
     val mutable state : ConstraintNotNA.t = FunTab.empty
 
-    val mutable stack : stack_frame list = [ make_stack_frame ~fun_id:"main$" () ]
+    val mutable stack : stack_frame list = [ make_stack_frame () ]
 
     val mutable last_popped_frame : stack_frame option = None
 
+    (* Push a frame onto the shadow stack, and clear last_popped_frame.
+       We always expect a non-empty stack because main$ should be on it. *)
+    method private push_stack frame =
+      assert (List.length stack > 0) ;
+
+      let n = List.length stack - 1 in
+      Stdlib.print_string (String.make (n * 2) ' ') ;
+      Printf.printf "--> Entering %s\n" frame.fun_id ;
+
+      stack <- frame :: stack ;
+      last_popped_frame <- None
+
+    (* Pop a frame from the shadow stack, set last_popped_frame, and return the frame.
+       We always expect a non-empty stack because main$ should be on it. *)
+    method private pop_stack =
+      assert (List.length stack > 0) ;
+      let top, rest = (List.hd stack, List.tl stack) in
+      stack <- rest ;
+      last_popped_frame <- Some top ;
+
+      let n = List.length stack - 1 in
+      Stdlib.print_string (String.make (n * 2) ' ') ;
+      Printf.printf "<-- Exiting %s\n" top.fun_id ;
+
+      top
+
+    (* In a sequence expression x:y, x and y must not be NA. *)
     method! record_binary_op
         (conf : configuration)
         (op : binary_op)
@@ -82,6 +108,7 @@ class monitor =
           state <- ConstraintNotNA.add_constraints conf.cur_fun vars state
       | Arithmetic _ | Relational _ | Logical _ -> ()
 
+    (* In a subset2 expression x[[i]], i must not be NA. *)
     method! record_subset2
         (conf : configuration)
         (_ : simple_expression * value)
@@ -89,38 +116,50 @@ class monitor =
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
+    (* Entering a function call, so we need to initialize a frame and push onto the shadow stack.
+       We initialize deps so that each param maps to a singleton set containing itself,
+       e.g. x -> {x}, y -> {y} *)
     method! record_call_entry
         (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
         : unit =
-      (* TODO: How to handle call args? *)
-      let params = FunTab.find fun_id conf.fun_tab |> Stdlib.fst in
-      let frame = make_stack_frame ~fun_id ~params () in
-      stack <- frame :: stack ;
-      last_popped_frame <- None ;
-      let n = List.length stack - 2 in
-      Stdlib.print_string (String.make (n * 2) ' ') ;
-      Printf.printf "--> Entering %s(%s)\n" fun_id (String.concat "," params) ;
-      ()
+      (* TODO: Need to handle call args later? *)
+      let map_self map x = Env.add x (VarSet.singleton x) map in
+      let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
+      let deps = List.fold_left map_self Env.empty params in
+      self#push_stack @@ make_stack_frame ~fun_id ~deps ()
 
+    (* Exiting a function call, so pop the shadow stack.
+       Assert that the call we're exiting corresponds to the popped stack frame. *)
     method! record_call_exit
-        (_ : configuration) (id : identifier) (_ : simple_expression list * value list) (_ : value)
-        : unit =
-      match stack with
-      | ({ fun_id; _ } as frame) :: rest ->
-          assert (fun_id = id) ;
-          stack <- rest ;
-          last_popped_frame <- Some frame ;
-          let n = List.length stack - 1 in
-          Stdlib.print_string (String.make (n * 2) ' ') ;
-          Printf.printf "<-- Exiting %s\n" fun_id
-      | _ -> assert false
+        (_ : configuration)
+        (fun_id : identifier)
+        (_ : simple_expression list * value list)
+        (_ : value) : unit =
+      (* TODO: Need to handle returning the result of a function call? *)
+      let top = self#pop_stack in
+      assert (top.fun_id = fun_id)
 
+    (* TODO: Clean up and document this. Then see which other assignment statements need to update deps. *)
     method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
         : unit =
       match e with
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
-          state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state
+          state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
+
+          (* Collect vars, update deps, update last-seen-vars *)
+          let ({ fun_id; deps; _ } as frame), rest = (List.hd stack, List.tl stack) in
+          assert (fun_id = conf.cur_fun) ;
+          let x_deps = VarSet.collect_e e in
+          (* Simplify x_deps by looking up each one in the map *)
+          let cur_vars =
+            VarSet.fold
+              (fun x acc -> VarSet.union (Env.get_or x deps ~default:VarSet.empty) acc)
+              x_deps VarSet.empty in
+          let deps = Env.add x cur_vars deps in
+          let frame = { frame with deps; cur_vars } in
+          stack <- frame :: rest ;
+          Printf.printf "%s: %s\n" x (String.concat "," @@ VarSet.elements cur_vars)
       | Call _ ->
           (* arguments are not dependencies *)
           (* TODO: later, we'll want special handling of function calls *)

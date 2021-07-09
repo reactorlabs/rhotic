@@ -491,7 +491,7 @@ and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts :
       let conf', _ = eval_stmt monitors conf stmt in
       (run_statements [@tailcall]) monitors conf' stmts
 
-let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
+let start = { env = Env.empty; cur_fun = Common.main_function; fun_tab = FunTab.empty }
 
 let run ?(monitors : Monitor.monitors = []) str =
   let program = Parse.parse str in
