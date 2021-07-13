@@ -90,6 +90,30 @@ class monitor =
       last_popped_frame <- Some top ;
       top
 
+    (* x depends on intermediates, but we want the params that x depends on.
+       Update the deps map with x's dependencies. *)
+    method private update_summary x intermediates =
+      let ({ deps; _ } as frame) = self#pop_stack in
+
+      (* Compute the params that x depends on (transitively, via the intermediate deps) *)
+      let param_deps =
+        let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
+        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) intermediates VarSet.empty
+      in
+
+      (* Update deps with x's dependencies, param_deps.
+         This is a strong update, overwriting any previous dependencies of x.
+         Update the stack frame with the new deps map, and current deps *)
+      self#push_stack { frame with deps = Env.add x param_deps deps; cur_deps = param_deps } ;
+
+      if VarSet.is_empty param_deps && VarSet.is_empty intermediates then
+        self#debug_print @@ x ^ ": (none)"
+      else if VarSet.is_empty param_deps then
+        self#debug_print @@ x ^ ": (none, via " ^ VarSet.to_string intermediates ^ ")"
+      else
+        self#debug_print @@ x ^ ": " ^ VarSet.to_string param_deps ^ " (via "
+        ^ VarSet.to_string intermediates ^ ")"
+
     (* In a sequence expression x:y, x and y must not be NA. *)
     method! record_binary_op
         (conf : configuration)
@@ -148,32 +172,7 @@ class monitor =
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
           state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
-
-          let ({ fun_id; deps; _ } as frame) = self#pop_stack in
-          assert (fun_id = conf.cur_fun) ;
-
-          (* These are the (intermediate) vars that x depends on *)
-          let intermediate_deps = VarSet.collect_e e in
-
-          (* Compute the params that x depends on (transitively, via the intermediate deps) *)
-          let param_deps =
-            (* Returns the dependencies of x, or an empty set *)
-            let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
-            VarSet.fold
-              (fun x acc -> VarSet.union (get_deps_for x) acc)
-              intermediate_deps VarSet.empty in
-
-          (* Update deps with x's dependencies, param_deps.
-             This is a strong update, overwriting any previous dependencies of x. *)
-          let deps = Env.add x param_deps deps in
-
-          (* Update the stack frame with the new deps map, and current deps *)
-          self#push_stack { frame with deps; cur_deps = param_deps } ;
-
-          if VarSet.is_empty param_deps then self#debug_print @@ x ^ " has no dependencies"
-          else
-            self#debug_print @@ x ^ " depends on " ^ VarSet.to_string param_deps ^ " via "
-            ^ VarSet.to_string intermediate_deps
+          self#update_summary x (VarSet.collect_e e)
       | Call _ ->
           (* arguments are not dependencies *)
           (* TODO: later, we'll want special handling of function calls *)
@@ -189,7 +188,8 @@ class monitor =
       | Some se ->
           state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
       | None -> ()) ;
-      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state
+      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
+      self#update_summary x (VarSet.collect_se se3)
 
     method! record_subset2_assign
         (conf : configuration)
@@ -198,7 +198,8 @@ class monitor =
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se2) state ;
-      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state
+      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
+      self#update_summary x (VarSet.collect_se se3)
 
     method! record_if
         (conf : configuration)

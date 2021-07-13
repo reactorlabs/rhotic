@@ -49,6 +49,16 @@ a <- 1
 b <- 2
 c <- 3
 
+aa <- -1
+aa[] <- 0
+aa[] <- a
+aa[1] <- 2
+aa[a] <- 3
+aa[b] <- c
+aa[[1]] <- 4
+aa[[a]] <- 5
+aa[[b]] <- c
+
 # f's params x, z must not be NA
 # ==> a, c must not be NA
 # x depends on f's ret val which depends on param z which depends on arg c

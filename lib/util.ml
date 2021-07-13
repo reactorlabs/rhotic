@@ -34,6 +34,10 @@ module Option = struct
 
   let bind2 f x y = Option.bind x (fun x -> Option.bind y (fun y -> f x y))
 
+  let get_or ~default = function
+    | None -> default
+    | Some x -> x
+
   let map_or ~default f = function
     | None -> default
     | Some x -> f x
