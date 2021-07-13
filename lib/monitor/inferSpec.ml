@@ -52,10 +52,13 @@ module ConstraintNotNA = struct
     Env.add cur_fun { constrs; deps } state
 end
 
+(* fun_id: the current function's id
+   deps: current map of variables to their (transitive) dependencies
+   cur_deps: current dependencies of the most recently seen variables *)
 type stack_frame =
   { fun_id : identifier [@default Common.main_function]
   ; deps : VarSet.t Env.t [@default Env.empty]
-  ; cur_vars : VarSet.t [@default VarSet.empty]
+  ; cur_deps : VarSet.t [@default VarSet.empty]
   }
 [@@deriving make]
 
@@ -69,30 +72,22 @@ class monitor =
 
     val mutable last_popped_frame : stack_frame option = None
 
-    (* Push a frame onto the shadow stack, and clear last_popped_frame.
-       We always expect a non-empty stack because main$ should be on it. *)
-    method private push_stack frame =
-      assert (List.length stack > 0) ;
-
+    method private debug_print str =
       let n = List.length stack - 1 in
       Stdlib.print_string (String.make (n * 2) ' ') ;
-      Printf.printf "--> Entering %s\n" frame.fun_id ;
+      Stdlib.print_endline str
 
+    (* Push a frame onto the shadow stack, and clear last_popped_frame. *)
+    method private push_stack frame =
       stack <- frame :: stack ;
       last_popped_frame <- None
 
-    (* Pop a frame from the shadow stack, set last_popped_frame, and return the frame.
-       We always expect a non-empty stack because main$ should be on it. *)
+    (* Pop a frame from the shadow stack, set last_popped_frame, and return the frame. *)
     method private pop_stack =
       assert (List.length stack > 0) ;
       let top, rest = (List.hd stack, List.tl stack) in
       stack <- rest ;
       last_popped_frame <- Some top ;
-
-      let n = List.length stack - 1 in
-      Stdlib.print_string (String.make (n * 2) ' ') ;
-      Printf.printf "<-- Exiting %s\n" top.fun_id ;
-
       top
 
     (* In a sequence expression x:y, x and y must not be NA. *)
@@ -116,30 +111,37 @@ class monitor =
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
-    (* Entering a function call, so we need to initialize a frame and push onto the shadow stack.
-       We initialize deps so that each param maps to a singleton set containing itself,
-       e.g. x -> {x}, y -> {y} *)
+    (* Entering a function call, so we need to initialize a frame and push onto the shadow stack. *)
+    (* TODO: Need to handle call args later? *)
     method! record_call_entry
         (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
         : unit =
-      (* TODO: Need to handle call args later? *)
-      let map_self map x = Env.add x (VarSet.singleton x) map in
-      let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
-      let deps = List.fold_left map_self Env.empty params in
+      (* Initialize deps so that each param maps to a singleton set containing itself,
+         e.g. x -> {x}, y -> {y} *)
+      let deps =
+        let map_self map x = Env.add x (VarSet.singleton x) map in
+        let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
+        List.fold_left map_self Env.empty params in
+      self#debug_print @@ "--> Entering " ^ fun_id ;
       self#push_stack @@ make_stack_frame ~fun_id ~deps ()
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
+    (* TODO: Need to handle returning the result of a function call? *)
     method! record_call_exit
         (_ : configuration)
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      (* TODO: Need to handle returning the result of a function call? *)
       let top = self#pop_stack in
+      self#debug_print @@ "<-- Exiting " ^ top.fun_id ;
+      self#debug_print @@ top.fun_id ^ "'s result depended on params "
+      ^ VarSet.to_string top.cur_deps ;
       assert (top.fun_id = fun_id)
 
-    (* TODO: Clean up and document this. Then see which other assignment statements need to update deps. *)
+    (* Assigning a value to some variable x, so update the variables that x depends on.
+       Specifically, we want to transitively follow the dependencies, to compute which params x depends on. *)
+    (* TODO: Handle other assignment statements? *)
     method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
         : unit =
       match e with
@@ -147,19 +149,31 @@ class monitor =
       | Simple_Expression _ ->
           state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
 
-          (* Collect vars, update deps, update last-seen-vars *)
-          let ({ fun_id; deps; _ } as frame), rest = (List.hd stack, List.tl stack) in
+          let ({ fun_id; deps; _ } as frame) = self#pop_stack in
           assert (fun_id = conf.cur_fun) ;
-          let x_deps = VarSet.collect_e e in
-          (* Simplify x_deps by looking up each one in the map *)
-          let cur_vars =
+
+          (* These are the (intermediate) vars that x depends on *)
+          let intermediate_deps = VarSet.collect_e e in
+
+          (* Compute the params that x depends on (transitively, via the intermediate deps) *)
+          let param_deps =
+            (* Returns the dependencies of x, or an empty set *)
+            let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
             VarSet.fold
-              (fun x acc -> VarSet.union (Env.get_or x deps ~default:VarSet.empty) acc)
-              x_deps VarSet.empty in
-          let deps = Env.add x cur_vars deps in
-          let frame = { frame with deps; cur_vars } in
-          stack <- frame :: rest ;
-          Printf.printf "%s: %s\n" x (String.concat "," @@ VarSet.elements cur_vars)
+              (fun x acc -> VarSet.union (get_deps_for x) acc)
+              intermediate_deps VarSet.empty in
+
+          (* Update deps with x's dependencies, param_deps.
+             This is a strong update, overwriting any previous dependencies of x. *)
+          let deps = Env.add x param_deps deps in
+
+          (* Update the stack frame with the new deps map, and current deps *)
+          self#push_stack { frame with deps; cur_deps = param_deps } ;
+
+          if VarSet.is_empty param_deps then self#debug_print @@ x ^ " has no dependencies"
+          else
+            self#debug_print @@ x ^ " depends on " ^ VarSet.to_string param_deps ^ " via "
+            ^ VarSet.to_string intermediate_deps
       | Call _ ->
           (* arguments are not dependencies *)
           (* TODO: later, we'll want special handling of function calls *)
