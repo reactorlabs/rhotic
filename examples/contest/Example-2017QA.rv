@@ -1,0 +1,50 @@
+useFlipper <- function(my_pancakes, my_indices){
+
+    output <- my_pancakes
+
+    for(i in my_indices){
+
+        if(my_pancakes[i] == "+"){
+          output[i] <- "-"
+          }else{output[i] <- "+"}
+
+    }
+
+    return(output)
+
+}
+
+solve <- function(S, K){
+
+    # '''
+    # Returns a solution for one case of the input data.
+    # '''
+
+    output <- 0
+
+    for(i in 1:(length(S) - K + 1)){
+
+        if(S[i] == "-"){
+
+            S <- useFlipper(
+                S, c(i:(i + K - 1))
+            )
+
+            output <- output + 1
+
+        }
+
+    }
+
+    return(output)
+
+}
+
+S <- c("+","+","-","+","+","+","+","-")
+K <- 2
+R <- solve(S, K)
+print(R)
+S <- c("-", "+", "-", "+", "-")
+K <- 4
+R <- solve(S, K)
+print(R)
