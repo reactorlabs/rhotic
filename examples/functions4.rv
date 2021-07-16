@@ -46,8 +46,8 @@ f <- function(x, y, z) {
 # ret val depends on z
 
 a <- 1
-b <- 2
-c <- 3
+b <- a + 1
+c <- b + 1
 
 aa <- -1
 aa[] <- 0

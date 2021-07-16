@@ -19,8 +19,9 @@ g <- function(x, y) {
 }
 
 h <- function(x,y) {
-  g(x, 0)
+  g(x, y)
 }
 
-h(-1, -1)
+hh <- -1
+h(hh, -1)
 h(1,1)

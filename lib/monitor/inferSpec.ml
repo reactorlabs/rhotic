@@ -90,6 +90,22 @@ class monitor =
       last_popped_frame <- Some top ;
       top
 
+    method private update_cur_deps vars =
+      let ({ deps; _ } as frame) = self#pop_stack in
+      (* Compute the params that x depends on (transitively, via the intermediate deps) *)
+      let param_deps =
+        let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
+        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
+      self#push_stack { frame with cur_deps = param_deps } ;
+
+      if VarSet.is_empty param_deps && VarSet.is_empty vars then
+        self#debug_print @@ "Observed no vars, only constants"
+      else if VarSet.is_empty param_deps then
+        self#debug_print @@ "Vars " ^ VarSet.to_string vars ^ " are constants"
+      else
+        self#debug_print @@ "Observed " ^ VarSet.to_string vars ^ " (depends on: "
+        ^ VarSet.to_string param_deps ^ ")"
+
     (* x depends on intermediates, but we want the params that x depends on.
        Update the deps map with x's dependencies. *)
     method private update_summary x intermediates =
@@ -136,7 +152,6 @@ class monitor =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
     (* Entering a function call, so we need to initialize a frame and push onto the shadow stack. *)
-    (* TODO: Need to handle call args later? *)
     method! record_call_entry
         (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
         : unit =
@@ -151,7 +166,6 @@ class monitor =
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
-    (* TODO: Need to handle returning the result of a function call? *)
     method! record_call_exit
         (_ : configuration)
         (fun_id : identifier)
@@ -165,7 +179,6 @@ class monitor =
 
     (* Assigning a value to some variable x, so update the variables that x depends on.
        Specifically, we want to transitively follow the dependencies, to compute which params x depends on. *)
-    (* TODO: Handle other assignment statements? *)
     method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
         : unit =
       match e with
@@ -173,10 +186,20 @@ class monitor =
       | Simple_Expression _ ->
           state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
           self#update_summary x (VarSet.collect_e e)
-      | Call _ ->
-          (* arguments are not dependencies *)
-          (* TODO: later, we'll want special handling of function calls *)
-          ()
+      | Call (f, ses) ->
+          assert (Option.is_some last_popped_frame) ;
+          let { cur_deps; _ } = Option.get last_popped_frame in
+          (* Create a mapping of f's params to argument variables *)
+          let mapping =
+            let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
+            let arg_vars = List.map VarSet.collect_se ses in
+            List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params arg_vars in
+          (* x depends on cur_deps depends on whatever mapping says *)
+          let intermediates =
+            VarSet.fold
+              (fun x acc -> VarSet.union (Env.get_or x mapping ~default:VarSet.empty) acc)
+              cur_deps VarSet.empty in
+          self#update_summary x intermediates
 
     method! record_subset1_assign
         (conf : configuration)
@@ -214,6 +237,27 @@ class monitor =
         ((se, _) : simple_expression * value)
         (_ : statement list) : unit =
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state
+
+    method! record_expr_stmt (conf : configuration) ((e, _) : expression * value) : unit =
+      match e with
+      | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
+      | Simple_Expression _ ->
+          self#update_cur_deps (VarSet.collect_e e)
+      | Call (f, ses) ->
+          (* Current dependencies are dependencies of whatever f is returning *)
+          assert (Option.is_some last_popped_frame) ;
+          let { cur_deps; _ } = Option.get last_popped_frame in
+          (* Create a mapping of f's params to argument variables *)
+          let mapping =
+            let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
+            let arg_vars = List.map VarSet.collect_se ses in
+            List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params arg_vars in
+          (* x depends on cur_deps depends on whatever mapping says *)
+          let intermediates =
+            VarSet.fold
+              (fun x acc -> VarSet.union (Env.get_or x mapping ~default:VarSet.empty) acc)
+              cur_deps VarSet.empty in
+          self#update_cur_deps intermediates
 
     method! dump_table : unit =
       (* let dump_function f ({ constrs; deps } : ConstraintNotNA.local_state) = *)
