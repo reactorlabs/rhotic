@@ -2,6 +2,8 @@ open Expr
 open Common
 open Util
 
+let debug = true
+
 (* TODO:
   - function-level constraints?
   - separate models for separate function calls, e.g. call-site sensitivity
@@ -66,12 +68,21 @@ class monitor =
   object (self)
     inherit Monitor.monitor
 
+    (******************************************************************************
+     * Internal monitor state
+     ******************************************************************************)
+
     val mutable state : ConstraintNotNA.t = FunTab.empty
 
     val mutable stack : stack_frame list = [ make_stack_frame () ]
 
     val mutable last_popped_frame : stack_frame option = None
 
+    (******************************************************************************
+     * Monitor helpers
+     ******************************************************************************)
+
+    (* Debug printing, with indenting to reflect the stack depth. *)
     method private debug_print str =
       let n = List.length stack - 1 in
       Stdlib.print_string (String.make (n * 2) ' ') ;
@@ -90,45 +101,68 @@ class monitor =
       last_popped_frame <- Some top ;
       top
 
-    method private update_cur_deps vars =
+    (* Update the summary of the current call.
+       x, if present, is the variable being assigned to.
+       vars are the (intermediate) variables involved.
+       Therefore, x depends on vars, but we want to compute the transitive dependencies.
+       If x is not present, we still want the transitive dependencies of the last seen vars. *)
+    method private update_summary ?(x = None) vars =
+      (* Follow x's dependencies to compute the transitive dependencies. *)
       let ({ deps; _ } as frame) = self#pop_stack in
-      (* Compute the params that x depends on (transitively, via the intermediate deps) *)
-      let param_deps =
+      let transitive_deps =
         let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
-      self#push_stack { frame with cur_deps = param_deps } ;
 
-      if VarSet.is_empty param_deps && VarSet.is_empty vars then
-        self#debug_print @@ "Observed no vars, only constants"
-      else if VarSet.is_empty param_deps then
-        self#debug_print @@ "Vars " ^ VarSet.to_string vars ^ " are constants"
-      else
-        self#debug_print @@ "Observed " ^ VarSet.to_string vars ^ " (depends on: "
-        ^ VarSet.to_string param_deps ^ ")"
+      (* Update deps, but only if we were updating some variable x. *)
+      let deps' =
+        match x with
+        | None -> deps
+        | Some x -> Env.add x transitive_deps deps in
+      self#push_stack { frame with deps = deps'; cur_deps = transitive_deps } ;
 
-    (* x depends on intermediates, but we want the params that x depends on.
-       Update the deps map with x's dependencies. *)
-    method private update_summary x intermediates =
-      let ({ deps; _ } as frame) = self#pop_stack in
+      if debug then
+        match x with
+        | Some x ->
+            if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
+              self#debug_print @@ x ^ ": (none)"
+            else if VarSet.is_empty transitive_deps then
+              self#debug_print @@ x ^ ": (none, via " ^ VarSet.to_string vars ^ ")"
+            else
+              self#debug_print @@ x ^ ": " ^ VarSet.to_string transitive_deps ^ " (via "
+              ^ VarSet.to_string vars ^ ")"
+        | None ->
+            if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
+              self#debug_print @@ "Observed no vars, only constants"
+            else if VarSet.is_empty transitive_deps then
+              self#debug_print @@ "Vars " ^ VarSet.to_string vars ^ " are constants"
+            else
+              self#debug_print @@ "Observed " ^ VarSet.to_string vars ^ " (depends on: "
+              ^ VarSet.to_string transitive_deps ^ ")"
 
-      (* Compute the params that x depends on (transitively, via the intermediate deps) *)
-      let param_deps =
-        let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
-        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) intermediates VarSet.empty
-      in
+    (* Calls need some extra processing before we can update the summary.
+       At this point, we've already analyzed the call and popped the stack.
+       Now we need to stitch the dependencies:
+        - x (variable being assigned to, if present), to
+        - variables in the call's return expression, to
+        - the parameter dependencies, to
+        - the call arguments.
+       Essentially, we are creating a temporary transfer function for the call. *)
+    method private update_summary_for_call ?(x = None) params arg_vars =
+      assert (Option.is_some last_popped_frame) ;
+      let { cur_deps; _ } = Option.get last_popped_frame in
 
-      (* Update deps with x's dependencies, param_deps.
-         This is a strong update, overwriting any previous dependencies of x.
-         Update the stack frame with the new deps map, and current deps *)
-      self#push_stack { frame with deps = Env.add x param_deps deps; cur_deps = param_deps } ;
+      (* Create a mapping of params to argument variables *)
+      let mapping = List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params arg_vars in
 
-      if VarSet.is_empty param_deps && VarSet.is_empty intermediates then
-        self#debug_print @@ x ^ ": (none)"
-      else if VarSet.is_empty param_deps then
-        self#debug_print @@ x ^ ": (none, via " ^ VarSet.to_string intermediates ^ ")"
-      else
-        self#debug_print @@ x ^ ": " ^ VarSet.to_string param_deps ^ " (via "
-        ^ VarSet.to_string intermediates ^ ")"
+      (* x depends on cur_deps depends on whatever mapping says *)
+      let vars =
+        let get_deps_for x = Env.get_or x mapping ~default:VarSet.empty in
+        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) cur_deps VarSet.empty in
+      self#update_summary ~x vars
+
+    (******************************************************************************
+     * Callbacks to record interpreter operations
+     ******************************************************************************)
 
     (* In a sequence expression x:y, x and y must not be NA. *)
     method! record_binary_op
@@ -151,17 +185,17 @@ class monitor =
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
-    (* Entering a function call, so we need to initialize a frame and push onto the shadow stack. *)
+    (* Entering a function call, so we need to initialize a frame and push onto the shadow stack.
+       Initialize deps so that each param maps to a singleton set containing itself,
+       e.g. x -> {x}, y -> {y} *)
     method! record_call_entry
         (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
         : unit =
-      (* Initialize deps so that each param maps to a singleton set containing itself,
-         e.g. x -> {x}, y -> {y} *)
       let deps =
         let map_self map x = Env.add x (VarSet.singleton x) map in
         let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
         List.fold_left map_self Env.empty params in
-      self#debug_print @@ "--> Entering " ^ fun_id ;
+      if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
       self#push_stack @@ make_stack_frame ~fun_id ~deps ()
 
     (* Exiting a function call, so pop the shadow stack.
@@ -172,35 +206,28 @@ class monitor =
         (_ : simple_expression list * value list)
         (_ : value) : unit =
       let top = self#pop_stack in
-      self#debug_print @@ "<-- Exiting " ^ top.fun_id ;
-      self#debug_print @@ top.fun_id ^ "'s result depended on params "
-      ^ VarSet.to_string top.cur_deps ;
+      if debug then (
+        self#debug_print @@ "<-- Exiting " ^ top.fun_id ;
+        self#debug_print @@ top.fun_id ^ "'s result depended on params "
+        ^ VarSet.to_string top.cur_deps) ;
       assert (top.fun_id = fun_id)
 
     (* Assigning a value to some variable x, so update the variables that x depends on.
-       Specifically, we want to transitively follow the dependencies, to compute which params x depends on. *)
+       Specifically, we want to transitively follow the dependencies, to compute which params x
+       depends on. *)
     method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
         : unit =
       match e with
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
           state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
-          self#update_summary x (VarSet.collect_e e)
+          self#update_summary ~x:(Some x) (VarSet.collect_e e)
       | Call (f, ses) ->
-          assert (Option.is_some last_popped_frame) ;
-          let { cur_deps; _ } = Option.get last_popped_frame in
-          (* Create a mapping of f's params to argument variables *)
-          let mapping =
-            let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
-            let arg_vars = List.map VarSet.collect_se ses in
-            List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params arg_vars in
-          (* x depends on cur_deps depends on whatever mapping says *)
-          let intermediates =
-            VarSet.fold
-              (fun x acc -> VarSet.union (Env.get_or x mapping ~default:VarSet.empty) acc)
-              cur_deps VarSet.empty in
-          self#update_summary x intermediates
+          let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
+          let arg_vars = List.map VarSet.collect_se ses in
+          self#update_summary_for_call ~x:(Some x) params arg_vars
 
+    (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
         (conf : configuration)
         (x : identifier)
@@ -212,8 +239,9 @@ class monitor =
           state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
       | None -> ()) ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
-      self#update_summary x (VarSet.collect_se se3)
+      self#update_summary ~x:(Some x) (VarSet.collect_se se3)
 
+    (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
         (conf : configuration)
         (x : identifier)
@@ -222,8 +250,9 @@ class monitor =
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se2) state ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
-      self#update_summary x (VarSet.collect_se se3)
+      self#update_summary ~x:(Some x) (VarSet.collect_se se3)
 
+    (* In an if statement, the condition cannot be NA. *)
     method! record_if
         (conf : configuration)
         ((se, _) : simple_expression * value)
@@ -238,26 +267,17 @@ class monitor =
         (_ : statement list) : unit =
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state
 
+    (* This is an expression statement, so it may an expression returned by a function call.
+       So we need to update the cur_deps to be the dependencies of the last variables seen. *)
     method! record_expr_stmt (conf : configuration) ((e, _) : expression * value) : unit =
       match e with
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
-          self#update_cur_deps (VarSet.collect_e e)
+          self#update_summary (VarSet.collect_e e)
       | Call (f, ses) ->
-          (* Current dependencies are dependencies of whatever f is returning *)
-          assert (Option.is_some last_popped_frame) ;
-          let { cur_deps; _ } = Option.get last_popped_frame in
-          (* Create a mapping of f's params to argument variables *)
-          let mapping =
-            let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
-            let arg_vars = List.map VarSet.collect_se ses in
-            List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params arg_vars in
-          (* x depends on cur_deps depends on whatever mapping says *)
-          let intermediates =
-            VarSet.fold
-              (fun x acc -> VarSet.union (Env.get_or x mapping ~default:VarSet.empty) acc)
-              cur_deps VarSet.empty in
-          self#update_cur_deps intermediates
+          let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
+          let arg_vars = List.map VarSet.collect_se ses in
+          self#update_summary_for_call params arg_vars
 
     method! dump_table : unit =
       (* let dump_function f ({ constrs; deps } : ConstraintNotNA.local_state) = *)
