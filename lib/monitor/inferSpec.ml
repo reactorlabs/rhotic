@@ -108,7 +108,7 @@ class monitor =
        If x is not present, we still want the transitive dependencies of the last seen vars. *)
     method private update_summary ?(x = None) vars =
       (* Follow x's dependencies to compute the transitive dependencies. *)
-      let ({ deps; _ } as frame) = self#pop_stack in
+      let ({ fun_id; deps; _ } as frame) = self#pop_stack in
       let transitive_deps =
         let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
@@ -117,13 +117,23 @@ class monitor =
       let deps' =
         match x with
         | None -> deps
-        | Some x -> Env.add x transitive_deps deps in
+        | Some x ->
+            let to_add =
+              (* If we're at the top level and x has no dependencies, set x as a self-dependency.
+                 This is a "hack" so that top-level assignments are considered "inputs" and the
+                 results are easier to read (otherwise there would be no dependencies at all). *)
+              if fun_id = Common.main_function && VarSet.is_empty transitive_deps then
+                VarSet.singleton x
+              else transitive_deps in
+            Env.add x to_add deps in
       self#push_stack { frame with deps = deps'; cur_deps = transitive_deps } ;
 
       if debug then
         match x with
         | Some x ->
-            if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
+            if fun_id = Common.main_function && VarSet.is_empty transitive_deps then
+              self#debug_print @@ x ^ ": " ^ x ^ " (top level)"
+            else if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
               self#debug_print @@ x ^ ": (none)"
             else if VarSet.is_empty transitive_deps then
               self#debug_print @@ x ^ ": (none, via " ^ VarSet.to_string vars ^ ")"

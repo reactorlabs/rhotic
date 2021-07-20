@@ -48,6 +48,7 @@ f <- function(x, y, z) {
 a <- 1
 b <- a + 1
 c <- b + 1
+a <- 2
 
 aa <- -1
 aa[] <- 0
