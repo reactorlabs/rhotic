@@ -344,10 +344,12 @@ let rec eval_expr monitors conf expr =
       res
   | Call (id, ses) ->
       let args = List.map eval ses in
-      List.iter (fun m -> m#record_call_entry conf id (ses, args)) monitors ;
-      let res = eval_call id args in
-      List.iter (fun m -> m#record_call_exit conf id (ses, args) res) monitors ;
-      res
+      if id = ".input" && List.length args = 1 then List.hd args
+      else (
+        List.iter (fun m -> m#record_call_entry conf id (ses, args)) monitors ;
+        let res = eval_call id args in
+        List.iter (fun m -> m#record_call_exit conf id (ses, args) res) monitors ;
+        res)
   | Simple_Expression se ->
       let res = eval se in
       List.iter (fun m -> m#record_simple_expr conf (se, res)) monitors ;

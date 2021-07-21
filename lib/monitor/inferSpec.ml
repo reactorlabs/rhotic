@@ -108,7 +108,7 @@ class monitor =
        If x is not present, we still want the transitive dependencies of the last seen vars. *)
     method private update_summary ?(x = None) vars =
       (* Follow x's dependencies to compute the transitive dependencies. *)
-      let ({ fun_id; deps; _ } as frame) = self#pop_stack in
+      let ({ deps; _ } as frame) = self#pop_stack in
       let transitive_deps =
         let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
@@ -117,23 +117,13 @@ class monitor =
       let deps' =
         match x with
         | None -> deps
-        | Some x ->
-            let to_add =
-              (* If we're at the top level and x has no dependencies, set x as a self-dependency.
-                 This is a "hack" so that top-level assignments are considered "inputs" and the
-                 results are easier to read (otherwise there would be no dependencies at all). *)
-              if fun_id = Common.main_function && VarSet.is_empty transitive_deps then
-                VarSet.singleton x
-              else transitive_deps in
-            Env.add x to_add deps in
+        | Some x -> Env.add x transitive_deps deps in
       self#push_stack { frame with deps = deps'; cur_deps = transitive_deps } ;
 
       if debug then
         match x with
         | Some x ->
-            if fun_id = Common.main_function && VarSet.is_empty transitive_deps then
-              self#debug_print @@ x ^ ": " ^ x ^ " (top level)"
-            else if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
+            if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
               self#debug_print @@ x ^ ": (none)"
             else if VarSet.is_empty transitive_deps then
               self#debug_print @@ x ^ ": (none, via " ^ VarSet.to_string vars ^ ")"
@@ -233,9 +223,15 @@ class monitor =
           state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
           self#update_summary ~x:(Some x) (VarSet.collect_e e)
       | Call (f, ses) ->
-          let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
-          let arg_vars = List.map VarSet.collect_se ses in
-          self#update_summary_for_call ~x:(Some x) params arg_vars
+          if f = ".input" && List.length ses = 1 then (
+            (* Treat the target variable as an input, so it is a self-dependency. *)
+            let ({ deps; _ } as frame) = self#pop_stack in
+            self#push_stack { frame with deps = Env.add x (VarSet.singleton x) deps } ;
+            self#debug_print @@ x ^ " (input)")
+          else
+            let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
+            let arg_vars = List.map VarSet.collect_se ses in
+            self#update_summary_for_call ~x:(Some x) params arg_vars
 
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
