@@ -69,6 +69,7 @@ type stack_frame =
   { fun_id : identifier [@default Common.main_function]
   ; deps : VarSet.t Env.t [@default Env.empty]
   ; cur_deps : VarSet.t [@default VarSet.empty]
+  ; constraints : constr Env.t [@default Env.empty]
   }
 [@@deriving make]
 
@@ -172,6 +173,11 @@ class monitor =
       (* Always strong, because we can't have a function call in a subset assignment. *)
       self#update_summary ~is_strong:true ~x vars
 
+    method private update_constraints fun_id new_constraints =
+      let params, _ = FunTab.find fun_id constraints in
+      (* TODO: Have a real merge strategy that isn't "overwrite" *)
+      FunTab.add fun_id (params, new_constraints) constraints
+
     (******************************************************************************
      * Callbacks to record interpreter operations
      ******************************************************************************)
@@ -207,15 +213,12 @@ class monitor =
       let deps =
         let map_self map x = Env.add x (VarSet.singleton x) map in
         List.fold_left map_self Env.empty params in
-      if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
-      self#push_stack @@ make_stack_frame ~fun_id ~deps () ;
-
       (* Initialize the constraint signature for this function.
          All params "may be NA" at this point. *)
       let param_constraints =
         List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
-      let fun_sig = (params, param_constraints) in
-      constraints <- FunTab.add fun_id fun_sig constraints
+      if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
+      self#push_stack @@ make_stack_frame ~fun_id ~deps ~constraints:param_constraints ()
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
@@ -224,12 +227,15 @@ class monitor =
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      let top = self#pop_stack in
+      let { fun_id = popped_fun; cur_deps; constraints = new_constraints; _ } = self#pop_stack in
+
+      (* Merge the constraints from the popped frame with the current state. *)
+      constraints <- self#update_constraints fun_id new_constraints ;
+
+      assert (popped_fun = fun_id) ;
       if debug then (
-        self#debug_print @@ "<-- Exiting " ^ top.fun_id ;
-        self#debug_print @@ top.fun_id ^ "'s result depended on params "
-        ^ VarSet.to_string top.cur_deps) ;
-      assert (top.fun_id = fun_id)
+        self#debug_print @@ "<-- Exiting " ^ popped_fun ;
+        self#debug_print @@ popped_fun ^ "'s result depended on params " ^ VarSet.to_string cur_deps)
 
     (* Assigning a value to some variable x, so update the variables that x depends on.
        Specifically, we want to transitively follow the dependencies, to compute which params x
@@ -286,7 +292,16 @@ class monitor =
         ((se, _) : simple_expression * value)
         (_ : statement list)
         (_ : statement list) : unit =
-      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
+      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
+      (* TODO *)
+      let ({ deps; constraints = new_constraints; _ } as frame) = self#pop_stack in
+      let vars = VarSet.collect_se se in
+      let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
+      let param_vars =
+        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
+      let constraints =
+        VarSet.fold (fun x acc -> FunTab.add x Must_not_be_NA acc) param_vars new_constraints in
+      self#push_stack { frame with constraints }
 
     method! record_for
         (conf : configuration)
@@ -294,6 +309,15 @@ class monitor =
         ((se, _) : simple_expression * value)
         (_ : statement list) : unit =
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state
+
+    (* Function definition, so let's initialize the constraints map. *)
+    method! record_fun_def
+        (_ : configuration) (fun_id : identifier) (params : identifier list) (_ : statement list)
+        : unit =
+      let param_constraints =
+        List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
+      let new_sig = (params, param_constraints) in
+      constraints <- FunTab.add fun_id new_sig constraints
 
     (* This is an expression statement, so it may an expression returned by a function call.
        So we need to update the cur_deps to be the dependencies of the last variables seen. *)
