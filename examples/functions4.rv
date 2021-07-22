@@ -49,16 +49,22 @@ a <- .input(1)
 b <- a + 1
 c <- b + 1
 a <- 2
+d <- .input(3)
 
 aa <- -1
 aa[] <- 0
-aa[] <- a
+aa[] <- a     # at this point, a is a constant
 aa[1] <- 2
 aa[a] <- 3
 aa[b] <- c
 aa[[1]] <- 4
 aa[[a]] <- 5
-aa[[b]] <- c
+aa[[b]] <- d
+
+e <- .input(1)
+f <- c(e, e)
+
+aa[] <- f     # this should be a strong update
 
 # f's params x, z must not be NA
 # ==> a, c must not be NA

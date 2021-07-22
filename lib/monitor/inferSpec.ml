@@ -106,38 +106,38 @@ class monitor =
        vars are the (intermediate) variables involved.
        Therefore, x depends on vars, but we want to compute the transitive dependencies.
        If x is not present, we still want the transitive dependencies of the last seen vars. *)
-    method private update_summary ?(x = None) vars =
-      (* Follow x's dependencies to compute the transitive dependencies. *)
+    method private update_summary ?(is_strong = false) ?(x = None) vars =
       let ({ deps; _ } as frame) = self#pop_stack in
-      let transitive_deps =
-        let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
+
+      (* Follow x's dependencies to compute the transitive dependencies. *)
+      let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
+      let new_deps =
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
 
       (* Update deps, but only if we were updating some variable x. *)
       let deps' =
         match x with
         | None -> deps
-        | Some x -> Env.add x transitive_deps deps in
-      self#push_stack { frame with deps = deps'; cur_deps = transitive_deps } ;
+        | Some x ->
+            let to_add =
+              (* On a strong update, overwrite old deps; otherwise union the old and new deps. *)
+              if is_strong then new_deps else VarSet.union (get_deps_for x) new_deps in
+            Env.add x to_add deps in
+      self#push_stack { frame with deps = deps'; cur_deps = new_deps } ;
 
       if debug then
+        let vars_str = if VarSet.is_empty vars then "<const>" else VarSet.to_string vars in
         match x with
-        | Some x ->
-            if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
-              self#debug_print @@ x ^ ": (none)"
-            else if VarSet.is_empty transitive_deps then
-              self#debug_print @@ x ^ ": (none, via " ^ VarSet.to_string vars ^ ")"
-            else
-              self#debug_print @@ x ^ ": " ^ VarSet.to_string transitive_deps ^ " (via "
-              ^ VarSet.to_string vars ^ ")"
         | None ->
-            if VarSet.is_empty transitive_deps && VarSet.is_empty vars then
-              self#debug_print @@ "Observed no vars, only constants"
-            else if VarSet.is_empty transitive_deps then
-              self#debug_print @@ "Vars " ^ VarSet.to_string vars ^ " are constants"
-            else
-              self#debug_print @@ "Observed " ^ VarSet.to_string vars ^ " (depends on: "
-              ^ VarSet.to_string transitive_deps ^ ")"
+            let new_deps_str =
+              if VarSet.is_empty new_deps then "<none>" else VarSet.to_string new_deps in
+            self#debug_print @@ new_deps_str ^ " (via: " ^ vars_str ^ ")"
+        | Some x ->
+            let current_deps = Env.get_or x deps' ~default:VarSet.empty in
+            let current_deps_str =
+              if VarSet.is_empty current_deps then "<none>" else VarSet.to_string current_deps in
+            let weak_str = if is_strong then "" else " [weak update]" in
+            self#debug_print @@ x ^ ": " ^ current_deps_str ^ " (via: " ^ vars_str ^ ")" ^ weak_str
 
     (* Calls need some extra processing before we can update the summary.
        At this point, we've already analyzed the call and popped the stack.
@@ -158,7 +158,9 @@ class monitor =
       let vars =
         let get_deps_for x = Env.get_or x mapping ~default:VarSet.empty in
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) cur_deps VarSet.empty in
-      self#update_summary ~x vars
+
+      (* Always strong, because we can't have a function call in a subset assignment. *)
+      self#update_summary ~is_strong:true ~x vars
 
     (******************************************************************************
      * Callbacks to record interpreter operations
@@ -221,7 +223,8 @@ class monitor =
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
           state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
-          self#update_summary ~x:(Some x) (VarSet.collect_e e)
+          (* Assignment (non-subset) is always a strong update. *)
+          self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_e e)
       | Call (f, ses) ->
           if f = ".input" && List.length ses = 1 then (
             (* Treat the target variable as an input, so it is a self-dependency. *)
@@ -245,7 +248,9 @@ class monitor =
           state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
       | None -> ()) ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
-      self#update_summary ~x:(Some x) (VarSet.collect_se se3)
+      (* Strong update if there is no index, i.e. assigning to entire vector. *)
+      let is_strong = Option.is_none se2 in
+      self#update_summary ~is_strong ~x:(Some x) (VarSet.collect_se se3)
 
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
