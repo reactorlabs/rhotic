@@ -54,6 +54,14 @@ module ConstraintNotNA = struct
     Env.add cur_fun { constrs; deps } state
 end
 
+type constr =
+  | May_be_NA
+  | Must_not_be_NA
+[@@deriving show { with_path = false }]
+
+(* Pair of (parameter list, constraint map) *)
+type signature = Identifier.t list * constr Env.t
+
 (* fun_id: the current function's id
    deps: current map of variables to their (transitive) dependencies
    cur_deps: current dependencies of the most recently seen variables *)
@@ -73,6 +81,8 @@ class monitor =
      ******************************************************************************)
 
     val mutable state : ConstraintNotNA.t = FunTab.empty
+
+    val mutable constraints : signature FunTab.t = FunTab.empty
 
     val mutable stack : stack_frame list = [ make_stack_frame () ]
 
@@ -187,18 +197,25 @@ class monitor =
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
 
-    (* Entering a function call, so we need to initialize a frame and push onto the shadow stack.
-       Initialize deps so that each param maps to a singleton set containing itself,
-       e.g. x -> {x}, y -> {y} *)
+    (* Entering a function call, so we need to initialize some things. *)
     method! record_call_entry
         (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
         : unit =
+      (* Initialize a stack frame and push onto the shadow stack.
+         Set each param as a self-dependency. *)
+      let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
       let deps =
         let map_self map x = Env.add x (VarSet.singleton x) map in
-        let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
         List.fold_left map_self Env.empty params in
       if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
-      self#push_stack @@ make_stack_frame ~fun_id ~deps ()
+      self#push_stack @@ make_stack_frame ~fun_id ~deps () ;
+
+      (* Initialize the constraint signature for this function.
+         All params "may be NA" at this point. *)
+      let param_constraints =
+        List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
+      let fun_sig = (params, param_constraints) in
+      constraints <- FunTab.add fun_id fun_sig constraints
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
@@ -307,5 +324,14 @@ class monitor =
       (*  *)
       (* Stdlib.print_endline ">>> InferSpec <<<" ; *)
       (* FunTab.iter dump_function state *)
-      ()
+      Stdlib.print_endline ">>> InferSpec <<<" ;
+      let dump_function f (params, param_constrs) =
+        let param_str = String.concat ", " params in
+        Printf.printf "function %s(%s):\n" f param_str ;
+        List.iter
+          (fun p ->
+            let c = Env.find p param_constrs in
+            Printf.printf "\t%s: %s\n" p (show_constr c))
+          params in
+      FunTab.iter dump_function constraints
   end
