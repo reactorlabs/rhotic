@@ -50,4 +50,5 @@ f <- function(x) {
 }
 
 v <- 1:9
-f(v)
+u <- .input(v)
+f(u)

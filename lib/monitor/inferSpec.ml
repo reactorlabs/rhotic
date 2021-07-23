@@ -64,7 +64,8 @@ type signature = Identifier.t list * constr Env.t
 
 (* fun_id: the current function's id
    deps: current map of variables to their (transitive) dependencies
-   cur_deps: current dependencies of the most recently seen variables *)
+   cur_deps: current dependencies of the most recently seen variables
+   constraints: constraints we've inferred on the current function's parameters *)
 type stack_frame =
   { fun_id : identifier [@default Common.main_function]
   ; deps : VarSet.t Env.t [@default Env.empty]
@@ -173,10 +174,24 @@ class monitor =
       (* Always strong, because we can't have a function call in a subset assignment. *)
       self#update_summary ~is_strong:true ~x vars
 
-    method private update_constraints fun_id new_constraints =
-      let params, _ = FunTab.find fun_id constraints in
+    method private merge_constraints fun_id new_constraints =
       (* TODO: Have a real merge strategy that isn't "overwrite" *)
+      let params, _ = FunTab.find fun_id constraints in
       FunTab.add fun_id (params, new_constraints) constraints
+
+    method private add_constraints vars =
+      let ({ deps; constraints; _ } as frame) = self#pop_stack in
+      let param_vars =
+        let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
+        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
+      let new_constraints =
+        VarSet.fold (fun x acc -> FunTab.add x Must_not_be_NA acc) param_vars constraints in
+      self#push_stack { frame with constraints = new_constraints } ;
+      if debug then
+        let param_vars_str =
+          if VarSet.is_empty param_vars then "<none>" else VarSet.to_string param_vars in
+        self#debug_print @@ ">> Must not be NA: " ^ param_vars_str ^ " (via: "
+        ^ VarSet.to_string vars ^ ")"
 
     (******************************************************************************
      * Callbacks to record interpreter operations
@@ -192,7 +207,8 @@ class monitor =
       match op with
       | Seq ->
           let vars = VarSet.union (VarSet.collect_se se1) (VarSet.collect_se se2) in
-          state <- ConstraintNotNA.add_constraints conf.cur_fun vars state
+          state <- ConstraintNotNA.add_constraints conf.cur_fun vars state ;
+          self#add_constraints vars
       | Arithmetic _ | Relational _ | Logical _ -> ()
 
     (* In a subset2 expression x[[i]], i must not be NA. *)
@@ -201,7 +217,8 @@ class monitor =
         (_ : simple_expression * value)
         ((se, _) : simple_expression * value)
         (_ : value) : unit =
-      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
+      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
+      self#add_constraints (VarSet.collect_se se)
 
     (* Entering a function call, so we need to initialize some things. *)
     method! record_call_entry
@@ -227,11 +244,9 @@ class monitor =
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      let { fun_id = popped_fun; cur_deps; constraints = new_constraints; _ } = self#pop_stack in
-
       (* Merge the constraints from the popped frame with the current state. *)
-      constraints <- self#update_constraints fun_id new_constraints ;
-
+      let { fun_id = popped_fun; cur_deps; constraints = new_constraints; _ } = self#pop_stack in
+      constraints <- self#merge_constraints fun_id new_constraints ;
       assert (popped_fun = fun_id) ;
       if debug then (
         self#debug_print @@ "<-- Exiting " ^ popped_fun ;
@@ -268,7 +283,8 @@ class monitor =
         (_ : value) : unit =
       (match se2 with
       | Some se ->
-          state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state
+          state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
+          self#add_constraints (VarSet.collect_se se)
       | None -> ()) ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
       (* Strong update if there is no index, i.e. assigning to entire vector. *)
@@ -284,6 +300,7 @@ class monitor =
         (_ : value) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se2) state ;
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
+      self#add_constraints (VarSet.collect_se se2) ;
       self#update_summary ~x:(Some x) (VarSet.collect_se se3)
 
     (* In an if statement, the condition cannot be NA. *)
@@ -293,22 +310,15 @@ class monitor =
         (_ : statement list)
         (_ : statement list) : unit =
       state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
-      (* TODO *)
-      let ({ deps; constraints = new_constraints; _ } as frame) = self#pop_stack in
-      let vars = VarSet.collect_se se in
-      let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
-      let param_vars =
-        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
-      let constraints =
-        VarSet.fold (fun x acc -> FunTab.add x Must_not_be_NA acc) param_vars new_constraints in
-      self#push_stack { frame with constraints }
+      self#add_constraints (VarSet.collect_se se)
 
     method! record_for
         (conf : configuration)
         (x : identifier)
         ((se, _) : simple_expression * value)
         (_ : statement list) : unit =
-      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state
+      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state ;
+      self#update_summary ~x:(Some x) (VarSet.collect_se se)
 
     (* Function definition, so let's initialize the constraints map. *)
     method! record_fun_def
