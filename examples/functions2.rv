@@ -2,14 +2,14 @@
 # By propagating constraints, we conclude that y and j cannot be NA.
 #
 # However, we should not propagate this constraint into g, and infer that
-# x2 cannot be NA: g may be called at other sites (e.g. the second call below,
-# with NA), and g itself has no constraints on x2.
+# g's x cannot be NA: g may be called at other sites (e.g. the second call below,
+# with NA), and g itself has no constraints on x.
 #
 # On the other hand, at this particular call site in f, g must not return NA.
 # If we can infer that g does not return NA if its argument is not NA, then we
 # can infer that i should not be NA, therefore x cannot contain NAs.
 
-# x2: may or may not be NA
+# x: may or may not be NA
 g <- function(x) {
   # these variables should be treated separately from f's
   res <- T
@@ -20,8 +20,11 @@ g <- function(x) {
   2 * x       # or any other expression of x
 }
 
+# x: must not be NA
 f <- function(x) {
   y <- 0
+
+  # x cannot be NA
   for (i in x) {
     # we should not propagate this constraint into g
     # g cannot return NA here, so i cannot be NA
@@ -49,6 +52,6 @@ f <- function(x) {
   }
 }
 
-v <- 1:9
+v <- 1:3
 u <- .input(v)
 f(u)

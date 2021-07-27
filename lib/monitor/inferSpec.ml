@@ -318,7 +318,7 @@ class monitor =
         ((se, _) : simple_expression * value)
         (_ : statement list) : unit =
       state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state ;
-      self#update_summary ~x:(Some x) (VarSet.collect_se se)
+      self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_se se)
 
     (* Function definition, so let's initialize the constraints map. *)
     method! record_fun_def

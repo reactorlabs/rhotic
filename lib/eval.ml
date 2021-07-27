@@ -467,13 +467,13 @@ and eval_stmt monitors conf stmt =
       (conf', res)
   | If (se1, s2, s3) ->
       let cond = eval_se se1 in
-      let conf', res = eval_if cond s2 s3 in
       List.iter (fun m -> m#record_if conf (se1, cond) s2 s3) monitors ;
+      let conf', res = eval_if cond s2 s3 in
       (conf', res)
   | For (x1, se2, s3) ->
       let seq = eval_se se2 in
-      let conf', res = eval_for x1 seq s3 in
       List.iter (fun m -> m#record_for conf x1 (se2, seq) s3) monitors ;
+      let conf', res = eval_for x1 seq s3 in
       (conf', res)
   | Expression e ->
       let res = eval e in
