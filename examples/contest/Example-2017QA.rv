@@ -1,16 +1,32 @@
+# source: https://www.codejamsol.com/filter?sortby=rank&lang=All&add_lang=R&problem_id=900#2 (lubomir.stepanek)
+
+
+length <- function(X) {
+	res <- 0
+	for(i in X) {
+		res <- res + 1
+	}
+	res
+}
+
+
 useFlipper <- function(my_pancakes, my_indices){
 
     output <- my_pancakes
 
     for(i in my_indices){
 
-        if(my_pancakes[i] == "+"){
+		t <- my_pancakes[i] == "+"
+
+        if(t){
           output[i] <- "-"
-          }else{output[i] <- "+"}
+        }else{
+		  output[i] <- "+"
+	    }
 
     }
 
-    return(output)
+	output
 
 }
 
@@ -22,13 +38,16 @@ solve <- function(S, K){
 
     output <- 0
 
-    for(i in 1:(length(S) - K + 1)){
+	l <- length(S)
+	w <- l - K + 1
+    for(i in 1:w){
 
-        if(S[i] == "-"){
+		t <- S[i] == "-"
+        if(t){
 
-            S <- useFlipper(
-                S, c(i:(i + K - 1))
-            )
+			z <- i + K - 1
+			idx <- c(i:z)
+            S <- useFlipper(S, idx)            
 
             output <- output + 1
 
@@ -36,15 +55,16 @@ solve <- function(S, K){
 
     }
 
-    return(output)
+	output
 
 }
 
-S <- c("+","+","-","+","+","+","+","-")
-K <- 2
+S <- c("-","-","-","+","-","+","+","-")
+K <- 3
 R <- solve(S, K)
-print(R)
+R
+
 S <- c("-", "+", "-", "+", "-")
 K <- 4
 R <- solve(S, K)
-print(R)
+R
