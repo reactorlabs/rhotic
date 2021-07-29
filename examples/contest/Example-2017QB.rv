@@ -1,76 +1,77 @@
 # source: https://www.codejamsol.com/filter?sortby=rank&lang=All&add_lang=R&problem_id=901#2 (lubomir.stepanek)
 
-
 length <- function(X) {
-	res <- 0
-	for(i in X) {
-		res <- res + 1
-	}
-	res
+    res <- 0
+    for(i in X) {
+        res <- res + 1
+    }
+    res
 }
 
-
 isTidy <- function(my_digits){
-
     # '''
     # Returns TRUE if the integer constisting of digits "my_digits"
     # is tidy, i. e. its digits "my_digits" are sorted
     # in non-decreasing order. Otherwise it returns FALSE.
     # '''
 
-    i <- 1
-	L <- length(my_digits)
-	j <- i + 1
-	t <- my_digits[i] <= my_digits[j] & i < L
+    x <- 1
+    L <- length(my_digits)
+    v <- 1:L
+    for(i in v){
+        j <- i + 1
+        my_digits_i <- my_digits[i]
+        my_digits_j <- my_digits[j]
 
-    while(t){
+        t1 <- my_digits_i <= my_digits_j
+        t2 <- i < L
+        t <- t1 & t2
 
-        i <- i + 1
-		j <- i + 1
-		t <- my_digits[i] <= my_digits[j] & i < L
-
+        if (t) {
+            x <- x + 1
+        }
     }
-
-	r <- i == L
-	r
+    x == L
 }
 
-
 solve <- function(my_case){
-
     # '''
     # Returns a solution for one case of the input data.
     # '''
 
     my_digits <- as.integer(my_case)
-    i <- length(my_digits)
-	t <- !isTidy(my_digits) & i > 0
+    L <- length(my_digits)
+    v <- L:1
+    for(i in v){
+        t1 <- isTidy(my_digits)
+        t2 <- !t1
+        t3 <- i > 0
+        t <- t2 & t3
 
-    while(t){
-
-        my_digits[i] <- 9
-		j <- i - 1
-        my_digits[j] <- my_digits[j] - 1
-        i <- i - 1
-		t <- !isTidy(my_digits) & i > 0
-
+        if(t){
+            my_digits[i] <- 9
+            j <- i - 1
+            my_digits_j <- my_digits[j]
+            my_digits_j_1 <- my_digits_j - 1
+            my_digits[j] <- my_digits_j_1
+            i <- i - 1
+        }
     }
 
-    if(my_digits[1] == "0"){
-
-		L <- length(my_digits)
-        my_digits <- my_digits[2:L]
-
+    my_digits_1 <- my_digits[1]
+    t <- my_digits_1 == "0"
+    if(t){
+        L <- length(my_digits)
+        i <- 2:L
+        my_digits <- my_digits[i]
     }
-
     my_digits
 }
-
 
 S <- c("1","2","3","9")
 R <- solve(S)
 R
 
-S <- c("1","2",NA,"9")
+S <- c("1","2","9","3")
 R <- solve(S)
 R

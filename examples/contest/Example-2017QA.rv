@@ -1,62 +1,50 @@
 # source: https://www.codejamsol.com/filter?sortby=rank&lang=All&add_lang=R&problem_id=900#2 (lubomir.stepanek)
 
-
 length <- function(X) {
-	res <- 0
-	for(i in X) {
-		res <- res + 1
-	}
-	res
+    res <- 0
+    for(i in X) {
+        res <- res + 1
+    }
+    res
 }
 
-
 useFlipper <- function(my_pancakes, my_indices){
-
     output <- my_pancakes
-
     for(i in my_indices){
-
-		t <- my_pancakes[i] == "+"
-
+        pancake <- my_pancakes[i]
+        t <- pancake == "+"
         if(t){
           output[i] <- "-"
         }else{
-		  output[i] <- "+"
-	    }
-
+          output[i] <- "+"
+        }
     }
-
-	output
-
+    output
 }
 
 solve <- function(S, K){
-
     # '''
     # Returns a solution for one case of the input data.
     # '''
-
     output <- 0
 
-	l <- length(S)
-	w <- l - K + 1
-    for(i in 1:w){
+    l <- length(S)
+    w1 <- l - K
+    w2 <- w1 + 1
+    v <- 1:w2
 
-		t <- S[i] == "-"
+    for(i in v){
+        Si <- S[i]
+        t <- Si == "-"
         if(t){
-
-			z <- i + K - 1
-			idx <- c(i:z)
-            S <- useFlipper(S, idx)            
-
+            z1 <- i + K
+            z2 <- z1 - 1
+            idx <- i:z2
+            S <- useFlipper(S, idx)
             output <- output + 1
-
         }
-
     }
-
-	output
-
+    output
 }
 
 S <- c("-","-","-","+","-","+","+","-")
