@@ -20,6 +20,7 @@ let reserved =
   ; "is.integer"
   ; "is.character"
   ; "is.na"
+  ; "print"
   ; "function"
   ; "if"
   ; "else"
@@ -242,7 +243,7 @@ let program =
           <|> lift2 (fun se s -> If (se, s, [])) (string "if" *> ws *> parens simple_expr) block
         in
 
-        (* for ::= 'for '(' id 'in' simple_expr ')' block *)
+        (* for ::= 'for' '(' id 'in' simple_expr ')' block *)
         let for_loop =
           let loop_expr =
             lift2 (fun id se -> (id, se)) (identifier <* with_ws (string "in")) simple_expr in
@@ -251,12 +252,16 @@ let program =
             (string "for" *> ws *> parens loop_expr)
             block in
 
-        let e = expr >>| fun e -> Expression e in
+        (* print ::= 'print' '(' expr ')' *)
+        let print = string "print" *> ws *> parens expr >>| fun e -> Print e in
 
-        (* statement_no_fun ::= assign | subset_assign | if_stmt | for_loop | expr
+        (* expr_stmt ::= expr *)
+        let expr_stmt = expr >>| fun e -> Expression e in
+
+        (* statement_no_fun ::= assign | subset_assign | if_stmt | for_loop | print | expr_stmt
 
            Function definitions are only allowed at the top level, otherwise parser rejects. *)
-        assign <|> subset_assign <|> if_stmt <|> for_loop <|> e) in
+        assign <|> subset_assign <|> if_stmt <|> for_loop <|> print <|> expr_stmt) in
 
   (* function_def ::= id <- function ( id , ... , id ) block
 

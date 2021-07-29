@@ -12,4 +12,5 @@ f <- function(x) {
 }
 
 x <- c(1,2,3)
-f(x)
+r <- f(x)
+print(r)

@@ -39,4 +39,4 @@ if (cond) {
   y <- recycle(y, l1)
 }
 
-x+y
+print(x+y)

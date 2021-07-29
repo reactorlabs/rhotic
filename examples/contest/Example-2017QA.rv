@@ -50,9 +50,9 @@ solve <- function(S, K){
 S <- c("-","-","-","+","-","+","+","-")
 K <- 3
 R <- solve(S, K)
-R
+print(R)
 
 S <- c("-", "+", "-", "+", "-")
 K <- 4
 R <- solve(S, K)
-R
+print(R)

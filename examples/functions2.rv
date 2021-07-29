@@ -54,4 +54,5 @@ f <- function(x) {
 
 v <- 1:3
 u <- .input(v)
-f(u)
+r <- f(u)
+print(r)

@@ -32,6 +32,7 @@ let rec collect_stmt stmt =
   | If (se1, s2, s3) ->
       collect_se se1 |> union (over_list collect_stmt s2) |> union (over_list collect_stmt s3)
   | For (x1, se2, s3) -> singleton x1 |> union (collect_se se2) |> union (over_list collect_stmt s3)
+  | Print e -> collect_e e
   | Expression e -> collect_e e
 
 let to_string ?(sep = " ") vs = String.concat sep @@ elements vs

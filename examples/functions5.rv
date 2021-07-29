@@ -52,6 +52,8 @@ b <- .input(1)
 
 # r1 depends on: a b
 r1 <- h(T, a, b)
+print(r1)
 
 # r2 depends on: a
 r2 <- h(F, a, b)
+print(r2)

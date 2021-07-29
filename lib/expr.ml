@@ -95,6 +95,7 @@ type statement =
   | If             of simple_expression * statement list * statement list
   | For            of identifier * simple_expression * statement list
   | Function_Def   of identifier * identifier list * statement list
+  | Print          of expression
   | Expression     of expression
 [@@deriving eq, show { with_path = false }]
 

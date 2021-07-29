@@ -1,11 +1,15 @@
 open Lib
 open Util
 
-let parse_and_run monitors ?(conf = Eval.start) ?(exit_on_error = false) input =
+let parse_and_run
+    monitors ?(conf = Eval.start) ?(print_result = true) ?(exit_on_error = false) input =
   try
     let stmts = Parse.parse input in
     let conf', result = Eval.run_statements monitors conf stmts in
-    Stdlib.print_endline @@ Expr.show_val result ;
+    (* don't print result if we already printed it *)
+    (match[@warning "-4"] stmts with
+    | [ Print _ ] -> ()
+    | _ -> if print_result then Stdlib.print_endline @@ Expr.show_val result) ;
     (* return the new configuration *)
     conf'
   with e ->
@@ -107,5 +111,5 @@ let () =
     Stdlib.close_in chan ;
 
     if !to_r then parse_to_r input
-    else Stdlib.ignore @@ parse_and_run monitors ~exit_on_error:true input ;
+    else Stdlib.ignore @@ parse_and_run monitors ~print_result:false ~exit_on_error:true input ;
     Monitor.dump_state monitors

@@ -71,6 +71,8 @@ aa[] <- f     # this should be a strong update
 # x depends on f's ret val which depends on param z which depends on arg c
 # ==> x depends on c
 x <- f(a, b, c)
+print(x)
 
 # y depends on a
 y <- f(c, b, a)
+print(y)

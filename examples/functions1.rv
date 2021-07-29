@@ -7,7 +7,9 @@ length <- function(x) {
 }
 
 ints <- 1:5
-length(ints)
+r <- length(ints)
+print(r)
 
 bools <- T
-length(bools)
+r <- length(bools)
+print(r)

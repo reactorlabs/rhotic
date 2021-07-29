@@ -84,6 +84,8 @@ class virtual monitor =
         (_ : configuration) (_ : identifier) (_ : identifier list) (_ : statement list) : unit =
       ()
 
+    method record_print_stmt (_ : configuration) (_ : expression * value) : unit = ()
+
     method record_expr_stmt (_ : configuration) (_ : expression * value) : unit = ()
 
     method dump_table : unit = ()

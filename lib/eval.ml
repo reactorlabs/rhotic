@@ -475,6 +475,11 @@ and eval_stmt monitors conf stmt =
       List.iter (fun m -> m#record_for conf x1 (se2, seq) s3) monitors ;
       let conf', res = eval_for x1 seq s3 in
       (conf', res)
+  | Print e ->
+      let res = eval e in
+      List.iter (fun m -> m#record_print_stmt conf (e, res)) monitors ;
+      Stdlib.print_endline @@ show_val res ;
+      (conf, res)
   | Expression e ->
       let res = eval e in
       List.iter (fun m -> m#record_expr_stmt conf (e, res)) monitors ;

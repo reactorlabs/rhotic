@@ -110,6 +110,7 @@ let to_r stmt_list =
     | If (se, s1, s2) ->
         Printf.sprintf "if (%s) %s else %s" (simple_expr_to_r se) (block_to_r s1) (block_to_r s2)
     | For (x, se, s) -> Printf.sprintf "for (%s in %s) %s" x (simple_expr_to_r se) (block_to_r s)
+    | Print e -> Printf.sprintf "print(%s)" (expr_to_r e)
     | Expression e -> expr_to_r e in
 
   stmt_list |> List.map stmt_to_r |> String.concat "\n"

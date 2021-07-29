@@ -28,8 +28,9 @@ count_evens <- function(x) {
 }
 
 ints <- 1:5
-input <- .input(ints)
-count_evens(input)
+x <- .input(ints)
+res <- count_evens(x)
+print(res)
 
 # This will cause an error
 # nas <- c(1,2,NA)
