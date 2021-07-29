@@ -82,8 +82,10 @@ let to_r stmt_list =
         Printf.sprintf "%s[%s]" (simple_expr_to_r se1) (simple_expr_to_r se2)
     | Subset2 (se1, se2) -> Printf.sprintf "%s[[%s]]" (simple_expr_to_r se1) (simple_expr_to_r se2)
     | Call (f, args) ->
-        let inner = args |> List.map simple_expr_to_r |> String.concat ", " in
-        Printf.sprintf "%s(%s)" f inner
+        if f = ".input" && List.length args = 1 then simple_expr_to_r (List.hd args)
+        else
+          let inner = args |> List.map simple_expr_to_r |> String.concat ", " in
+          Printf.sprintf "%s(%s)" f inner
     | Simple_Expression se -> simple_expr_to_r se in
 
   let rec stmt_to_r ?(depth = 0) stmt =

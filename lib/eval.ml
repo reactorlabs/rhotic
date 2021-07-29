@@ -344,10 +344,16 @@ let rec eval_expr monitors conf expr =
       res
   | Call (id, ses) ->
       let args = List.map eval ses in
-      let res = eval_call id args in
-      List.iter (fun m -> m#record_call conf id (ses, args) res) monitors ;
+      if id = ".input" && List.length args = 1 then List.hd args
+      else (
+        List.iter (fun m -> m#record_call_entry conf id (ses, args)) monitors ;
+        let res = eval_call id args in
+        List.iter (fun m -> m#record_call_exit conf id (ses, args) res) monitors ;
+        res)
+  | Simple_Expression se ->
+      let res = eval se in
+      List.iter (fun m -> m#record_simple_expr conf (se, res)) monitors ;
       res
-  | Simple_Expression se -> eval se
 
 and eval_stmt monitors conf stmt =
   let run_stmts conf stmts = run_statements monitors conf stmts in
@@ -461,13 +467,13 @@ and eval_stmt monitors conf stmt =
       (conf', res)
   | If (se1, s2, s3) ->
       let cond = eval_se se1 in
-      let conf', res = eval_if cond s2 s3 in
       List.iter (fun m -> m#record_if conf (se1, cond) s2 s3) monitors ;
+      let conf', res = eval_if cond s2 s3 in
       (conf', res)
   | For (x1, se2, s3) ->
       let seq = eval_se se2 in
-      let conf', res = eval_for x1 seq s3 in
       List.iter (fun m -> m#record_for conf x1 (se2, seq) s3) monitors ;
+      let conf', res = eval_for x1 seq s3 in
       (conf', res)
   | Expression e ->
       let res = eval e in
@@ -487,7 +493,7 @@ and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts :
       let conf', _ = eval_stmt monitors conf stmt in
       (run_statements [@tailcall]) monitors conf' stmts
 
-let start = { env = Env.empty; cur_fun = "main$"; fun_tab = FunTab.empty }
+let start = { env = Env.empty; cur_fun = Common.main_function; fun_tab = FunTab.empty }
 
 let run ?(monitors : Monitor.monitors = []) str =
   let program = Parse.parse str in

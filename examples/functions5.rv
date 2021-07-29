@@ -1,0 +1,57 @@
+# This example demonstrates:
+# - returning the value of a function call      (h returns the result of calling g)
+# - how we don't merge the "call summaries"     (g calls f multiple times)
+#
+# On one call of g, the result depends on params x y
+# On the other call, the result depends on params x
+#
+# We keep these call summaries separate, so that r1 depends on a b, but r2 depends only on a.
+
+# f's return value depends on: a b
+f <- function(a, b) {
+  # d depends on: a b
+  d <- a + b
+
+  # g depends on: d ==> a b
+  g <- d
+
+  # return value depends on: a b
+  g
+}
+
+# g's result depends on: if (cond) { x y } else { x }
+# must not be NA: cond
+g <- function(cond, x, y) {
+  # must not be NA: cond
+  if (cond) {
+    # f1 depends on: x
+    f1 <- f(x, x)
+
+    # f2 depends on: y
+    f2 <- f(y, y)
+  } else {
+    # f1 depends on: x
+    f1 <- f(x, x)
+
+    # f2: const
+    f2 <- 0
+  }
+
+  # if (cond) { depends on: x y } else { depends on: x }
+  f1 + f2
+}
+
+# This tests returning the result of a function call
+# if (cond) { depends on: x y } else { depends on: x }
+h <- function(cond, x, y) {
+  g(cond, x, y)
+}
+
+a <- .input(-1)
+b <- .input(1)
+
+# r1 depends on: a b
+r1 <- h(T, a, b)
+
+# r2 depends on: a
+r2 <- h(F, a, b)

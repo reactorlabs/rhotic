@@ -3,6 +3,9 @@ open Common
 
 class virtual monitor =
   object
+    (******************************************************************************
+     * Expressions
+     ******************************************************************************)
     method record_combine (_ : configuration) (_ : simple_expression list * value list) (_ : value)
         : unit =
       ()
@@ -33,11 +36,20 @@ class virtual monitor =
         (_ : value) : unit =
       ()
 
-    method record_call
+    method record_call_entry
+        (_ : configuration) (_ : identifier) (_ : simple_expression list * value list) : unit =
+      ()
+
+    method record_call_exit
         (_ : configuration) (_ : identifier) (_ : simple_expression list * value list) (_ : value)
         : unit =
       ()
 
+    method record_simple_expr (_ : configuration) (_ : simple_expression * value) : unit = ()
+
+    (******************************************************************************
+     * Statements
+     ******************************************************************************)
     method record_assign (_ : configuration) (_ : identifier) (_ : expression * value) : unit = ()
 
     method record_subset1_assign

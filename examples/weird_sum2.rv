@@ -1,0 +1,25 @@
+# i cannot be NA, for both branches
+# therefore x cannot contain NAs
+
+weird_sum2 <- function(x, y, z) {
+  len <- 0
+  sum <- 0
+  for (i in x) {
+    len <- len + 1
+    mod <- len % 2
+    cond <- mod == 0
+    if (cond) {
+      d <- y[[i]]
+    } else {
+      d <- z[[i]]
+    }
+    sum <- sum + d
+  }
+  sum
+}
+
+x <- 5:1
+y <- c(NA, 2, NA, 4, NA)
+z <- c(1, NA, 3, NA, 5)
+
+weird_sum2(x, y, z)

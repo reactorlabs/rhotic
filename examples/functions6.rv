@@ -1,0 +1,30 @@
+# In this example, we call f twice.
+# For the first call, x must not be NA, but for the second call, y must not be NA.
+# So now the question is how to merge the two results to get a single constraint on f.
+
+# must not be NA: if (cond) { a } else { b }
+f <- function(cond, a, b) {
+  # a_cond depends on: a
+  a_cond <- a > 0
+
+  # b_cond depends on: b
+  b_cond <- b > 0
+
+  # must not be NA: cond
+  if (cond) {
+    # must not be NA: a_cond ==> a
+    if (a_cond) { 1 } else { 0 }
+  } else {
+    # must not be NA: b_cond ==> b
+    if (b_cond) { 1 } else { 0 }
+  }
+}
+
+x <- .input(-1)
+y <- .input(1)
+
+# must not be NA: x
+r1 <- f(T, x, y)
+
+# must not be NA: y
+r2 <- f(F, x, y)

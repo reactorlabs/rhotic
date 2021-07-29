@@ -1,0 +1,24 @@
+# i cannot be NA, but only if cond is true
+# therefore even elements of x cannot be NA
+
+weird_sum1 <- function(x, y) {
+  len <- 0
+  sum <- 0
+  for (i in x) {
+    len <- len + 1
+    mod <- len % 2
+    cond <- mod == 0
+    if (cond) {
+      d <- y[[i]]
+      sum <- sum + d
+    } else {
+      sum <- sum + i
+    }
+  }
+  sum
+}
+
+x <- c(NA, 2, NA, 4, NA)
+y <- c(1, 2, 3, 4, 5)
+
+weird_sum1(x, y)

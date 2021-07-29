@@ -3,6 +3,10 @@
 # We know that because cond is used in an if, it cannot be NA.
 # By propagating this constraint backwards, we conclude that mod cannot be NA,
 # and i cannot be NA, therefore x cannot contain NAs.
+#
+# The modelling of the for loops is not sophisticated: i depends on x, so since
+# we observe at least one interation where i cannot be NA, we conclude that x
+# cannot be NA.
 
 count_evens <- function(x) {
   len <- 0
@@ -24,7 +28,8 @@ count_evens <- function(x) {
 }
 
 ints <- 1:5
-count_evens(ints)
+input <- .input(ints)
+count_evens(input)
 
 # This will cause an error
 # nas <- c(1,2,NA)

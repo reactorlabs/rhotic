@@ -1,0 +1,76 @@
+# vars of interest: x y z
+f <- function(x, y, z) {
+  # ignore, these don't involve vars of interest
+  a <- 42
+  a2 <- a
+
+  # y is no longer a var of interest
+  y <- 4
+
+  # b depends on x
+  b <- x
+
+  # c depends on z
+  c <- z
+
+  # temp depends on b, c
+  # ==> temp depends on x, z
+  temp <- b + c
+
+  # d depends on temp
+  # ==> d depends on x, z
+  d <- temp == 0
+
+  # ignore, y is not a var of interest
+  w <- y
+
+  # d: must not be NA
+  # ==> x, z must not be NA
+  if (d) {
+    1
+  }
+
+  # clear d's dependencies
+  d <- 42
+
+  # e depends on c
+  # ==> e depends on z
+  e <- c
+
+  # ret val depends on e
+  # ==> ret val depends on z
+  e
+}
+# Summary of f:
+# x, z must not be NA
+# ret val depends on z
+
+a <- .input(1)
+b <- a + 1
+c <- b + 1
+a <- 2
+d <- .input(3)
+
+aa <- -1
+aa[] <- 0
+aa[] <- a     # at this point, a is a constant
+aa[1] <- 2
+aa[a] <- 3
+aa[b] <- c
+aa[[1]] <- 4
+aa[[a]] <- 5
+aa[[b]] <- d
+
+e <- .input(1)
+f <- c(e, e)
+
+aa[] <- f     # this should be a strong update
+
+# f's params x, z must not be NA
+# ==> a, c must not be NA
+# x depends on f's ret val which depends on param z which depends on arg c
+# ==> x depends on c
+x <- f(a, b, c)
+
+# y depends on a
+y <- f(c, b, a)

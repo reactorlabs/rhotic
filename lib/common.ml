@@ -52,6 +52,7 @@ type configuration =
   ; cur_fun : identifier
   ; fun_tab : function_table
   }
+let main_function = "main$"
 
 let get_tag = function
   | Bool _ | NA_bool -> T_Bool
