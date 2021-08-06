@@ -99,28 +99,47 @@ class monitor =
             let weak_str = if is_strong then "" else " [weak update]" in
             self#debug_print @@ x ^ ": " ^ current_deps_str ^ " (via: " ^ vars_str ^ ")" ^ weak_str
 
-    (* Calls need some extra processing before we can update the summary.
-       At this point, we've already analyzed the call and popped the stack.
-       Now we need to stitch the dependencies:
-        - x (variable being assigned to, if present), to
-        - variables in the call's return expression, to
-        - the parameter dependencies, to
-        - the call arguments.
-       Essentially, we are creating a temporary transfer function for the call. *)
-    method private update_summary_for_call ?(x = None) params arg_vars =
+    (* Need to handle calling a function. At this point, we've already analyzed the call and popped
+       the stack.
+       1. Update summary:
+            Calls need some extra processing before we can update the summary.
+            Now we need to stich the dependencies:
+              - x (variables being assigned to, if present), to
+              - variables in the call's return expression, to
+              - the parameter dependencies, to
+              - the call arguments.
+           Essentially, we are creating a temporary transfer function for the call.
+       2. Propagate constraints *)
+    method private update_summary_and_constraints_for_call ?(x = None) fun_tab f ses =
       assert (Option.is_some last_popped_frame) ;
-      let { cur_deps; _ } = Option.get last_popped_frame in
+      let { cur_deps; constraints; _ } = Option.get last_popped_frame in
 
-      (* Create a mapping of params to argument variables *)
-      let mapping = List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params arg_vars in
+      (* 1. Update the summary: x depends on some (or none) of the arguments of the call to f. *)
 
-      (* x depends on cur_deps depends on whatever mapping says *)
+      (* Helper that returns the (caller) variable that x depends on.
+         Uses a mapping of (callee) params to (callee) args (i.e. caller local vars). *)
+      let get_deps_for x =
+        let params = Stdlib.fst @@ FunTab.find f fun_tab in
+        let args = List.map VarSet.collect_se ses in
+        let mapping = List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params args in
+        Env.get_or x mapping ~default:VarSet.empty in
+
+      (* (caller) x depends on (callee) cur_deps, which depends on whatever the mapping says. *)
       let vars =
-        let get_deps_for x = Env.get_or x mapping ~default:VarSet.empty in
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) cur_deps VarSet.empty in
 
-      (* Always strong, because we can't have a function call in a subset assignment. *)
-      self#update_summary ~is_strong:true ~x vars
+      (* Always a strong update, because we can't have a function call in a subset assignment. *)
+      self#update_summary ~is_strong:true ~x vars ;
+
+      (* 2. Add constraints: constraints on f's params should apply to the call site arguments. *)
+
+      (* Note: we want to use the constraints from the most recent invocation, not constraints from
+         the global merged state. *)
+      let param_constraints = Env.filter (fun _ c -> c = Must_not_be_NA) constraints in
+      let arg_vars =
+        Env.fold (fun x _ acc -> VarSet.union (get_deps_for x) acc) param_constraints VarSet.empty
+      in
+      self#add_constraints arg_vars
 
     method private merge_constraints fun_id new_constraints =
       (* TODO: Have a real merge strategy that isn't "overwrite" *)
@@ -208,16 +227,12 @@ class monitor =
       | Simple_Expression _ ->
           (* Assignment (non-subset) is always a strong update. *)
           self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_e e)
-      | Call (f, ses) ->
-          if f = ".input" && List.length ses = 1 then (
-            (* Treat the target variable as an input, so it is a self-dependency. *)
-            let ({ deps; _ } as frame) = self#pop_stack in
-            self#push_stack { frame with deps = Env.add x (VarSet.singleton x) deps } ;
-            self#debug_print @@ x ^ " (input)")
-          else
-            let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
-            let arg_vars = List.map VarSet.collect_se ses in
-            self#update_summary_for_call ~x:(Some x) params arg_vars
+      | Call (".input", ses) when List.length ses = 1 ->
+          (* Treat the target variable as an input, so it is a self-dependency. *)
+          let ({ deps; _ } as frame) = self#pop_stack in
+          self#push_stack { frame with deps = Env.add x (VarSet.singleton x) deps } ;
+          self#debug_print @@ x ^ " (input)"
+      | Call (f, ses) -> self#update_summary_and_constraints_for_call conf.fun_tab f ses
 
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
@@ -227,8 +242,7 @@ class monitor =
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
       (match se2 with
-      | Some se ->
-          self#add_constraints (VarSet.collect_se se)
+      | Some se -> self#add_constraints (VarSet.collect_se se)
       | None -> ()) ;
       (* Strong update if there is no index, i.e. assigning to entire vector. *)
       let is_strong = Option.is_none se2 in
@@ -275,10 +289,7 @@ class monitor =
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
           self#update_summary (VarSet.collect_e e)
-      | Call (f, ses) ->
-          let params = Stdlib.fst @@ FunTab.find f conf.fun_tab in
-          let arg_vars = List.map VarSet.collect_se ses in
-          self#update_summary_for_call params arg_vars
+      | Call (f, ses) -> self#update_summary_and_constraints_for_call conf.fun_tab f ses
 
     method! dump_table : unit =
       Stdlib.print_endline ">>> InferSpec <<<" ;
