@@ -4,56 +4,6 @@ open Util
 
 let debug = true
 
-(* TODO:
-  - function-level constraints?
-  - separate models for separate function calls, e.g. call-site sensitivity
-
-  - other constraints (e.g. types)
-  - better abstraction/modularity for constraints
-    - how to run with multiple constraints
-*)
-
-module ConstraintNotNA = struct
-  type constr =
-    | May_be_NA
-    | Must_not_be_NA
-
-  type constraint_map = constr Env.t
-  type dependency_map = VarSet.t Env.t
-
-  type local_state =
-    { constrs : constraint_map
-    ; deps : dependency_map
-    }
-  type t = local_state FunTab.t
-
-  let empty = { constrs = Env.empty; deps = Env.empty }
-
-  let rec propagate (deps : dependency_map) (constrs : constraint_map) =
-    (* Initial accumulator is the constraints map.
-       We iterate over the constraints and for each v, add v's dependencies to the accumulator. *)
-    let constrs' =
-      Env.fold
-        (fun x _ acc ->
-          let new_deps = Env.get_or x deps ~default:VarSet.empty in
-          VarSet.fold (fun x acc -> Env.add x Must_not_be_NA acc) new_deps acc)
-        constrs constrs in
-    if constrs' = constrs then constrs else propagate deps constrs'
-
-  let add_constraints (cur_fun : identifier) (xs : VarSet.t) (state : t) =
-    let { constrs; deps } = FunTab.get_or cur_fun state ~default:empty in
-    let constrs =
-      VarSet.fold (fun v acc -> Env.add v Must_not_be_NA acc) xs constrs |> propagate deps in
-    Env.add cur_fun { constrs; deps } state
-
-  let add_deps (cur_fun : identifier) (x : identifier) (vars : VarSet.t) (state : t) =
-    let { constrs; deps } = FunTab.get_or cur_fun state ~default:empty in
-    let old_vars = Env.get_or x deps ~default:VarSet.empty in
-    let deps = Env.add x (VarSet.union old_vars vars) deps in
-    let constrs = propagate deps constrs in
-    Env.add cur_fun { constrs; deps } state
-end
-
 type constr =
   | May_be_NA
   | Must_not_be_NA
@@ -81,8 +31,6 @@ class monitor =
     (******************************************************************************
      * Internal monitor state
      ******************************************************************************)
-
-    val mutable state : ConstraintNotNA.t = FunTab.empty
 
     val mutable constraints : signature FunTab.t = FunTab.empty
 
@@ -199,7 +147,7 @@ class monitor =
 
     (* In a sequence expression x:y, x and y must not be NA. *)
     method! record_binary_op
-        (conf : configuration)
+        (_ : configuration)
         (op : binary_op)
         ((se1, _) : simple_expression * value)
         ((se2, _) : simple_expression * value)
@@ -207,17 +155,15 @@ class monitor =
       match op with
       | Seq ->
           let vars = VarSet.union (VarSet.collect_se se1) (VarSet.collect_se se2) in
-          state <- ConstraintNotNA.add_constraints conf.cur_fun vars state ;
           self#add_constraints vars
       | Arithmetic _ | Relational _ | Logical _ -> ()
 
     (* In a subset2 expression x[[i]], i must not be NA. *)
     method! record_subset2
-        (conf : configuration)
+        (_ : configuration)
         (_ : simple_expression * value)
         ((se, _) : simple_expression * value)
         (_ : value) : unit =
-      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
       self#add_constraints (VarSet.collect_se se)
 
     (* Entering a function call, so we need to initialize some things. *)
@@ -260,7 +206,6 @@ class monitor =
       match e with
       | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
       | Simple_Expression _ ->
-          state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_e e) state ;
           (* Assignment (non-subset) is always a strong update. *)
           self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_e e)
       | Call (f, ses) ->
@@ -276,48 +221,42 @@ class monitor =
 
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
-        (conf : configuration)
+        (_ : configuration)
         (x : identifier)
         ((se2, _) : simple_expression option * value option)
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
       (match se2 with
       | Some se ->
-          state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
           self#add_constraints (VarSet.collect_se se)
       | None -> ()) ;
-      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
       (* Strong update if there is no index, i.e. assigning to entire vector. *)
       let is_strong = Option.is_none se2 in
       self#update_summary ~is_strong ~x:(Some x) (VarSet.collect_se se3)
 
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
-        (conf : configuration)
+        (_ : configuration)
         (x : identifier)
         ((se2, _) : simple_expression * value)
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
-      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se2) state ;
-      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se3) state ;
       self#add_constraints (VarSet.collect_se se2) ;
       self#update_summary ~x:(Some x) (VarSet.collect_se se3)
 
     (* In an if statement, the condition cannot be NA. *)
     method! record_if
-        (conf : configuration)
+        (_ : configuration)
         ((se, _) : simple_expression * value)
         (_ : statement list)
         (_ : statement list) : unit =
-      state <- ConstraintNotNA.add_constraints conf.cur_fun (VarSet.collect_se se) state ;
       self#add_constraints (VarSet.collect_se se)
 
     method! record_for
-        (conf : configuration)
+        (_ : configuration)
         (x : identifier)
         ((se, _) : simple_expression * value)
         (_ : statement list) : unit =
-      state <- ConstraintNotNA.add_deps conf.cur_fun x (VarSet.collect_se se) state ;
       self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_se se)
 
     (* Function definition, so let's initialize the constraints map. *)
@@ -342,30 +281,15 @@ class monitor =
           self#update_summary_for_call params arg_vars
 
     method! dump_table : unit =
-      (* let dump_function f ({ constrs; deps } : ConstraintNotNA.local_state) = *)
-      (*   Printf.printf "function %s\n" f ; *)
-      (*   Stdlib.print_endline "\tMust not be NA:" ; *)
-      (*   Env.iter *)
-      (*     (fun x c -> if c = ConstraintNotNA.Must_not_be_NA then Printf.printf "\t\t%s\n" x) *)
-      (*     constrs ; *)
-      (*  *)
-      (*   Stdlib.print_endline "\tDependencies:" ; *)
-      (*   Env.iter *)
-      (*     (fun id deps -> *)
-      (*       let set_to_s s = VarSet.elements s |> String.concat ", " in *)
-      (*       Printf.printf "\t\t%s: %s\n" id (set_to_s deps)) *)
-      (*     deps in *)
-      (*  *)
-      (* Stdlib.print_endline ">>> InferSpec <<<" ; *)
-      (* FunTab.iter dump_function state *)
       Stdlib.print_endline ">>> InferSpec <<<" ;
       let dump_function f (params, param_constrs) =
         let param_str = String.concat ", " params in
         Printf.printf "function %s(%s):\n" f param_str ;
+        Printf.printf "    Parameters:\n" ;
         List.iter
           (fun p ->
             let c = Env.find p param_constrs in
-            Printf.printf "\t%s: %s\n" p (show_constr c))
+            Printf.printf "        %s: %s\n" p (show_constr c))
           params in
       FunTab.iter dump_function constraints
   end
