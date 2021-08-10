@@ -4,10 +4,26 @@ open Util
 
 let debug = true
 
+type merge_strategy =
+  | Overapproximate
+  | Underapproximate
+
 type constr =
   | May_be_NA
   | Must_not_be_NA
 [@@deriving show { with_path = false }]
+
+(* Overapproximation *)
+let join_constr x y =
+  match (x, y) with
+  | Must_not_be_NA, Must_not_be_NA -> Must_not_be_NA
+  | May_be_NA, _ | _, May_be_NA -> May_be_NA
+
+(* Underapproximation *)
+let meet_constr x y =
+  match (x, y) with
+  | May_be_NA, May_be_NA -> May_be_NA
+  | Must_not_be_NA, _ | _, Must_not_be_NA -> Must_not_be_NA
 
 (* Pair of (parameter list, constraint map) *)
 type signature = Identifier.t list * constr Env.t
@@ -24,13 +40,18 @@ type stack_frame =
   }
 [@@deriving make]
 
-class monitor =
+class monitor ?(strategy = Underapproximate) () =
   object (self)
     inherit Monitor.monitor
 
     (******************************************************************************
      * Internal monitor state
      ******************************************************************************)
+
+    val merge =
+      match strategy with
+      | Overapproximate -> join_constr
+      | Underapproximate -> meet_constr
 
     val mutable constraints : signature FunTab.t = FunTab.empty
 
@@ -142,9 +163,25 @@ class monitor =
       self#add_constraints arg_vars
 
     method private merge_constraints fun_id new_constraints =
-      (* TODO: Have a real merge strategy that isn't "overwrite" *)
-      let params, _ = FunTab.find fun_id constraints in
-      FunTab.add fun_id (params, new_constraints) constraints
+      self#debug_print @@ ">> Updating constraints for " ^ fun_id ;
+      let params, old_constraints = FunTab.find fun_id constraints in
+      let merged_constraints =
+        FunTab.merge
+          (fun k o n ->
+            let result =
+              match (o, n) with
+              | Some x, Some y -> Some (merge x y)
+              | Some x, None -> Some x
+              | None, Some y -> Some y
+              | _ -> None in
+            let print_opt = function
+              | Some v -> show_constr v
+              | None -> "none" in
+            self#debug_print @@ ">> " ^ k ^ ": old=" ^ print_opt o ^ ", new=" ^ print_opt n
+            ^ ", result=" ^ print_opt result ;
+            result)
+          old_constraints new_constraints in
+      FunTab.add fun_id (params, merged_constraints) constraints
 
     method private add_constraints vars =
       let ({ deps; constraints; _ } as frame) = self#pop_stack in
@@ -277,9 +314,9 @@ class monitor =
     method! record_fun_def
         (_ : configuration) (fun_id : identifier) (params : identifier list) (_ : statement list)
         : unit =
-      let param_constraints =
-        List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
-      let new_sig = (params, param_constraints) in
+      (* Initialize the "global" constraints for this function. There have been no invocations yet,
+         so the param constraints map is empty. *)
+      let new_sig = (params, Env.empty) in
       constraints <- FunTab.add fun_id new_sig constraints
 
     (* This is an expression statement, so it may an expression returned by a function call.

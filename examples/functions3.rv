@@ -38,8 +38,13 @@ f <- function(x) {
   y
 }
 
+# h: argument cannot contain NA
 h <- function(x) {
+  # x: cannot contain NA
   y <- x[1]
+
+  # y: cannot be NA
+  # g: argument cannot be NA
   g(y)
 }
 

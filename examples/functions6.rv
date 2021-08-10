@@ -1,6 +1,9 @@
 # In this example, we call f twice.
-# For the first call, x must not be NA, but for the second call, y must not be NA.
-# So now the question is how to merge the two results to get a single constraint on f.
+# In both calls, cond must not be NA.
+# For the first call, a must not be NA, but for the second call, b must not be NA.
+#
+# For an overapproximation: cond must not be NA, a and b are unknown.
+# For an underapproximation: all parameters must not be NA.
 
 # must not be NA: if (cond) { a } else { b }
 f <- function(cond, a, b) {
