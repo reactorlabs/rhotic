@@ -25,18 +25,27 @@ let meet_constr x y =
   | May_be_NA, May_be_NA -> May_be_NA
   | Must_not_be_NA, _ | _, Must_not_be_NA -> Must_not_be_NA
 
-(* Pair of (parameter list, constraint map) *)
-type signature = Identifier.t list * constr Env.t
+(* params: list of parameters
+   param_constrs: map of parameters to constraints
+  input_constrs: map of inputs to constraints *)
+type fun_constraints =
+  { params : Identifier.t list [@default []]
+  ; param_constrs : constr Env.t [@default Env.empty]
+  ; input_constrs : constr Env.t [@default Env.empty]
+  }
+[@@deriving make]
 
 (* fun_id: the current function's id
    deps: current map of variables to their (transitive) dependencies
    cur_deps: current dependencies of the most recently seen variables
-   constraints: constraints we've inferred on the current function's parameters *)
+   param_constrs: constraints we've inferred on the current function's parameters
+   input_constrs: constraints we've inferred on the current function's inputs *)
 type stack_frame =
   { fun_id : identifier [@default Common.main_function]
   ; deps : VarSet.t Env.t [@default Env.empty]
   ; cur_deps : VarSet.t [@default VarSet.empty]
-  ; constraints : constr Env.t [@default Env.empty]
+  ; param_constrs : constr Env.t [@default Env.empty]
+  ; input_constrs : constr Env.t [@default Env.empty]
   }
 [@@deriving make]
 
@@ -53,7 +62,7 @@ class monitor ?(strategy = Underapproximate) () =
       | Overapproximate -> join_constr
       | Underapproximate -> meet_constr
 
-    val mutable constraints : signature FunTab.t = FunTab.empty
+    val mutable constraints : fun_constraints FunTab.t = FunTab.empty
 
     val mutable stack : stack_frame list = [ make_stack_frame () ]
 
@@ -133,7 +142,7 @@ class monitor ?(strategy = Underapproximate) () =
        2. Propagate constraints *)
     method private update_summary_and_constraints_for_call ?(x = None) fun_tab f ses =
       assert (Option.is_some last_popped_frame) ;
-      let { cur_deps; constraints; _ } = Option.get last_popped_frame in
+      let { cur_deps; param_constrs; _ } = Option.get last_popped_frame in
 
       (* 1. Update the summary: x depends on some (or none) of the arguments of the call to f. *)
 
@@ -156,45 +165,57 @@ class monitor ?(strategy = Underapproximate) () =
 
       (* Note: we want to use the constraints from the most recent invocation, not constraints from
          the global merged state. *)
-      let param_constraints = Env.filter (fun _ c -> c = Must_not_be_NA) constraints in
+      let arg_constraints = Env.filter (fun _ c -> c = Must_not_be_NA) param_constrs in
       let arg_vars =
-        Env.fold (fun x _ acc -> VarSet.union (get_deps_for x) acc) param_constraints VarSet.empty
+        Env.fold (fun x _ acc -> VarSet.union (get_deps_for x) acc) arg_constraints VarSet.empty
       in
       self#add_constraints arg_vars
 
-    method private merge_constraints fun_id new_constraints =
+    method private merge_constraints fun_id new_params new_inputs =
       self#debug_print @@ ">> Updating constraints for " ^ fun_id ;
-      let params, old_constraints = FunTab.find fun_id constraints in
-      let merged_constraints =
-        FunTab.merge
-          (fun k o n ->
-            let result =
-              match (o, n) with
-              | Some x, Some y -> Some (merge x y)
-              | Some x, None -> Some x
-              | None, Some y -> Some y
-              | _ -> None in
-            let print_opt = function
-              | Some v -> show_constr v
-              | None -> "none" in
-            self#debug_print @@ ">> " ^ k ^ ": old=" ^ print_opt o ^ ", new=" ^ print_opt n
-            ^ ", result=" ^ print_opt result ;
-            result)
-          old_constraints new_constraints in
-      FunTab.add fun_id (params, merged_constraints) constraints
+      let ({ params = _; param_constrs = old_params; input_constrs = old_inputs } as state) =
+        FunTab.find fun_id constraints in
+      let run_merge k o n =
+        let result =
+          match (o, n) with
+          | Some x, Some y -> Some (merge x y)
+          | Some x, None -> Some x
+          | None, Some y -> Some y
+          | _ -> None in
+        let print_opt = function
+          | Some v -> show_constr v
+          | None -> "none" in
+        self#debug_print @@ ">> " ^ k ^ ": old=" ^ print_opt o ^ ", new=" ^ print_opt n
+        ^ ", result=" ^ print_opt result ;
+        result in
+      let merged_params = FunTab.merge run_merge old_params new_params in
+      let merged_inputs = FunTab.merge run_merge old_inputs new_inputs in
+      let new_state = { state with param_constrs = merged_params; input_constrs = merged_inputs } in
+      FunTab.add fun_id new_state constraints
 
     method private add_constraints vars =
-      let ({ deps; constraints; _ } as frame) = self#pop_stack in
-      let param_vars =
+      let ({ deps; param_constrs; input_constrs; _ } as frame) = self#pop_stack in
+      let dependencies =
         let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
         VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
-      let new_constraints =
-        VarSet.fold (fun x acc -> FunTab.add x Must_not_be_NA acc) param_vars constraints in
-      self#push_stack { frame with constraints = new_constraints } ;
+      let update_constrs constrs =
+        VarSet.fold
+          (fun x acc ->
+            FunTab.update x
+              (function
+                | Some _ -> Some Must_not_be_NA
+                | None -> None)
+              acc)
+          dependencies constrs in
+      self#push_stack
+        { frame with
+          param_constrs = update_constrs param_constrs
+        ; input_constrs = update_constrs input_constrs
+        } ;
       if debug then
-        let param_vars_str =
-          if VarSet.is_empty param_vars then "<none>" else VarSet.to_string param_vars in
-        self#debug_print @@ ">> Must not be NA: " ^ param_vars_str ^ " (via: "
+        let dependencies_str =
+          if VarSet.is_empty dependencies then "<none>" else VarSet.to_string dependencies in
+        self#debug_print @@ ">> Must not be NA: " ^ dependencies_str ^ " (via: "
         ^ VarSet.to_string vars ^ ")"
 
     (******************************************************************************
@@ -234,10 +255,9 @@ class monitor ?(strategy = Underapproximate) () =
         List.fold_left map_self Env.empty params in
       (* Initialize the constraint signature for this function.
          All params "may be NA" at this point. *)
-      let param_constraints =
-        List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
+      let param_constrs = List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
       if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
-      self#push_stack @@ make_stack_frame ~fun_id ~deps ~constraints:param_constraints ()
+      self#push_stack @@ make_stack_frame ~fun_id ~deps ~param_constrs ()
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
@@ -247,8 +267,8 @@ class monitor ?(strategy = Underapproximate) () =
         (_ : simple_expression list * value list)
         (_ : value) : unit =
       (* Merge the constraints from the popped frame with the current state. *)
-      let { fun_id = popped_fun; cur_deps; constraints = new_constraints; _ } = self#pop_stack in
-      constraints <- self#merge_constraints fun_id new_constraints ;
+      let { fun_id = popped_fun; cur_deps; param_constrs; input_constrs; _ } = self#pop_stack in
+      constraints <- self#merge_constraints fun_id param_constrs input_constrs ;
       assert (popped_fun = fun_id) ;
       if debug then (
         self#debug_print @@ "<-- Exiting " ^ popped_fun ;
@@ -265,9 +285,12 @@ class monitor ?(strategy = Underapproximate) () =
           (* Assignment (non-subset) is always a strong update. *)
           self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_e e)
       | Call (".input", ses) when List.length ses = 1 ->
+          let ({ deps; input_constrs; _ } as frame) = self#pop_stack in
           (* Treat the target variable as an input, so it is a self-dependency. *)
-          let ({ deps; _ } as frame) = self#pop_stack in
-          self#push_stack { frame with deps = Env.add x (VarSet.singleton x) deps } ;
+          (* Initialize a constraint for the input, which "may be NA" at this point. *)
+          let new_deps = Env.add x (VarSet.singleton x) deps in
+          let new_input_constrs = Env.add x May_be_NA input_constrs in
+          self#push_stack { frame with deps = new_deps; input_constrs = new_input_constrs } ;
           self#debug_print @@ x ^ " (input)"
       | Call (f, ses) -> self#update_summary_and_constraints_for_call conf.fun_tab f ses
 
@@ -316,8 +339,8 @@ class monitor ?(strategy = Underapproximate) () =
         : unit =
       (* Initialize the "global" constraints for this function. There have been no invocations yet,
          so the param constraints map is empty. *)
-      let new_sig = (params, Env.empty) in
-      constraints <- FunTab.add fun_id new_sig constraints
+      let fun_constraints = make_fun_constraints ~params () in
+      constraints <- FunTab.add fun_id fun_constraints constraints
 
     (* This is an expression statement, so it may an expression returned by a function call.
        So we need to update the cur_deps to be the dependencies of the last variables seen. *)
@@ -330,7 +353,7 @@ class monitor ?(strategy = Underapproximate) () =
 
     method! dump_table : unit =
       Stdlib.print_endline ">>> InferSpec <<<" ;
-      let dump_function f (params, param_constrs) =
+      let dump_function f { params; param_constrs; input_constrs } =
         let param_str = String.concat ", " params in
         Printf.printf "function %s(%s):\n" f param_str ;
         Printf.printf "    Parameters:\n" ;
@@ -338,6 +361,8 @@ class monitor ?(strategy = Underapproximate) () =
           (fun p ->
             let c = Env.find p param_constrs in
             Printf.printf "        %s: %s\n" p (show_constr c))
-          params in
+          params ;
+        Printf.printf "    Inputs:\n" ;
+        Env.iter (fun x c -> Printf.printf "        %s: %s\n" x (show_constr c)) input_constrs in
       FunTab.iter dump_function constraints
   end

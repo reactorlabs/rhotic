@@ -1,5 +1,11 @@
 # vars of interest: x y z
 f <- function(x, y, z) {
+  # reading inputs
+  u <- .input(0)
+  v <- .input(0)
+  w <- v
+  if (w) { 1 } else { 0 }
+
   # ignore, these don't involve vars of interest
   a <- 42
   a2 <- a
