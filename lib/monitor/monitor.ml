@@ -88,6 +88,13 @@ class virtual monitor =
 
     method record_expr_stmt (_ : configuration) (_ : expression * value) : unit = ()
 
+    (******************************************************************************
+     * Everything else
+     ******************************************************************************)
+    method program_entry (_ : configuration) : unit = ()
+
+    method program_exit (_ : configuration) : unit = ()
+
     method dump_table : unit = ()
   end
 

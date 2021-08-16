@@ -499,6 +499,13 @@ and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts :
 
 let start = { env = Env.empty; cur_fun = Common.main_function; fun_tab = FunTab.empty }
 
-let run ?(monitors : Monitor.monitors = []) str =
+let run ?(monitors : Monitor.monitors = []) ?(conf : configuration = start) (stmts : statement list)
+    =
+  List.iter (fun m -> m#program_entry conf) monitors ;
+  let conf', res = run_statements monitors conf stmts in
+  List.iter (fun m -> m#program_exit conf) monitors ;
+  (conf', res)
+
+let run_str ?(monitors : Monitor.monitors = []) str =
   let program = Parse.parse str in
   Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_statements monitors start program

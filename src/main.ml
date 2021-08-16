@@ -5,7 +5,7 @@ let parse_and_run
     monitors ?(conf = Eval.start) ?(print_result = true) ?(exit_on_error = false) input =
   try
     let stmts = Parse.parse input in
-    let conf', result = Eval.run_statements monitors conf stmts in
+    let conf', result = Eval.run ~monitors ~conf stmts in
     (* don't print result if we already printed it *)
     (match[@warning "-4"] stmts with
     | [ Print _ ] -> ()

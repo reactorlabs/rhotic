@@ -23,13 +23,17 @@ f <- function(cond, a, b) {
   }
 }
 
+g <- function(cond, x, y) {
+  f(cond, x, y)
+}
+
 x <- .input(-1)
 y <- .input(1)
 
 # must not be NA: x
-r1 <- f(T, x, y)
+r1 <- g(T, x, y)
 print(r1)
 
 # must not be NA: y
-r2 <- f(F, x, y)
+r2 <- g(F, x, y)
 print(r2)
