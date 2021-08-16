@@ -351,6 +351,20 @@ class monitor ?(strategy = Underapproximate) () =
           self#update_summary (VarSet.collect_e e)
       | Call (f, ses) -> self#update_summary_and_constraints_for_call conf.fun_tab f ses
 
+    method! program_entry (conf : configuration) : unit =
+      (* Initialize constraints for the top level. *)
+      let fun_id = conf.cur_fun in
+      let fun_constraints = make_fun_constraints () in
+      constraints <- FunTab.add fun_id fun_constraints constraints ;
+      (* Initialize a shadow stack frame for the top level. *)
+      self#push_stack @@ make_stack_frame ~fun_id ()
+
+    method! program_exit (conf : configuration) : unit =
+      (* Pop the shadow stack and update the global constraints. *)
+      let { fun_id; param_constrs; input_constrs; _ } = self#pop_stack in
+      assert (fun_id = conf.cur_fun) ;
+      constraints <- self#merge_constraints fun_id param_constrs input_constrs
+
     method! dump_table : unit =
       Stdlib.print_endline ">>> InferSpec <<<" ;
       let dump_function f { params; param_constrs; input_constrs } =
