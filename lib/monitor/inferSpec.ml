@@ -4,6 +4,60 @@ open Util
 
 let debug = true
 
+module Lattice = struct
+  (*
+          Top
+         /   \
+       NA   Not_NA
+         \   /
+          Bot
+  *)
+  type t =
+    | Top
+    | NA
+    | Not_NA
+    | Bot
+
+  (* less than or equal is the ordering relation *)
+  let leq x y =
+    match (x, y) with
+    | Bot, _ | _, Top | NA, NA | Not_NA, Not_NA -> true
+    | _, Bot | Top, _ | NA, Not_NA | Not_NA, NA -> false
+
+  (* least upper bound is join, an over-approximation *)
+  let lub x y =
+    match (x, y) with
+    (* Bot and Top cases *)
+    | Bot, z | z, Bot -> z
+    | Top, _ | _, Top -> Top
+    (* x = y cases *)
+    | NA, NA -> NA
+    | Not_NA, Not_NA -> Not_NA
+    (* Everything else *)
+    | NA, Not_NA | Not_NA, NA -> Top
+
+  (* greatest lower bound is meet, an under-approximation *)
+  let glb x y =
+    match (x, y) with
+    (* Bot and Top cases *)
+    | Bot, _ | _, Bot -> Bot
+    | Top, z | z, Top -> z
+    (* x = y cases *)
+    | NA, NA -> NA
+    | Not_NA, Not_NA -> Not_NA
+    (* Everything else *)
+    | NA, Not_NA | Not_NA, NA -> Bot
+end
+
+type lattice = Lattice.t
+
+(* abstract value *)
+type avalue =
+  { lower : lattice [@default Lattice.Bot]
+  ; upper : lattice [@default Lattice.Top]
+  }
+[@@deriving make]
+
 type stack_frame = { fun_id : identifier } [@@deriving make]
 
 class monitor =
