@@ -10,9 +10,9 @@
 g <- function(x) {
   # x: cannot be NA
   # t: cannot be NA
-  t <- x == 5
+  t <- x == 2
 
-  # this assignment would override the above line
+  # this assignment overrides the above line
   # so x could be NA, if this line were not commented out
   # t <- 4
 
@@ -38,7 +38,21 @@ f <- function(x) {
   y
 }
 
-v <- 1:9
+# h: argument cannot contain NA
+h <- function(x) {
+  # x: cannot contain NA
+  y <- x[1]
+
+  # y: cannot be NA
+  # g: argument cannot be NA
+  g(y)
+}
+
+v <- 1:4
 v2 <- .input(v)
-r <- f(v2)
-print(r)
+
+r1 <- f(v2)
+print(r1)
+
+r2 <- h(v2)
+print(r2)

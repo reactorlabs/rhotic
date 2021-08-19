@@ -342,14 +342,13 @@ let rec eval_expr monitors conf expr =
       let res = eval_subset2 idx v in
       List.iter (fun m -> m#record_subset2 conf (se1, idx) (se2, v) res) monitors ;
       res
+  | Call (".input", ses) when List.length ses = 1 -> List.hd @@ List.map eval ses
   | Call (id, ses) ->
       let args = List.map eval ses in
-      if id = ".input" && List.length args = 1 then List.hd args
-      else (
-        List.iter (fun m -> m#record_call_entry conf id (ses, args)) monitors ;
-        let res = eval_call id args in
-        List.iter (fun m -> m#record_call_exit conf id (ses, args) res) monitors ;
-        res)
+      List.iter (fun m -> m#record_call_entry conf id (ses, args)) monitors ;
+      let res = eval_call id args in
+      List.iter (fun m -> m#record_call_exit conf id (ses, args) res) monitors ;
+      res
   | Simple_Expression se ->
       let res = eval se in
       List.iter (fun m -> m#record_simple_expr conf (se, res)) monitors ;
@@ -500,6 +499,13 @@ and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts :
 
 let start = { env = Env.empty; cur_fun = Common.main_function; fun_tab = FunTab.empty }
 
-let run ?(monitors : Monitor.monitors = []) str =
+let run ?(monitors : Monitor.monitors = []) ?(conf : configuration = start) (stmts : statement list)
+    =
+  List.iter (fun m -> m#program_entry conf) monitors ;
+  let conf', res = run_statements monitors conf stmts in
+  List.iter (fun m -> m#program_exit conf) monitors ;
+  (conf', res)
+
+let run_str ?(monitors : Monitor.monitors = []) str =
   let program = Parse.parse str in
   Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_statements monitors start program
