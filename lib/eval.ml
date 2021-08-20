@@ -62,7 +62,7 @@ let check_type ty = function
   | Dataframe _ -> raise Not_supported
 
 (* Checks that all elements are non-negative or NA.
-  0 and NA are allowed for positive subsetting. *)
+   0 and NA are allowed for positive subsetting. *)
 let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x >= 0)
 
 let is_zero_subsetting = Array.for_all (fun x -> x = Some 0)
@@ -70,10 +70,10 @@ let is_zero_subsetting = Array.for_all (fun x -> x = Some 0)
 let contains_na (type t) (a : t option array) = Array.exists (fun x -> x = None) a
 
 (* Uses the indices in `idx` to select elements out of the array `a`:
-  - Valid indices are converted from 1-based indexing (R) to 0-based indexing (OCaml).
-  - 0 indices are dropped.
-  - Out-of-bounds and NA indices return NA.
-  Expects the inputs to be valid. *)
+   - Valid indices are converted from 1-based indexing (R) to 0-based indexing (OCaml).
+   - 0 indices are dropped.
+   - Out-of-bounds and NA indices return NA.
+   Expects the inputs to be valid. *)
 let get_at_pos ty a idxs =
   assert (is_positive_subsetting idxs) ;
   idxs
@@ -83,9 +83,9 @@ let get_at_pos ty a idxs =
        | Some _ | None -> Some (na_of ty))
 
 (* Convert a boolean vector (used for subsetting) to a positional vector:
-  - True indices are converted to positional indices.
-  - False indices are dropped.
-  - NA indices stay as NA. *)
+   - True indices are converted to positional indices.
+   - False indices are dropped.
+   - NA indices stay as NA. *)
 let bool_to_pos_vector idxs =
   idxs
   |> Array.filter_mapi (fun i x ->
