@@ -1,6 +1,7 @@
+open Containers
+open CCFun.Infix
 open Expr
 open Common
-open Util
 
 type function_seen_nas = bool FunTab.t
 

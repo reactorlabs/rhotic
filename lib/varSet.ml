@@ -1,3 +1,4 @@
+open Containers
 open Expr
 
 include Set.Make (Identifier)

@@ -1,3 +1,5 @@
+open Containers
+
 type literal =
   | NA_bool
   | Bool    of bool

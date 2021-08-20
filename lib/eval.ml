@@ -1,3 +1,5 @@
+open Containers
+open CCFun.Infix
 open Expr
 open Common
 open Util
@@ -57,17 +59,17 @@ let coerce_value to_ty = function
 
 let check_type ty = function
   | Vector (data, vector_ty) ->
-      assert (Array.for_all (fun x -> get_tag x = vector_ty) data) ;
-      Some (ty = vector_ty) |> put_bool |> vector_of_lit
+      assert (Array.for_all (fun x -> equal_type_tag (get_tag x) vector_ty) data) ;
+      Some (equal_type_tag ty vector_ty) |> put_bool |> vector_of_lit
   | Dataframe _ -> raise Not_supported
 
 (* Checks that all elements are non-negative or NA.
    0 and NA are allowed for positive subsetting. *)
 let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x >= 0)
 
-let is_zero_subsetting = Array.for_all (fun x -> x = Some 0)
+let is_zero_subsetting = Array.for_all @@ Option.map_or ~default:false (fun x -> x = 0)
 
-let contains_na (type t) (a : t option array) = Array.exists (fun x -> x = None) a
+let contains_na (type t) (a : t option array) = Array.exists (fun x -> Option.is_none x) a
 
 (* Uses the indices in `idx` to select elements out of the array `a`:
    - Valid indices are converted from 1-based indexing (R) to 0-based indexing (OCaml).
@@ -107,9 +109,9 @@ let extend n t a =
 
 let update_at_pos t a idxs rpl =
   assert (is_positive_subsetting idxs) ;
-  assert (Array.for_all (fun x -> x <> Some 0) idxs) ;
+  assert (not @@ is_zero_subsetting idxs) ;
   assert (not @@ contains_na idxs) ;
-  let idxs = Array.map Option.get idxs in
+  let idxs = Array.map (fun x -> Option.get_exn_or "internal error" x) idxs in
   let max_idx = Array.fold_left (fun mx i -> max mx i) (Array.length a) idxs in
   let res = extend max_idx t a in
   Array.iter2 (fun i x -> res.(i - 1) <- x) idxs rpl ;
@@ -133,15 +135,15 @@ let rec eval_expr monitors conf expr =
         match op with
         | Logical_Not ->
             (* Coerce to boolean, apply logical not *)
-            if t = T_Str then raise Invalid_argument_type ;
+            if equal_type_tag t T_Str then raise Invalid_argument_type ;
             a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
         | Unary_Plus ->
             (* Nop for integers, but coerces booleans to integers *)
-            if t = T_Str then raise Invalid_argument_type ;
+            if equal_type_tag t T_Str then raise Invalid_argument_type ;
             a |> coerce_data t T_Int |> vector T_Int
         | Unary_Minus ->
             (* Coerce to integer, apply unary negation *)
-            if t = T_Str then raise Invalid_argument_type ;
+            if equal_type_tag t T_Str then raise Invalid_argument_type ;
             a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
         | As_Logical -> coerce_value T_Bool v
         | As_Integer -> coerce_value T_Int v
@@ -154,11 +156,11 @@ let rec eval_expr monitors conf expr =
 
   let eval_binary op v1 v2 =
     let arithmetic_op o =
-      let a1, a2 = (vector_data v1, vector_data v2) in
-      let t1, t2 = (vector_type v1, vector_type v2) in
+      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
       (* String operands not allowed; but coerce booleans to integers. *)
-      if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+      if equal_type_tag t1 T_Str || equal_type_tag t2 T_Str then raise Invalid_argument_type ;
       let a1 = a1 |> coerce_data t1 T_Int in
       let a2 = a2 |> coerce_data t2 T_Int in
 
@@ -176,8 +178,8 @@ let rec eval_expr monitors conf expr =
       | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
 
     let relational_op o =
-      let a1, a2 = (vector_data v1, vector_data v2) in
-      let t1, t2 = (vector_type v1, vector_type v2) in
+      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
       (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
          We need to properly coerce the operands, but also need to handle numeric values and string
@@ -187,7 +189,7 @@ let rec eval_expr monitors conf expr =
           let a1 = a1 |> coerce_data t1 T_Str in
           let a2 = a2 |> coerce_data t2 T_Str in
           let relational f =
-            Array.map2 (fun x y -> (Option.bind2 f) (get_str x) (get_str y) |> put_bool) a1 a2
+            Array.map2 (fun x y -> Option.bind2 f (get_str x) (get_str y) |> put_bool) a1 a2
             |> vector T_Bool in
           match o with
           | Less -> relational (fun x y -> Some (String.compare x y < 0))
@@ -200,7 +202,7 @@ let rec eval_expr monitors conf expr =
           let a1 = a1 |> coerce_data t1 T_Int in
           let a2 = a2 |> coerce_data t2 T_Int in
           let relational f =
-            Array.map2 (fun x y -> (Option.bind2 f) (get_int x) (get_int y) |> put_bool) a1 a2
+            Array.map2 (fun x y -> Option.bind2 f (get_int x) (get_int y) |> put_bool) a1 a2
             |> vector T_Bool in
           match o with
           | Less -> relational (fun x y -> Some (x < y))
@@ -211,11 +213,11 @@ let rec eval_expr monitors conf expr =
           | Not_Equal -> relational (fun x y -> Some (x <> y))) in
 
     let logical_op o =
-      let a1, a2 = (vector_data v1, vector_data v2) in
-      let t1, t2 = (vector_type v1, vector_type v2) in
+      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
       (* String operands not allowed; but coerce integers to booleans. *)
-      if t1 = T_Str || t2 = T_Str then raise Invalid_argument_type ;
+      if equal_type_tag t1 T_Str || equal_type_tag t2 T_Str then raise Invalid_argument_type ;
       let a1 = a1 |> coerce_data t1 T_Bool in
       let a2 = a2 |> coerce_data t2 T_Bool in
 
@@ -233,8 +235,8 @@ let rec eval_expr monitors conf expr =
 
       (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
       let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
-      let e1 = if Array.length a1 = 0 then None else get_bool a1.(0) in
-      let e2 = if Array.length a2 = 0 then None else get_bool a2.(0) in
+      let e1 = if Array.is_empty a1 then None else get_bool a1.(0) in
+      let e2 = if Array.is_empty a2 then None else get_bool a2.(0) in
       match o with
       | And -> and' e1 e2 |> put_bool |> vector_of_lit
       | Or -> or' e1 e2 |> put_bool |> vector_of_lit
@@ -243,10 +245,10 @@ let rec eval_expr monitors conf expr =
 
     (* This needs to be a function, not a constant, because it might raise an exception *)
     let sequence_op () =
-      let a1, a2 = (vector_data v1, vector_data v2) in
-      let t1, t2 = (vector_type v1, vector_type v2) in
+      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
-      if Array.length a1 = 0 || Array.length a2 = 0 then raise Argument_length_zero ;
+      if Array.is_empty a1 || Array.is_empty a2 then raise Argument_length_zero ;
       if Array.length a1 > 1 || Array.length a2 > 1 then raise Vector_length_greater_one ;
 
       (* Everything gets coerced to integer *)
@@ -254,15 +256,7 @@ let rec eval_expr monitors conf expr =
       let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
 
       match (a1.(0), a2.(0)) with
-      | Some e1, Some e2 ->
-          (* We actually want the opposite sign of Stdlib.compare: + if e1 < e2 *)
-          let sign = Stdlib.compare e2 e1 in
-          let len = Stdlib.abs (e2 - e1) + 1 in
-          let res = Array.make len None in
-          for i = 0 to len - 1 do
-            res.(i) <- Some (e1 + (sign * i))
-          done ;
-          res |> Array.map put_int |> vector T_Int
+      | Some e1, Some e2 -> Array.(e1 -- e2) |> Array.map (fun i -> Int i) |> vector T_Int
       | None, None | None, _ | _, None -> raise NA_not_allowed in
 
     match (v1, v2) with
@@ -306,8 +300,8 @@ let rec eval_expr monitors conf expr =
   let eval_subset2 v1 v2 =
     match (v1, v2) with
     | Vector (a1, _), Vector (a2, t2) -> (
-        let n1, n2 = (vector_length v1, vector_length v2) in
-        if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
+        let n1, n2 = Pair.map_same vector_length (v1, v2) in
+        if n2 = 0 || n2 > 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
         let a2 = a2 |> coerce_data t2 T_Int in
         match get_int a2.(0) with
         | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
@@ -328,17 +322,17 @@ let rec eval_expr monitors conf expr =
       List.iter (fun m -> m#record_unary_op conf op (se, operand) res) monitors ;
       res
   | Binary_Op (op, se1, se2) ->
-      let v1, v2 = (eval se1, eval se2) in
+      let v1, v2 = Pair.map_same eval (se1, se2) in
       let res = eval_binary op v1 v2 in
       List.iter (fun m -> m#record_binary_op conf op (se1, v1) (se2, v2) res) monitors ;
       res
   | Subset1 (se1, se2) ->
-      let idx, v = (eval se1, Option.map eval se2) in
+      let idx, v = Pair.map eval (Option.map eval) (se1, se2) in
       let res = eval_subset1 idx v in
       List.iter (fun m -> m#record_subset1 conf (se1, idx) (se2, v) res) monitors ;
       res
   | Subset2 (se1, se2) ->
-      let idx, v = (eval se1, eval se2) in
+      let idx, v = Pair.map_same eval (se1, se2) in
       let res = eval_subset2 idx v in
       List.iter (fun m -> m#record_subset2 conf (se1, idx) (se2, v) res) monitors ;
       res
@@ -368,7 +362,8 @@ and eval_stmt monitors conf stmt =
     | (Vector (a1, t1) as v1), Some (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
         let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
         let t = type_lub t1 t3 in
-        let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
+        let a1 = a1 |> coerce_data t1 t in
+        let a3 = a3 |> coerce_data t3 t in
         match t2 with
         | T_Bool ->
             let a2 = a2 |> Array.map get_bool in
@@ -387,7 +382,7 @@ and eval_stmt monitors conf stmt =
               let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
               (conf', v3)
             else
-              let a2 = a2 |> Array.filter (fun x -> x <> Some 0) in
+              let a2 = a2 |> Array.filter (fun x -> not @@ Option.equal CCEqual.int x (Some 0)) in
               let n2 = Array.length a2 in
               if n2 <> n3 then raise Invalid_subset_replacement ;
               let res = update_at_pos t a1 a2 a3 in
@@ -400,12 +395,13 @@ and eval_stmt monitors conf stmt =
   let eval_subset2_assign x idx v =
     match (lookup conf.env x, idx, v) with
     | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
-        let n2, n3 = (vector_length v2, vector_length v3) in
-        if n2 = 0 || n2 > 1 || t2 = T_Str then raise Invalid_subset_index ;
+        let n2, n3 = Pair.map_same vector_length (v2, v3) in
+        if n2 = 0 || n2 > 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
         if n3 = 0 || n3 > 1 then raise Invalid_subset_replacement ;
         let t = type_lub t1 t3 in
-        let a1, a3 = (a1 |> coerce_data t1 t, a3 |> coerce_data t3 t) in
+        let a1 = a1 |> coerce_data t1 t in
         let a2 = a2 |> coerce_data t2 T_Int in
+        let a3 = a3 |> coerce_data t3 t in
         match get_int a2.(0) with
         | Some i when 1 <= i ->
             let a1 = extend i t a1 in
@@ -417,7 +413,7 @@ and eval_stmt monitors conf stmt =
     | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type in
 
   let eval_fun_def id params stmts =
-    let unique_params = List.sort_uniq String.compare params in
+    let unique_params = List.sort_uniq ~cmp:String.compare params in
     if List.length params <> List.length unique_params then raise Repeated_parameter ;
     let conf' = { conf with fun_tab = FunTab.add id (params, stmts) conf.fun_tab } in
     (conf', null) in
@@ -451,12 +447,12 @@ and eval_stmt monitors conf stmt =
       List.iter (fun m -> m#record_assign conf' x (e, v)) monitors ;
       (conf', v)
   | Subset1_Assign (x1, se2, se3) ->
-      let idx, v = (Option.map eval_se se2, eval_se se3) in
+      let idx, v = Pair.map (Option.map eval_se) eval_se (se2, se3) in
       let conf', res = eval_subset1_assign x1 (Option.map eval_se se2) (eval_se se3) in
       List.iter (fun m -> m#record_subset1_assign conf x1 (se2, idx) (se3, v) res) monitors ;
       (conf', res)
   | Subset2_Assign (x1, se2, se3) ->
-      let idx, v = (eval_se se2, eval_se se3) in
+      let idx, v = Pair.map_same eval_se (se2, se3) in
       let conf', res = eval_subset2_assign x1 idx v in
       List.iter (fun m -> m#record_subset2_assign conf x1 (se2, idx) (se3, v) res) monitors ;
       (conf', res)
@@ -507,5 +503,5 @@ let run ?(monitors : Monitor.monitors = []) ?(conf : configuration = start) (stm
   (conf', res)
 
 let run_str ?(monitors : Monitor.monitors = []) str =
-  let program = Parse.parse str in
+  let program = Parser.parse str in
   Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_statements monitors start program

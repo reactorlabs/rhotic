@@ -1,4 +1,6 @@
+open Containers
 open Expr
+open Util
 
 let lit_to_r = function
   | Int i -> Int.to_string i ^ "L"
@@ -11,7 +13,7 @@ let lit_to_r = function
 let rec val_to_r = function
   | Vector (a, t) ->
       (* Need a workaround because rhotic doesn't have the NULL vector, only typed empty vectors. *)
-      if Array.length a = 0 then
+      if Array.is_empty a then
         match t with
         | T_Bool -> Printf.sprintf "as.logical(NULL)"
         | T_Int -> Printf.sprintf "as.integer(NULL)"

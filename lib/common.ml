@@ -1,5 +1,14 @@
+open Containers
+open CCFun.Infix
 open Expr
-open Util
+
+(*******************************************************************************
+ * This module contains common helpers that are used by various parts of the
+ * implementation, in particular, Eval and Monitor.
+ *
+ * Normally, these helpers would be part of Eval, but that would create a
+ * circular dependency between Eval and Monitor.
+ ******************************************************************************)
 
 type invalid_number =
   { expected : int

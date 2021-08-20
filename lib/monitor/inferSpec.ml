@@ -1,6 +1,6 @@
+open Containers
 open Expr
 open Common
-open Util
 
 let debug = true
 
@@ -127,7 +127,7 @@ class monitor =
         (_ : value) : unit =
       (* Merge the constraints from the popped frame with the current state. *)
       let { fun_id = popped_fun; _ } = self#pop_stack in
-      assert (popped_fun = fun_id) ;
+      assert (Identifier.equal popped_fun fun_id) ;
       if debug then self#debug_print @@ "<-- Exiting " ^ popped_fun
 
     (* Assigning a value to some variable x, so update the variables that x depends on.
@@ -180,7 +180,7 @@ class monitor =
 
     method! program_exit (_ : configuration) : unit =
       let _ = self#pop_stack in
-      assert (List.length stack_ = 0)
+      assert (List.is_empty stack_)
 
     method! dump_table : unit = ()
   end
