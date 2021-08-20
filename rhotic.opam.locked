@@ -2,17 +2,11 @@ opam-version: "2.0"
 name: "rhotic"
 version: "dev"
 synopsis: "Formalization of a subset of R"
-authors: "Ming-Ho Yee <mh@mhyee.com>"
 maintainer: "Ming-Ho Yee <mh@mhyee.com>"
-homepage: "https://github.com/reactorlabs/rhotic"
-dev-repo: "git+https://git@github.com:reactorlabs/rhotic.git"
-bug-reports: "https://github.com/reactorlabs/rhotic/issues"
+authors: "Ming-Ho Yee <mh@mhyee.com>"
 license: "none for now"
-build: [
- ["dune" "subst"] {pinned}
- ["dune" "build" "-p" name "-j" jobs]
- ["dune" "runtest" "-p" name "-j" jobs] {with-test}
-]
+homepage: "https://github.com/reactorlabs/rhotic"
+bug-reports: "https://github.com/reactorlabs/rhotic/issues"
 depends: [
   "angstrom" {= "0.15.0"}
   "base-bigarray" {= "base"}
@@ -20,16 +14,17 @@ depends: [
   "base-threads" {= "base"}
   "base-unix" {= "base"}
   "bigarray-compat" {= "1.0.0"}
-  "bigstringaf" {= "0.7.0"}
+  "bigstringaf" {= "0.8.0"}
   "camomile" {= "1.0.2"}
   "charInfo_width" {= "1.1.0"}
   "conf-pkg-config" {= "2"}
+  "containers" {= "3.5"}
   "cppo" {= "1.6.7"}
   "csexp" {= "1.5.1"}
-  "dune" {= "2.8.5"}
-  "dune-configurator" {= "2.8.5"}
+  "dune" {= "2.9.0"}
+  "dune-configurator" {= "2.9.0"}
   "lambda-term" {= "3.1.0"}
-  "lwt" {= "5.4.0"}
+  "lwt" {= "5.4.2"}
   "lwt_log" {= "1.1.1"}
   "lwt_react" {= "1.1.4"}
   "mew" {= "0.1.0"}
@@ -39,7 +34,7 @@ depends: [
   "ocaml-base-compiler" {= "4.12.0"}
   "ocaml-compiler-libs" {= "v0.12.3"}
   "ocaml-config" {= "2"}
-  "ocaml-migrate-parsetree" {= "2.1.0"}
+  "ocaml-migrate-parsetree" {= "2.2.0"}
   "ocaml-options-vanilla" {= "1"}
   "ocaml-syntax-shims" {= "1.0.0"}
   "ocamlbuild" {= "0.14.0"}
@@ -47,7 +42,7 @@ depends: [
   "ocplib-endian" {= "1.1"}
   "ppx_derivers" {= "1.2.1"}
   "ppx_deriving" {= "5.2.1"}
-  "ppxlib" {= "0.22.0"}
+  "ppxlib" {= "0.22.2"}
   "react" {= "1.2.1"}
   "result" {= "1.5"}
   "seq" {= "base"}
@@ -55,6 +50,12 @@ depends: [
   "stdlib-shims" {= "0.3.0"}
   "topkg" {= "1.0.3"}
   "trie" {= "1.0.0"}
-  "utop" {= "2.7.0"}
+  "utop" {= "2.8.0"}
   "zed" {= "3.1.0"}
 ]
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+]
+dev-repo: "git+https://git@github.com:reactorlabs/rhotic.git"

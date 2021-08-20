@@ -18,6 +18,7 @@ depends: [
  "ocaml"
  "ppx_deriving"
  "angstrom"
+ "containers"
 ]
 depopts: [
  "utop"
