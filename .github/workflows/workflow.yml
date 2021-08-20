@@ -27,10 +27,10 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.opam
-          key: ${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-${{ hashFiles('**opam.lock') }}
+          key: v1-${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-${{ hashFiles('**opam.locked') }}
           restore-keys: |
-            ${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-
-            ${{ matrix.os }}-
+            v1-${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-
+            v1-${{ matrix.os }}-
 
       - name: Setup OCaml
         uses: avsm/setup-ocaml@v1
