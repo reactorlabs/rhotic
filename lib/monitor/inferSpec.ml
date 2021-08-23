@@ -18,6 +18,8 @@ module Lattice = struct
     | Not_NA
     | Bot
 
+  let equal x y = Equal.physical x y
+
   (* less than or equal is the ordering relation *)
   let leq x y =
     match (x, y) with
@@ -48,17 +50,25 @@ module Lattice = struct
     (* Everything else *)
     | NA, Not_NA | Not_NA, NA -> Bot
 end
-
-type lattice = Lattice.t
+type lattice = Lattice.t [@@deriving eq]
 
 (* abstract value *)
 type avalue =
   { lower : lattice [@default Lattice.Bot]
   ; upper : lattice [@default Lattice.Top]
   }
-[@@deriving make]
+[@@deriving eq, make]
 
-type stack_frame = { fun_id : identifier } [@@deriving make]
+(* need some indirection: we store avalues in a pool because they are mutable *)
+type avalue_id = int
+type aenvironment = avalue_id Env.t
+
+(* abstract stack frame *)
+type astack_frame =
+  { fun_id : identifier
+  ; env : aenvironment [@default Env.empty]
+  }
+[@@deriving make]
 
 class monitor =
   object (self)
@@ -68,27 +78,40 @@ class monitor =
      * Internal monitor state
      ******************************************************************************)
 
-    val mutable stack_ : stack_frame list = []
+    (* abstract stack for the program *)
+    val mutable astack_ : astack_frame list = []
+
+    (* abstract value pool, essentially an abstract heap *)
+    val aval_pool_ : avalue Vector.vector = Vector.create ()
 
     (******************************************************************************
      * Monitor helpers
      ******************************************************************************)
 
     (* Debug printing, with indenting to reflect the stack depth. *)
-    method private debug_print str =
-      let n = List.length stack_ - 1 in
+    method private debug_print (str : string) : unit =
+      let n = List.length astack_ - 1 in
       Stdlib.print_string (String.make (n * 2) ' ') ;
       Stdlib.print_endline str
 
-    (* Push a frame onto the shadow stack, and clear last_popped_frame. *)
-    method private push_stack frame = stack_ <- frame :: stack_
+    (* Push a frame onto the shadow stack *)
+    method private push_stack (frame : astack_frame) : unit = astack_ <- frame :: astack_
 
-    (* Pop a frame from the shadow stack, set last_popped_frame, and return the frame. *)
-    method private pop_stack =
-      assert (List.length stack_ > 0) ;
-      let top, rest = (List.hd stack_, List.tl stack_) in
-      stack_ <- rest ;
-      top
+    (* Pop a frame from the shadow stack, and return the frame. *)
+    method private pop_stack : astack_frame =
+      assert (List.length astack_ > 0) ;
+      match astack_ with
+      | [] -> assert false
+      | top :: rest ->
+          astack_ <- rest ;
+          top
+
+    (* Add an avalue to the pool, and return its id. *)
+    method private push_avalue (aval : avalue) : avalue_id =
+      let id = Vector.length aval_pool_ in
+      Vector.push aval_pool_ aval ;
+      assert (equal_avalue (Vector.get aval_pool_ id) aval) ;
+      id
 
     (******************************************************************************
      * Callbacks to record interpreter operations
@@ -114,9 +137,9 @@ class monitor =
     (* Entering a function call, so we need to initialize some things. *)
     method! record_call_entry
         (_ : configuration) (fun_id : identifier) (_ : simple_expression list * value list) : unit =
-      (* Initialize a stack frame and push onto the shadow stack. *)
       if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
-      self#push_stack @@ make_stack_frame ~fun_id
+      (* Initialize a stack frame and push onto the shadow stack. *)
+      self#push_stack @@ make_astack_frame ~fun_id ()
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
@@ -125,14 +148,10 @@ class monitor =
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      (* Merge the constraints from the popped frame with the current state. *)
       let { fun_id = popped_fun; _ } = self#pop_stack in
       assert (Identifier.equal popped_fun fun_id) ;
       if debug then self#debug_print @@ "<-- Exiting " ^ popped_fun
 
-    (* Assigning a value to some variable x, so update the variables that x depends on.
-       Specifically, we want to transitively follow the dependencies, to compute which params x
-       depends on. *)
     method! record_assign (_ : configuration) (_ : identifier) (_ : expression * value) : unit = ()
 
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
@@ -161,26 +180,25 @@ class monitor =
         (_ : statement list) : unit =
       ()
 
-    (* In a for statement, identifier depends on the value we're looping over. *)
     method! record_for
         (_ : configuration) (_ : identifier) (_ : simple_expression * value) (_ : statement list)
         : unit =
       ()
 
-    (* Function definition, so let's initialize the constraints map. *)
     method! record_fun_def
         (_ : configuration) (_ : identifier) (_ : identifier list) (_ : statement list) : unit =
       ()
 
-    (* This is an expression statement, so it may an expression returned by a function call. *)
     method! record_expr_stmt (_ : configuration) (_ : expression * value) : unit = ()
 
+    (* Initializing the program, so create a stack frame for main$. *)
     method! program_entry ({ cur_fun = fun_id; _ } : configuration) : unit =
-      self#push_stack @@ make_stack_frame ~fun_id
+      self#push_stack @@ make_astack_frame ~fun_id ()
 
+    (* Exiting the program, so pop main$'s stack frame and assert that the stack is empty. *)
     method! program_exit (_ : configuration) : unit =
       let _ = self#pop_stack in
-      assert (List.is_empty stack_)
+      assert (List.is_empty astack_)
 
     method! dump_table : unit = ()
   end
