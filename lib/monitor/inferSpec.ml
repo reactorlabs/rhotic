@@ -91,7 +91,7 @@ class monitor =
     (* Debug printing, with indenting to reflect the stack depth. *)
     method private debug_print (str : string) : unit =
       let n = List.length astack_ - 1 in
-      Stdlib.print_string (String.make (n * 2) ' ') ;
+      if n > 0 then Stdlib.print_string (String.make (n * 2) ' ') ;
       Stdlib.print_endline str
 
     (* Push a frame onto the shadow stack *)
@@ -193,10 +193,12 @@ class monitor =
 
     (* Initializing the program, so create a stack frame for main$. *)
     method! program_entry ({ cur_fun = fun_id; _ } : configuration) : unit =
+      self#debug_print @@ "PROGRAM ENTRY" ;
       self#push_stack @@ make_astack_frame ~fun_id ()
 
     (* Exiting the program, so pop main$'s stack frame and assert that the stack is empty. *)
     method! program_exit (_ : configuration) : unit =
+      self#debug_print @@ "PROGRAM EXIT" ;
       let _ = self#pop_stack in
       assert (List.is_empty astack_)
 

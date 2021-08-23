@@ -498,8 +498,10 @@ let start = { env = Env.empty; cur_fun = Common.main_function; fun_tab = FunTab.
 let run ?(monitors : Monitor.monitors = []) ?(conf : configuration = start) (stmts : statement list)
     =
   List.iter (fun m -> m#program_entry conf) monitors ;
-  let conf', res = run_statements monitors conf stmts in
-  List.iter (fun m -> m#program_exit conf) monitors ;
+  let conf', res =
+    Fun.finally
+      ~h:(fun () -> List.iter (fun m -> m#program_exit conf) monitors)
+      ~f:(fun () -> run_statements monitors conf stmts) in
   (conf', res)
 
 let run_str ?(monitors : Monitor.monitors = []) str =
