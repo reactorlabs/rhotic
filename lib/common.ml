@@ -27,7 +27,6 @@ exception Vector_length_greater_one
 exception Argument_length_zero
 exception Missing_value_need_true_false
 exception NA_not_allowed
-exception Not_supported
 
 exception Todo
 

@@ -49,6 +49,7 @@ module Lattice = struct
     (* Everything else *)
     | NA, Not_NA | Not_NA, NA -> Bot
 
+  (* TODO: right now we're handling lits, but really we should be handling vectors *)
   (* alpha is the abstraction function, mapping a concrete value to a lattice value *)
   let alpha x =
     match is_na x with
