@@ -2,9 +2,15 @@ name: Main workflow
 
 on:
   pull_request:
-    paths-ignore: '**.md'
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
+      - 'examples/**'
   push:
-    paths-ignore: '**.md'
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
+      - 'examples/**'
   workflow_dispatch:
 
 jobs:
