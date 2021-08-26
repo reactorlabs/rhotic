@@ -1,11 +1,14 @@
 open Containers
+open CCFun.Infix
 open Expr
 open Common
 
 let debug = true
 
 module Lattice = struct
-  (*
+  (* For now, we model vectors as a single value, with everything merged.
+     Not_NA is perhaps better interpreted as "does not contain NAs."
+
           Top
          /   \
        NA   Not_NA
@@ -49,10 +52,11 @@ module Lattice = struct
     (* Everything else *)
     | NA, Not_NA | Not_NA, NA -> Bot
 
-  (* TODO: right now we're handling lits, but really we should be handling vectors *)
   (* alpha is the abstraction function, mapping a concrete value to a lattice value *)
   let alpha x =
-    match is_na x with
+    let data = vector_data x in
+    let res = Array.exists (fun x -> is_na x) data in
+    match res with
     | true -> NA
     | false -> Not_NA
 end
@@ -187,39 +191,57 @@ class monitor =
       self#debug_print @@ "<-- Exiting " ^ popped_fun
 
     method! record_assign
-        ({ cur_fun; _ } : configuration) (x : identifier) ((e, _) : expression * value) : unit =
+        ({ cur_fun; _ } : configuration) (x : identifier) ((e, v) : expression * value) : unit =
+      let show_assign = Printf.sprintf "%s <- %s" x (Deparser.expr_to_r e) in
+      let collect_lits = List.rev % ExprFold.literals#expr [] in
+      let collect_vars = List.rev % ExprFold.variables#expr [] in
+
       let ({ fun_id; aenv } as frame) = self#top_frame in
       assert (equal_identifier cur_fun fun_id) ;
+
       match e with
-      | Combine _ -> self#debug_print "TODO"
-      | Dataframe_Ctor _ -> raise Not_supported
-      | Unary_Op _ -> self#debug_print "TODO"
-      | Binary_Op _ -> self#debug_print "TODO"
-      | Subset1 _ -> self#debug_print "TODO"
-      | Subset2 _ -> self#debug_print "TODO"
-      | Call _ -> self#debug_print @@ "Assignment of call to " ^ x
-      | Simple_Expression se -> (
-          match se with
-          | Lit l ->
-              (* Create a new abstract value for l, adding it to the avalue pool.
-                 Then update the abstract env so that x refers to the new aval. *)
-              let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha l) () in
-              let aenv' = Env.add x aid aenv in
+      | Call _ ->
+          (* TODO: Needs special handling; for now, create a placeholder aval for the result *)
+          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha v) () in
+          let aenv' = Env.add x aid aenv in
+          self#update_top_frame { frame with aenv = aenv' } ;
+          self#debug_print @@ show_assign ;
+          self#debug_print
+          @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x aid aid (show_avalue aval)
+      | Simple_Expression (Lit _) ->
+          (* Create a new abstract value for the result, v, adding it to the avalue pool.
+              Then update the abstract env so that x refers to the new aval. *)
+          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha v) () in
+          let aenv' = Env.add x aid aenv in
+          self#update_top_frame { frame with aenv = aenv' } ;
+          self#debug_print show_assign ;
+          self#debug_print
+          @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x aid aid (show_avalue aval)
+      | Simple_Expression (Var y) -> (
+          (* Look up the id for y's abstract value.
+             Then update the abstract env so that x refers to y's aval. *)
+          (* TODO: workaround for WIP where y isn't in the environment *)
+          (* let yid = Env.find y aenv in *)
+          match Env.get y aenv with
+          | Some yid ->
+              let aenv' = Env.add x yid aenv in
               self#update_top_frame { frame with aenv = aenv' } ;
-              self#debug_print
-              @@ Printf.sprintf "%s <- %s \t# aenv: %s ↦ %d | aval pool: %d ↦ %s" x (show_lit l) x
-                   aid aid (show_avalue aval)
-          | Var y -> (
-              (* Look up the id for y's abstract value.
-                 Then update the abstract env so that x refers to y's aval. *)
-              (* TODO: workaround for WIP where y isn't in the environment *)
-              (* let yid = Env.find y aenv in *)
-              match Env.get y aenv with
-              | Some yid ->
-                  let aenv' = Env.add x yid aenv in
-                  self#update_top_frame { frame with aenv = aenv' } ;
-                  self#debug_print @@ Printf.sprintf "%s <- %s \t# aenv: %s ↦ %d" x y x yid
-              | None -> ()))
+              self#debug_print show_assign ;
+              self#debug_print @@ Printf.sprintf "  # aenv: %s ↦ %d" x yid
+          | None -> ())
+      | Combine _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _ ->
+          (* TODO:
+              - for each lit: make a new avalue
+              - for each var, look up its avalue
+              - create a new avalue for the result
+                - init its lower and upper bounds
+                - set its deps to the other avalues
+              - update aenv with the new avals *)
+          let lits, vars = Pair.(collect_lits &&& collect_vars) e in
+          self#debug_print @@ show_assign ;
+          self#debug_print @@ Printf.sprintf "  # lits: %s" (List.to_string show_lit lits) ;
+          self#debug_print @@ Printf.sprintf "  # vars: %s" (List.to_string show_identifier vars)
+      | Dataframe_Ctor _ -> raise Not_supported
 
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
