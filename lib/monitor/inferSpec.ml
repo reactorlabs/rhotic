@@ -157,6 +157,14 @@ class monitor =
       assert (equal_avalue (Vector.get aval_pool_ id) aval) ;
       (id, aval)
 
+    (* Given an id, return its avalue from the pool. *)
+    method private get_avalue (id : avalue_id) : avalue = Vector.get aval_pool_ id
+
+    (* Given an id and a new avalue, replace the old avalue in the pool. *)
+    (* TODO: maybe later we can specialize this, e.g. set_lower, set_upper, set_deps *)
+    method private set_avalue (id : avalue_id) (new_aval : avalue) : unit =
+      Vector.set aval_pool_ id new_aval
+
     (******************************************************************************
      * Callbacks to record interpreter operations
      ******************************************************************************)
@@ -263,12 +271,38 @@ class monitor =
 
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
-        (_ : configuration)
-        (_ : identifier)
-        (_ : simple_expression * value)
-        (_ : simple_expression * value)
+        ({ cur_fun; _ } : configuration)
+        (x1 : identifier)
+        ((se2, _) : simple_expression * value)
+        ((se3, _) : simple_expression * value)
         (_ : value) : unit =
-      ()
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print
+      @@ Printf.sprintf "%s[[%s]] <- %s" x1 (Deparser.simple_expr_to_r se2)
+           (Deparser.simple_expr_to_r se3) ;
+
+      (* Weak update for x1: its abstract val has new depedencies added. *)
+      assert (Env.mem x1 aenv) ;
+      let aid = Env.find x1 aenv in
+      let aval = self#get_avalue aid in
+
+      (* TODO: workaround for WIP where y isn't in the environment *)
+      (match se3 with
+      | Lit l ->
+          (* Create a new abstract val, that x1 now depends on. *)
+          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) () in
+          self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" aid (show_avalue aval) ;
+          Some aid
+      | Var y ->
+          (* Look up y's abstract val, that x1 now depends on. *)
+          Env.get y aenv)
+      |> Option.iter (fun id ->
+             let aval' = { aval with deps = AValueSet.add id aval.deps } in
+             self#set_avalue aid aval' ;
+             self#debug_print
+             @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x1 aid aid
+                  (show_avalue aval'))
 
     (* In an if statement, the condition cannot be NA. *)
     method! record_if
