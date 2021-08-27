@@ -169,6 +169,7 @@ class monitor =
      * Callbacks to record interpreter operations
      ******************************************************************************)
 
+    (* TODO: add constraints *)
     (* In a sequence expression x:y, x and y must not be NA. *)
     method! record_binary_op
         (_ : configuration)
@@ -178,6 +179,7 @@ class monitor =
         (_ : value) : unit =
       ()
 
+    (* TODO: add constraints *)
     (* In a subset2 expression x[[i]], i must not be NA. *)
     method! record_subset2
         (_ : configuration)
@@ -260,15 +262,49 @@ class monitor =
           @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x aid aid (show_avalue aval)
       | Dataframe_Ctor _ -> raise Not_supported
 
+    (* TODO: add constraints *)
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
-        (_ : configuration)
-        (_ : identifier)
-        (_ : simple_expression option * value option)
-        (_ : simple_expression * value)
+        ({ cur_fun; _ } : configuration)
+        (x1 : identifier)
+        ((opt_se2, _) : simple_expression option * value option)
+        ((se3, _) : simple_expression * value)
         (_ : value) : unit =
-      ()
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print
+      @@ Printf.sprintf "%s[%s] <- %s" x1
+           (Option.map_or ~default:"" Deparser.simple_expr_to_r opt_se2)
+           (Deparser.simple_expr_to_r se3) ;
 
+      assert (Env.mem x1 aenv) ;
+      let aid = Env.find x1 aenv in
+      let aval = self#get_avalue aid in
+
+      (* TODO: workaround for WIP where y isn't in the environment *)
+      (match se3 with
+      | Lit l ->
+          (* Create a new abstract val, that x1 now depends on. *)
+          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) () in
+          self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" aid (show_avalue aval) ;
+          Some aid
+      | Var y ->
+          (* Look up y's abstract val, that x1 now depends on. *)
+          Env.get y aenv)
+      |> Option.iter (fun id ->
+             (* If opt_se2 is Some se2, then it's a weak update.
+                If opt_se2 is None, then it's a strong update, since we're overwriting the vector. *)
+             let deps =
+               match opt_se2 with
+               | Some _ -> AValueSet.add id aval.deps
+               | None -> AValueSet.singleton id in
+             let aval' = { aval with deps } in
+             self#set_avalue aid aval' ;
+             self#debug_print
+             @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x1 aid aid
+                  (show_avalue aval'))
+
+    (* TODO: add constraints *)
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
         ({ cur_fun; _ } : configuration)
