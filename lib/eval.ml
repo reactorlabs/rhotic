@@ -449,12 +449,12 @@ and eval_stmt monitors conf stmt =
   | Subset1_Assign (x1, se2, se3) ->
       let idx, v = Pair.map (Option.map eval_se) eval_se (se2, se3) in
       let conf', res = eval_subset1_assign x1 (Option.map eval_se se2) (eval_se se3) in
-      List.iter (fun m -> m#record_subset1_assign conf x1 (se2, idx) (se3, v) res) monitors ;
+      List.iter (fun m -> m#record_subset1_assign conf' x1 (se2, idx) (se3, v) res) monitors ;
       (conf', res)
   | Subset2_Assign (x1, se2, se3) ->
       let idx, v = Pair.map_same eval_se (se2, se3) in
       let conf', res = eval_subset2_assign x1 idx v in
-      List.iter (fun m -> m#record_subset2_assign conf x1 (se2, idx) (se3, v) res) monitors ;
+      List.iter (fun m -> m#record_subset2_assign conf' x1 (se2, idx) (se3, v) res) monitors ;
       (conf', res)
   | Function_Def (id, params, stmts) ->
       let conf', res = eval_fun_def id params stmts in

@@ -7,7 +7,8 @@ let debug = true
 
 module Lattice = struct
   (* For now, we model vectors as a single value, with everything merged.
-     Not_NA is perhaps better interpreted as "does not contain NAs."
+     NA is perhaps better interpreted as "contains NAs," while
+     Not_NA is interpreted as "does not contain NAs,"
 
           Top
          /   \
@@ -252,7 +253,7 @@ class monitor =
     (* TODO: add constraints *)
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
-        ({ cur_fun; _ } : configuration)
+        ({ cur_fun; env; _ } : configuration)
         (x1 : identifier)
         ((opt_se2, _) : simple_expression option * value option)
         ((se3, _) : simple_expression * value)
@@ -261,7 +262,7 @@ class monitor =
       assert (equal_identifier cur_fun fun_id) ;
       self#debug_print @@ Deparser.stmt_to_r @@ Subset1_Assign (x1, opt_se2, se3) ;
 
-      (* Weak update for x1: its abstract val has new depedencies added. *)
+      (* Update for x1: its aval might have new deps and a new lower bound. *)
       assert (Env.mem x1 aenv) ;
       let aid = Env.find x1 aenv in
       let aval = self#get_avalue aid in
@@ -273,18 +274,20 @@ class monitor =
       | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> Option.some
       | Var y -> Env.get y aenv)
       |> Option.iter (fun id ->
+             (* Update the aval's lower bound, based on the concrete val. *)
+             let lower = Lattice.alpha (Env.find x1 env) in
              (* If opt_se2 is Some se2, then it's a weak update.
                 If opt_se2 is None, then it's a strong update, since we're overwriting the vector. *)
              let deps =
                match opt_se2 with
                | Some _ -> AValueSet.add id aval.deps
                | None -> AValueSet.singleton id in
-             self#set_avalue aid { aval with deps })
+             self#set_avalue aid { aval with lower; deps })
 
     (* TODO: add constraints *)
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
-        ({ cur_fun; _ } : configuration)
+        ({ cur_fun; env; _ } : configuration)
         (x1 : identifier)
         ((se2, _) : simple_expression * value)
         ((se3, _) : simple_expression * value)
@@ -305,8 +308,9 @@ class monitor =
       | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> Option.some
       | Var y -> Env.get y aenv)
       |> Option.iter (fun id ->
+             let lower = Lattice.alpha (Env.find x1 env) in
              let deps = AValueSet.add id aval.deps in
-             self#set_avalue aid { aval with deps })
+             self#set_avalue aid { aval with lower; deps })
 
     (* In an if statement, the condition cannot be NA. *)
     method! record_if

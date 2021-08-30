@@ -81,13 +81,15 @@ aa[1] <- 2
 aa[a] <- NA
 aa[a] <- c
 aa[[1]] <- 4
-aa[[a]] <- 5
+aa[[a]] <- NA
 aa[[b]] <- d
 
 e <- .input(1)
 f <- c(e, e)
+g <- c(NA, 1)
 
 aa[] <- f     # this should be a strong update
+aa[] <- g
 
 # f's params x, z must not be NA
 # ==> a, c must not be NA
