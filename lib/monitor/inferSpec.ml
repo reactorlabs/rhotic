@@ -130,13 +130,16 @@ class monitor =
         Stdlib.print_endline str)
 
     (* Push a frame onto the shadow stack *)
-    method private push_stack (frame : astack_frame) : unit = astack_ <- frame :: astack_
+    method private push_stack (frame : astack_frame) : unit =
+      self#debug_print @@ "--> Entering " ^ frame.fun_id ;
+      astack_ <- frame :: astack_
 
     (* Pop a frame from the shadow stack, and return the frame. *)
     method private pop_stack : astack_frame =
       assert (List.length astack_ > 0) ;
       let top, rest = List.hd_tl astack_ in
       astack_ <- rest ;
+      self#debug_print @@ "<-- Exiting " ^ top.fun_id ;
       top
 
     (* Read the top frame but don't pop the stack. *)
@@ -147,23 +150,29 @@ class monitor =
     (* Replace the top stack frame with the given frame. *)
     method private update_top_frame (frame : astack_frame) : unit =
       assert (List.length astack_ > 0) ;
-      ignore self#pop_stack ;
-      self#push_stack frame
+      astack_ <- frame :: List.tl astack_
+
+    (* Add a new binding to the current (i.e. top frame's) abstract environment. *)
+    method private add_env_binding (x : identifier) (id : avalue_id) : unit =
+      let ({ aenv; _ } as frame) = self#top_frame in
+      self#update_top_frame { frame with aenv = Env.add x id aenv } ;
+      self#debug_print @@ Printf.sprintf "  # aenv: %s ↦ %d" x id
 
     (* Add an avalue to the pool, and return its id. *)
-    method private push_avalue (aval : avalue) : avalue_id * avalue =
+    method private push_avalue (aval : avalue) : avalue_id =
       let id = Vector.length aval_pool_ in
       Vector.push aval_pool_ aval ;
       assert (equal_avalue (Vector.get aval_pool_ id) aval) ;
-      (id, aval)
+      self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" id (show_avalue aval) ;
+      id
 
     (* Given an id, return its avalue from the pool. *)
     method private get_avalue (id : avalue_id) : avalue = Vector.get aval_pool_ id
 
     (* Given an id and a new avalue, replace the old avalue in the pool. *)
-    (* TODO: maybe later we can specialize this, e.g. set_lower, set_upper, set_deps *)
-    method private set_avalue (id : avalue_id) (new_aval : avalue) : unit =
-      Vector.set aval_pool_ id new_aval
+    method private set_avalue (id : avalue_id) (aval' : avalue) : unit =
+      Vector.set aval_pool_ id aval' ;
+      self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" id (show_avalue aval')
 
     (******************************************************************************
      * Callbacks to record interpreter operations
@@ -188,11 +197,9 @@ class monitor =
         (_ : value) : unit =
       ()
 
-    (* Entering a function call, so we need to initialize some things. *)
+    (* Initialize a stack frame and push onto the shadow stack. *)
     method! record_call_entry
         (_ : configuration) (fun_id : identifier) (_ : simple_expression list * value list) : unit =
-      self#debug_print @@ "--> Entering " ^ fun_id ;
-      (* Initialize a stack frame and push onto the shadow stack. *)
       self#push_stack @@ make_astack_frame ~fun_id ()
 
     (* Exiting a function call, so pop the shadow stack.
@@ -202,64 +209,44 @@ class monitor =
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      let { fun_id = popped_fun; _ } = self#pop_stack in
-      assert (equal_identifier popped_fun fun_id) ;
-      self#debug_print @@ "<-- Exiting " ^ popped_fun
+      let top = self#pop_stack in
+      assert (equal_identifier top.fun_id fun_id)
 
     method! record_assign
         ({ cur_fun; _ } : configuration) (x : identifier) ((e, v) : expression * value) : unit =
       let collect_lits = List.rev % ExprFold.literals#expr [] in
       let collect_vars = List.rev % ExprFold.variables#expr [] in
 
-      let ({ fun_id; aenv } as frame) = self#top_frame in
+      let { fun_id; aenv } = self#top_frame in
       assert (equal_identifier cur_fun fun_id) ;
-      self#debug_print @@ Printf.sprintf "%s <- %s" x (Deparser.expr_to_r e) ;
+      self#debug_print @@ Deparser.stmt_to_r @@ Assign (x, e) ;
 
       match e with
-      | Simple_Expression (Lit _) ->
+      | Simple_Expression (Lit l) ->
           (* Create a new abstract value for the result, and add it to the avalue pool.
               Then update the abstract env so that x refers to the new aval. *)
-          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha v) () in
-          self#update_top_frame { frame with aenv = Env.add x aid aenv } ;
-          self#debug_print
-          @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x aid aid (show_avalue aval)
+          make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> self#add_env_binding x
       | Simple_Expression (Var y) ->
           (* Look up the id for y's abstract value.
              Then update the abstract env so x refers to y's aval. *)
           (* TODO: workaround for WIP where y isn't in the environment *)
           (* assert (Env.mem y aenv) ; *)
-          Env.get y aenv
-          |> Option.iter (fun yid ->
-                 self#update_top_frame { frame with aenv = Env.add x yid aenv } ;
-                 self#debug_print @@ Printf.sprintf "  # aenv: %s ↦ %d" x yid)
+          Env.get y aenv |> Option.iter (fun yid -> self#add_env_binding x yid)
       | Combine _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _ ->
-          let lits, vars = Pair.(collect_lits &&& collect_vars) e in
-          (* Create new avals for each literal, look up the avals for each variable. *)
+          (* Collect deps: create new avals for each literal, look up avals for each variable. *)
           let alits =
-            List.map (fun l -> self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) ()) lits
+            collect_lits e
+            |> List.map (fun l -> self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) ())
           in
-          let avars = List.filter_map (fun y -> Env.get y aenv) vars in
+          (* TODO: workaround for WIP where y isn't in the environment *)
+          let avars = collect_vars e |> List.filter_map (fun y -> Env.get y aenv) in
 
-          (* Create a new aval for the expression result, setting its dependencies and updating the
-             abstract env. *)
-          let deps = AValueSet.of_list @@ List.map Stdlib.fst alits @ avars in
-          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha v) ~deps () in
-          self#update_top_frame { frame with aenv = Env.add x aid aenv } ;
-
-          (if not @@ List.is_empty alits then
-           let lit_str =
-             List.to_string ~sep:", "
-               (fun (aid, aval) -> Printf.sprintf "%d ↦ %s" aid (show_avalue aval))
-               alits in
-           self#debug_print @@ Printf.sprintf "  # aval pool: %s" lit_str) ;
-          self#debug_print
-          @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x aid aid (show_avalue aval)
+          (* Create a new aval (with deps) for the expression result, and update the aenv *)
+          make_avalue ~lower:(Lattice.alpha v) ~deps:(AValueSet.of_list (alits @ avars)) ()
+          |> self#push_avalue |> self#add_env_binding x
       | Call _ ->
           (* TODO: Needs special handling; for now, create a placeholder aval for the result *)
-          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha v) () in
-          self#update_top_frame { frame with aenv = Env.add x aid aenv } ;
-          self#debug_print
-          @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x aid aid (show_avalue aval)
+          make_avalue ~lower:(Lattice.alpha v) () |> self#push_avalue |> self#add_env_binding x
       | Dataframe_Ctor _ -> raise Not_supported
 
     (* TODO: add constraints *)
@@ -272,25 +259,19 @@ class monitor =
         (_ : value) : unit =
       let { fun_id; aenv } = self#top_frame in
       assert (equal_identifier cur_fun fun_id) ;
-      self#debug_print
-      @@ Printf.sprintf "%s[%s] <- %s" x1
-           (Option.map_or ~default:"" Deparser.simple_expr_to_r opt_se2)
-           (Deparser.simple_expr_to_r se3) ;
+      self#debug_print @@ Deparser.stmt_to_r @@ Subset1_Assign (x1, opt_se2, se3) ;
 
+      (* Weak update for x1: its abstract val has new depedencies added. *)
       assert (Env.mem x1 aenv) ;
       let aid = Env.find x1 aenv in
       let aval = self#get_avalue aid in
 
       (* TODO: workaround for WIP where y isn't in the environment *)
+      (* If se3 is a lit, create a new aval that x1's aval depends on.
+         If se3 is a var y, then x1's aval depends on y's aval. *)
       (match se3 with
-      | Lit l ->
-          (* Create a new abstract val, that x1 now depends on. *)
-          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) () in
-          self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" aid (show_avalue aval) ;
-          Some aid
-      | Var y ->
-          (* Look up y's abstract val, that x1 now depends on. *)
-          Env.get y aenv)
+      | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> Option.some
+      | Var y -> Env.get y aenv)
       |> Option.iter (fun id ->
              (* If opt_se2 is Some se2, then it's a weak update.
                 If opt_se2 is None, then it's a strong update, since we're overwriting the vector. *)
@@ -298,11 +279,7 @@ class monitor =
                match opt_se2 with
                | Some _ -> AValueSet.add id aval.deps
                | None -> AValueSet.singleton id in
-             let aval' = { aval with deps } in
-             self#set_avalue aid aval' ;
-             self#debug_print
-             @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x1 aid aid
-                  (show_avalue aval'))
+             self#set_avalue aid { aval with deps })
 
     (* TODO: add constraints *)
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
@@ -314,9 +291,7 @@ class monitor =
         (_ : value) : unit =
       let { fun_id; aenv } = self#top_frame in
       assert (equal_identifier cur_fun fun_id) ;
-      self#debug_print
-      @@ Printf.sprintf "%s[[%s]] <- %s" x1 (Deparser.simple_expr_to_r se2)
-           (Deparser.simple_expr_to_r se3) ;
+      self#debug_print @@ Deparser.stmt_to_r @@ Subset2_Assign (x1, se2, se3) ;
 
       (* Weak update for x1: its abstract val has new depedencies added. *)
       assert (Env.mem x1 aenv) ;
@@ -324,21 +299,14 @@ class monitor =
       let aval = self#get_avalue aid in
 
       (* TODO: workaround for WIP where y isn't in the environment *)
+      (* If se3 is a lit, create a new aval that x1's aval depends on.
+         If se3 is a var y, then x1's aval depends on y's aval. *)
       (match se3 with
-      | Lit l ->
-          (* Create a new abstract val, that x1 now depends on. *)
-          let aid, aval = self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) () in
-          self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" aid (show_avalue aval) ;
-          Some aid
-      | Var y ->
-          (* Look up y's abstract val, that x1 now depends on. *)
-          Env.get y aenv)
+      | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> Option.some
+      | Var y -> Env.get y aenv)
       |> Option.iter (fun id ->
-             let aval' = { aval with deps = AValueSet.add id aval.deps } in
-             self#set_avalue aid aval' ;
-             self#debug_print
-             @@ Printf.sprintf "  # aenv: %s ↦ %d | aval pool: %d ↦ %s" x1 aid aid
-                  (show_avalue aval'))
+             let deps = AValueSet.add id aval.deps in
+             self#set_avalue aid { aval with deps })
 
     (* In an if statement, the condition cannot be NA. *)
     method! record_if
@@ -361,12 +329,13 @@ class monitor =
 
     (* Initializing the program, so create a stack frame for main$. *)
     method! program_entry ({ cur_fun = fun_id; _ } : configuration) : unit =
-      self#debug_print @@ "PROGRAM ENTRY" ;
-      self#push_stack @@ make_astack_frame ~fun_id ()
+      self#debug_print @@ "=== PROGRAM ENTRY ===" ;
+      (* Initializing the stack with a frame for the top level. *)
+      astack_ <- [ make_astack_frame ~fun_id () ]
 
     (* Exiting the program, so pop main$'s stack frame *)
     method! program_exit (_ : configuration) : unit =
-      self#debug_print @@ "PROGRAM EXIT" ;
+      self#debug_print @@ "=== PROGRAM EXIT ===" ;
       (* We might have an abnormal exit, so clean up the stack. *)
       astack_ <- []
 

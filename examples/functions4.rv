@@ -2,7 +2,7 @@ x <- 1
 y <- 2
 z <- 3
 
-u <- c(1, 2, 3, 4, 5)
+u <- c(1, 2, 3, 4, NA)
 u <- c(u, x, y, z)
 u <- c(u, 1, x, 2, y)
 u <- -1
@@ -78,8 +78,8 @@ aa <- -1
 aa[] <- 0
 aa[] <- a     # at this point, a is a constant
 aa[1] <- 2
-aa[a] <- 3
-aa[b] <- c
+aa[a] <- NA
+aa[a] <- c
 aa[[1]] <- 4
 aa[[a]] <- 5
 aa[[b]] <- d
