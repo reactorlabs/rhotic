@@ -430,12 +430,14 @@ and eval_stmt monitors conf stmt =
         | Some false -> run_stmts conf s3)
     | Dataframe _ -> raise Invalid_argument_type in
 
-  let eval_for x1 seq s3 =
+  let eval_for x seq stmts =
     match seq with
     | Vector (a, _) ->
         let loop conf i =
-          let conf' = { conf with env = Env.add x1 (vector_of_lit i) conf.env } in
-          Stdlib.fst @@ run_stmts conf' s3 in
+          let v = vector_of_lit i in
+          let conf' = { conf with env = Env.add x v conf.env } in
+          List.iter (fun m -> m#record_for_iteration conf' (x, v) seq stmts) monitors ;
+          Stdlib.fst @@ run_stmts conf' stmts in
         let conf' = Array.fold_left loop conf a in
         (conf', null)
     | Dataframe _ -> raise Not_supported in
@@ -462,13 +464,15 @@ and eval_stmt monitors conf stmt =
       (conf', res)
   | If (se1, s2, s3) ->
       let cond = eval_se se1 in
-      List.iter (fun m -> m#record_if conf (se1, cond) s2 s3) monitors ;
+      List.iter (fun m -> m#record_if_entry conf (se1, cond) s2 s3) monitors ;
       let conf', res = eval_if cond s2 s3 in
+      List.iter (fun m -> m#record_if_exit conf' res) monitors ;
       (conf', res)
   | For (x1, se2, s3) ->
       let seq = eval_se se2 in
-      List.iter (fun m -> m#record_for conf x1 (se2, seq) s3) monitors ;
+      List.iter (fun m -> m#record_for_entry conf x1 (se2, seq) s3) monitors ;
       let conf', res = eval_for x1 seq s3 in
+      List.iter (fun m -> m#record_for_exit conf' res) monitors ;
       (conf', res)
   | Print e ->
       let res = eval e in

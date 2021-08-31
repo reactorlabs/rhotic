@@ -119,6 +119,10 @@ class monitor =
     (* abstract value pool, essentially an abstract heap *)
     val aval_pool_ : avalue Vector.vector = Vector.create ()
 
+    (* a stack that represents the nesting of for loops,
+       used to remember the current loop variable and the (abstract) value being iterated over *)
+    val mutable for_loop_stack_ : (identifier * avalue_id) list = []
+
     (******************************************************************************
      * Monitor helpers
      ******************************************************************************)
@@ -126,22 +130,9 @@ class monitor =
     (* Debug printing, with indenting to reflect the stack depth. *)
     method private debug_print (str : string) : unit =
       if debug then (
-        let n = List.length astack_ - 1 in
+        let n = List.length astack_ - 1 + List.length for_loop_stack_ in
         if n > 0 then Stdlib.print_string (String.make (n * 2) ' ') ;
         Stdlib.print_endline str)
-
-    (* Push a frame onto the shadow stack *)
-    method private push_stack (frame : astack_frame) : unit =
-      self#debug_print @@ "--> Entering " ^ frame.fun_id ;
-      astack_ <- frame :: astack_
-
-    (* Pop a frame from the shadow stack, and return the frame. *)
-    method private pop_stack : astack_frame =
-      assert (List.length astack_ > 0) ;
-      let top, rest = List.hd_tl astack_ in
-      astack_ <- rest ;
-      self#debug_print @@ "<-- Exiting " ^ top.fun_id ;
-      top
 
     (* Read the top frame but don't pop the stack. *)
     method private top_frame : astack_frame =
@@ -201,7 +192,9 @@ class monitor =
     (* Initialize a stack frame and push onto the shadow stack. *)
     method! record_call_entry
         (_ : configuration) (fun_id : identifier) (_ : simple_expression list * value list) : unit =
-      self#push_stack @@ make_astack_frame ~fun_id ()
+      let frame = make_astack_frame ~fun_id () in
+      self#debug_print @@ "--> Entering " ^ frame.fun_id ;
+      astack_ <- frame :: astack_
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
@@ -210,8 +203,11 @@ class monitor =
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      let top = self#pop_stack in
-      assert (equal_identifier top.fun_id fun_id)
+      assert (List.length astack_ > 0) ;
+      let top, rest = List.hd_tl astack_ in
+      assert (equal_identifier top.fun_id fun_id) ;
+      astack_ <- rest ;
+      self#debug_print @@ "<-- Exiting " ^ top.fun_id
 
     method! record_assign
         ({ cur_fun; _ } : configuration) (x : identifier) ((e, v) : expression * value) : unit =
@@ -313,21 +309,53 @@ class monitor =
              self#set_avalue aid { aval with lower; deps })
 
     (* In an if statement, the condition cannot be NA. *)
-    method! record_if
+    method! record_if_entry
         (_ : configuration)
         (_ : simple_expression * value)
         (_ : statement list)
         (_ : statement list) : unit =
       ()
 
-    method! record_for
-        (_ : configuration) (_ : identifier) (_ : simple_expression * value) (_ : statement list)
-        : unit =
-      ()
+    (* Get the aval for the vector we're looping over, and add it to the for loop stack. *)
+    method! record_for_entry
+        ({ cur_fun; _ } : configuration)
+        (x : identifier)
+        ((se, _) : simple_expression * value)
+        (_ : statement list) : unit =
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print @@ Printf.sprintf "for (%s in %s) {" x (show_simple_expression se) ;
+
+      (* If the vector is a lit, create an aval. If it's a var, look up its aval. *)
+      let aid =
+        match se with
+        | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue
+        | Var y -> Env.find y aenv in
+      for_loop_stack_ <- (x, aid) :: for_loop_stack_
+
+    (* Iterating through a vector, so create aval for the current vector element. *)
+    method! record_for_iteration
+        (_ : configuration) ((x, v) : identifier * value) (_ : value) (_ : statement list) : unit =
+      assert (List.length for_loop_stack_ > 0) ;
+      let x', seq_id = List.hd for_loop_stack_ in
+      assert (equal_identifier x x') ;
+
+      self#debug_print @@ Printf.sprintf "  # iterating 'for (%s in ...)'" x ;
+      make_avalue ~lower:(Lattice.alpha v) ~deps:(AValueSet.singleton seq_id) ()
+      |> self#push_avalue |> self#add_env_binding x
+
+    method! record_for_exit (_ : configuration) (_ : value) : unit =
+      assert (List.length for_loop_stack_ > 0) ;
+      let (x, _), rest = List.hd_tl for_loop_stack_ in
+      for_loop_stack_ <- rest ;
+      self#debug_print @@ Printf.sprintf "} # exiting 'for (%s in ...)'" x
 
     method! record_fun_def
         (_ : configuration) (_ : identifier) (_ : identifier list) (_ : statement list) : unit =
       ()
+
+    method! record_print_stmt (_ : configuration) ((e, _) : expression * value) : unit =
+      self#debug_print @@ Deparser.stmt_to_r (Print e)
 
     method! record_expr_stmt (_ : configuration) (_ : expression * value) : unit = ()
 
