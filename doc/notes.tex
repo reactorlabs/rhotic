@@ -1,0 +1,88 @@
+\documentclass{article}
+
+\usepackage{amsfonts}
+\usepackage{mathtools}
+\usepackage{xspace}
+\usepackage{xcolor}
+
+\newcommand{\defined}{\ensuremath{\stackrel{\mbox{\tiny def}}{=}}\xspace} %
+\newcommand{\vars}{\ensuremath{\mathcal{X}}\xspace} % variables
+\newcommand{\vals}{\ensuremath{\mathbb{V}}\xspace} % values
+\newcommand{\bvals}{\ensuremath{\mathbb{B}_\mathsf{NA}}\xspace} % bool values
+\newcommand{\bools}{\ensuremath{\mathbb{B}}\xspace} % bools
+\newcommand{\bna}{\ensuremath{\mathsf{NA}_{B}}\xspace} % bool NA
+\newcommand{\ivals}{\ensuremath{\mathbb{Z}_\mathsf{NA}}\xspace} % int values
+\newcommand{\ints}{\ensuremath{\mathbb{Z}}\xspace} % ints
+\newcommand{\ina}{\ensuremath{\mathsf{NA}_{Z}}\xspace} % int NA
+\newcommand{\svals}{\ensuremath{\mathbb{S}_\mathsf{NA}}\xspace} % string values
+\newcommand{\strings}{\ensuremath{\mathbb{S}}\xspace} % strings
+\newcommand{\sna}{\ensuremath{\mathsf{NA}_{S}}\xspace} % string NA
+\newcommand{\ipt}{\ensuremath{\mathsf{\mathbf{\color{teal}input}}()}\xspace} % input
+\newcommand{\set}[1]{\ensuremath{\left\{#1\right\}}\xspace} % set
+\newcommand{\labels}{\ensuremath{\mathcal{L}}\xspace} % labels
+
+\newcommand{\irem}[3]{{\textcolor{#1}{\textsf{[#2: 
+#3]}}}}
+\newcommand{\todo}[1]{\irem{orange}{TODO}{#1}}	
+
+\begin{document}
+
+\section*{Syntax}
+
+\begin{figure}[t]
+	\begin{center}
+		\begin{tabular}{lclr}
+			A &$\Coloneqq$& $X$ & $X\in 
+			\vars$ 
+			\\
+			&$\vert$& $v$ & $v \in \vals$ \\
+			&$\vert$& $A_1 \diamond A_2 $ &
+			\hspace{3em}$\diamond \in 
+			\set{+,-,*,/}$ 
+			\\
+			\\
+			B & $\Coloneqq$& $A_1 \bowtie A_2$ 
+			&
+			$\bowtie~\in
+			\{<, \leq, =, \not=, >, \geq\}$ \\
+			&$\vert$ & $%\neg B~~\vert~~
+			B_1 \lor 
+			B_2$ & \\
+			&$\vert$& $B_1 
+			\land B_2$ \\
+			\\
+			E &$\Coloneqq$& $\ipt~~\vert~~A~~\vert~~B~~\vert~~\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ & \\
+			%&$\vert$& $\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ \\
+			\\
+			S & $\Coloneqq$& $^lX := E$ & $l \in 
+			\labels, X \in 
+			\vars$ \\
+			&$\vert$& 
+			$\mathsf{\mathbf{if}}~^lX~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}$
+			 & $l \in 
+			 \labels$ \\
+			 &$\vert$& \dots
+			 %$\mathsf{\mathbf{for}}~^lA~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}~~\vert~~\mathsf{\mathbf{while}}~^lB~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$
+			 & %$l \in \labels$ 
+			 \\
+			 &$\vert$&  $S_1 ; S_2$ & \\
+			 \\
+			 P & $\Coloneqq$& $S^l$ & $l \in 
+			 \labels$
+		\end{tabular}
+	\end{center}
+	\vspace{-1em}
+	\caption{Syntax}\label{fig:syntax}
+\end{figure}
+
+Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. 
+The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
+
+\section*{Syntactic Dependencies}
+
+\begin{align}
+
+
+\end{align}
+
+\end{document}
