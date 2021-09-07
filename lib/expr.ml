@@ -1,3 +1,7 @@
+open Containers
+
+exception Not_supported
+
 type literal =
   | NA_bool
   | Bool    of bool
@@ -28,11 +32,6 @@ end
 
 type identifier = Identifier.t [@@deriving eq, show]
 
-type simple_expression =
-  | Lit of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
-  | Var of identifier [@printer fun fmt -> fprintf fmt "%s"]
-[@@deriving eq, show { with_path = false }]
-
 type unary_op =
   | Logical_Not
   | Unary_Plus
@@ -44,40 +43,40 @@ type unary_op =
   | Is_Integer
   | Is_Character
   | Is_NA
-[@@deriving eq, show { with_path = false }]
 
-type arithmetic_op =
+and arithmetic_op =
   | Plus
   | Minus
   | Times
   | Int_Divide
   | Modulo
-[@@deriving eq, show { with_path = false }]
 
-type relational_op =
+and relational_op =
   | Less
   | Less_Equal
   | Greater
   | Greater_Equal
   | Equal
   | Not_Equal
-[@@deriving eq, show { with_path = false }]
 
-type logical_op =
+and logical_op =
   | And
   | Or
   | Elementwise_And
   | Elementwise_Or
-[@@deriving eq, show { with_path = false }]
 
-type binary_op =
+and binary_op =
   | Arithmetic of arithmetic_op
   | Relational of relational_op
   | Logical    of logical_op
   | Seq
 [@@deriving eq, show { with_path = false }]
 
-type expression =
+type simple_expression =
+  | Lit of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
+  | Var of identifier [@printer fun fmt -> fprintf fmt "%s"]
+
+and expression =
   | Combine           of simple_expression list
   | Dataframe_Ctor    of (identifier * simple_expression) list
   | Unary_Op          of unary_op * simple_expression
@@ -86,9 +85,8 @@ type expression =
   | Subset2           of simple_expression * simple_expression
   | Call              of identifier * simple_expression list
   | Simple_Expression of simple_expression
-[@@deriving eq, show { with_path = false }]
 
-type statement =
+and statement =
   | Assign         of identifier * expression
   | Subset1_Assign of identifier * simple_expression option * simple_expression
   | Subset2_Assign of identifier * simple_expression * simple_expression

@@ -1,3 +1,4 @@
+open Containers
 open Angstrom
 open Expr
 
@@ -45,8 +46,8 @@ let is_quote = function
   | _ -> false
 
 let is_blank x = is_space x || is_eol x
-let is_first_ident x = '.' == x || is_letter x
-let is_ident x = '_' == x || is_first_ident x || is_digit x
+let is_first_ident x = Char.equal '.' x || is_letter x
+let is_ident x = Char.equal '_' x || is_first_ident x || is_digit x
 
 let ws = take_while is_space
 let blank = take_while is_blank
@@ -293,7 +294,7 @@ let remove_comments input =
     | None -> line in
   let run_with crnl s =
     s |> String.split_on_char crnl |> List.map chop
-    |> List.filter (fun s -> String.trim s <> "")
+    |> List.filter (fun s -> String.(trim s <> ""))
     |> String.concat (String.make 1 crnl) in
   input |> run_with '\n' |> run_with '\r'
 

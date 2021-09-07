@@ -1,6 +1,7 @@
+open Containers
+open CCFun.Infix
 open Expr
 open Common
-open Util
 
 (*
               Top

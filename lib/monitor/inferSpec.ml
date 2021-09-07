@@ -1,55 +1,111 @@
+open Containers
+open CCFun.Infix
 open Expr
 open Common
-open Util
 
 let debug = true
 
-type merge_strategy =
-  | Overapproximate
-  | Underapproximate
+module Lattice = struct
+  (* For now, we model vectors as a single value, with everything merged.
+     NA is perhaps better interpreted as "contains NAs," while
+     Not_NA is interpreted as "does not contain NAs,"
 
-type constr =
-  | May_be_NA
-  | Must_not_be_NA
-[@@deriving show { with_path = false }]
+          Top
+         /   \
+       NA   Not_NA
+         \   /
+          Bot
+  *)
+  type t =
+    | Top [@printer fun fmt _ -> fprintf fmt "⊤"]
+    | NA [@printer fun fmt _ -> fprintf fmt "NA"]
+    | Not_NA [@printer fun fmt _ -> fprintf fmt "¬NA"]
+    | Bot [@printer fun fmt _ -> fprintf fmt "⊥"]
+  [@@deriving eq, show]
 
-(* Overapproximation *)
-let join_constr x y =
-  match (x, y) with
-  | Must_not_be_NA, Must_not_be_NA -> Must_not_be_NA
-  | May_be_NA, _ | _, May_be_NA -> May_be_NA
+  (* less than or equal is the ordering relation *)
+  let leq x y =
+    match (x, y) with
+    | Bot, _ | _, Top | NA, NA | Not_NA, Not_NA -> true
+    | _, Bot | Top, _ | NA, Not_NA | Not_NA, NA -> false
 
-(* Underapproximation *)
-let meet_constr x y =
-  match (x, y) with
-  | May_be_NA, May_be_NA -> May_be_NA
-  | Must_not_be_NA, _ | _, Must_not_be_NA -> Must_not_be_NA
+  (* least upper bound is join, an over-approximation *)
+  let lub x y =
+    match (x, y) with
+    (* Bot and Top cases *)
+    | Bot, z | z, Bot -> z
+    | Top, _ | _, Top -> Top
+    (* x = y cases *)
+    | NA, NA -> NA
+    | Not_NA, Not_NA -> Not_NA
+    (* Everything else *)
+    | NA, Not_NA | Not_NA, NA -> Top
 
-(* params: list of parameters
-   param_constrs: map of parameters to constraints
-  input_constrs: map of inputs to constraints *)
-type fun_constraints =
-  { params : Identifier.t list [@default []]
-  ; param_constrs : constr Env.t [@default Env.empty]
-  ; input_constrs : constr Env.t [@default Env.empty]
+  (* greatest lower bound is meet, an under-approximation *)
+  let glb x y =
+    match (x, y) with
+    (* Bot and Top cases *)
+    | Bot, _ | _, Bot -> Bot
+    | Top, z | z, Top -> z
+    (* x = y cases *)
+    | NA, NA -> NA
+    | Not_NA, Not_NA -> Not_NA
+    (* Everything else *)
+    | NA, Not_NA | Not_NA, NA -> Bot
+
+  (* alpha is the abstraction function, mapping a concrete value to a lattice value *)
+  let alpha x =
+    let data = vector_data x in
+    let res = Array.exists (fun x -> is_na x) data in
+    match res with
+    | true -> NA
+    | false -> Not_NA
+
+  (* this version of alpha abstracts literals *)
+  let alpha_lit x =
+    match is_na x with
+    | true -> NA
+    | false -> Not_NA
+end
+type lattice = Lattice.t [@@deriving eq, show]
+
+(* need some indirection: we store avalues in a pool because they are mutable *)
+type avalue_id = int [@@deriving show]
+type aenvironment = avalue_id Env.t
+
+(* set of avalue ids *)
+module AValueSet = Set.Make (struct
+  type t = avalue_id
+  let compare = Ord.int
+end)
+type avalue_set = AValueSet.t [@@deriving eq]
+
+(* avalue, an abstract value
+    - lower: lower bound on the lattice for the avalue
+    - upper: upper bound on the lattice for the avalue
+    - deps: ids of the avalue that this avalue depends on
+*)
+type avalue =
+  { lower : lattice [@default Lattice.Bot]
+  ; upper : lattice [@default Lattice.Top]
+  ; deps : avalue_set [@default AValueSet.empty]
+  }
+[@@deriving eq, make]
+
+let show_avalue { lower; upper; deps } =
+  let deps_str =
+    if AValueSet.is_empty deps then ""
+    else AValueSet.to_string ~start:"; {" ~stop:"}" show_avalue_id deps in
+  Printf.sprintf "[%s, %s%s]" (show_lattice lower) (show_lattice upper) deps_str
+
+(* abstract stack frame *)
+type astack_frame =
+  { fun_id : identifier
+  ; aenv : aenvironment [@default Env.empty]
   }
 [@@deriving make]
 
-(* fun_id: the current function's id
-   deps: current map of variables to their (transitive) dependencies
-   cur_deps: current dependencies of the most recently seen variables
-   param_constrs: constraints we've inferred on the current function's parameters
-   input_constrs: constraints we've inferred on the current function's inputs *)
-type stack_frame =
-  { fun_id : identifier [@default Common.main_function]
-  ; deps : VarSet.t Env.t [@default Env.empty]
-  ; cur_deps : VarSet.t [@default VarSet.empty]
-  ; param_constrs : constr Env.t [@default Env.empty]
-  ; input_constrs : constr Env.t [@default Env.empty]
-  }
-[@@deriving make]
-
-class monitor ?(strategy = Underapproximate) () =
+class monitor =
   object (self)
     inherit Monitor.monitor
 
@@ -57,207 +113,88 @@ class monitor ?(strategy = Underapproximate) () =
      * Internal monitor state
      ******************************************************************************)
 
-    val merge =
-      match strategy with
-      | Overapproximate -> join_constr
-      | Underapproximate -> meet_constr
+    (* abstract stack for the program *)
+    val mutable astack_ : astack_frame list = []
 
-    val mutable constraints : fun_constraints FunTab.t = FunTab.empty
+    (* abstract value pool, essentially an abstract heap *)
+    val aval_pool_ : avalue Vector.vector = Vector.create ()
 
-    val mutable stack : stack_frame list = [ make_stack_frame () ]
-
-    val mutable last_popped_frame : stack_frame option = None
+    (* a stack that represents the nesting of for loops,
+       used to remember the current loop variable and the (abstract) value being iterated over *)
+    val mutable for_loop_stack_ : (identifier * avalue_id) list = []
 
     (******************************************************************************
      * Monitor helpers
      ******************************************************************************)
 
     (* Debug printing, with indenting to reflect the stack depth. *)
-    method private debug_print str =
-      let n = List.length stack - 1 in
-      Stdlib.print_string (String.make (n * 2) ' ') ;
-      Stdlib.print_endline str
+    method private debug_print (str : string) : unit =
+      if debug then (
+        let n = List.length astack_ - 1 + List.length for_loop_stack_ in
+        if n > 0 then Stdlib.print_string (String.make (n * 2) ' ') ;
+        Stdlib.print_endline str)
 
-    (* Push a frame onto the shadow stack, and clear last_popped_frame. *)
-    method private push_stack frame =
-      stack <- frame :: stack ;
-      last_popped_frame <- None
+    (* Read the top frame but don't pop the stack. *)
+    method private top_frame : astack_frame =
+      assert (List.length astack_ > 0) ;
+      List.hd astack_
 
-    (* Pop a frame from the shadow stack, set last_popped_frame, and return the frame. *)
-    method private pop_stack =
-      assert (List.length stack > 0) ;
-      let top, rest = (List.hd stack, List.tl stack) in
-      stack <- rest ;
-      last_popped_frame <- Some top ;
-      top
+    (* Replace the top stack frame with the given frame. *)
+    method private update_top_frame (frame : astack_frame) : unit =
+      assert (List.length astack_ > 0) ;
+      astack_ <- frame :: List.tl astack_
 
-    (* Update the summary of the current call.
-       x, if present, is the variable being assigned to.
-       vars are the (intermediate) variables involved.
-       Therefore, x depends on vars, but we want to compute the transitive dependencies.
-       If x is not present, we still want the transitive dependencies of the last seen vars. *)
-    method private update_summary ?(is_strong = false) ?(x = None) vars =
-      let ({ deps; _ } as frame) = self#pop_stack in
+    (* Add a new binding to the current (i.e. top frame's) abstract environment. *)
+    method private add_env_binding (x : identifier) (id : avalue_id) : unit =
+      let ({ aenv; _ } as frame) = self#top_frame in
+      self#update_top_frame { frame with aenv = Env.add x id aenv } ;
+      self#debug_print @@ Printf.sprintf "  # aenv: %s ↦ %d" x id
 
-      (* Follow x's dependencies to compute the transitive dependencies. *)
-      let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
-      let new_deps =
-        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
+    (* Add an avalue to the pool, and return its id. *)
+    method private push_avalue (aval : avalue) : avalue_id =
+      let id = Vector.length aval_pool_ in
+      Vector.push aval_pool_ aval ;
+      assert (equal_avalue (Vector.get aval_pool_ id) aval) ;
+      self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" id (show_avalue aval) ;
+      id
 
-      (* Update deps, but only if we were updating some variable x. *)
-      let deps' =
-        match x with
-        | None -> deps
-        | Some x ->
-            let to_add =
-              (* On a strong update, overwrite old deps; otherwise union the old and new deps. *)
-              if is_strong then new_deps else VarSet.union (get_deps_for x) new_deps in
-            Env.add x to_add deps in
-      self#push_stack { frame with deps = deps'; cur_deps = new_deps } ;
+    (* Given an id, return its avalue from the pool. *)
+    method private get_avalue (id : avalue_id) : avalue = Vector.get aval_pool_ id
 
-      if debug then
-        let vars_str = if VarSet.is_empty vars then "<const>" else VarSet.to_string vars in
-        match x with
-        | None ->
-            let new_deps_str =
-              if VarSet.is_empty new_deps then "<none>" else VarSet.to_string new_deps in
-            self#debug_print @@ new_deps_str ^ " (via: " ^ vars_str ^ ")"
-        | Some x ->
-            let current_deps = Env.get_or x deps' ~default:VarSet.empty in
-            let current_deps_str =
-              if VarSet.is_empty current_deps then "<none>" else VarSet.to_string current_deps in
-            let weak_str = if is_strong then "" else " [weak update]" in
-            self#debug_print @@ x ^ ": " ^ current_deps_str ^ " (via: " ^ vars_str ^ ")" ^ weak_str
-
-    (* Need to handle calling a function. At this point, we've already analyzed the call and popped
-       the stack.
-       1. Update summary:
-            Calls need some extra processing before we can update the summary.
-            Now we need to stich the dependencies:
-              - x (variables being assigned to, if present), to
-              - variables in the call's return expression, to
-              - the parameter dependencies, to
-              - the call arguments.
-           Essentially, we are creating a temporary transfer function for the call.
-       2. Propagate constraints *)
-    method private update_summary_and_constraints_for_call ?(x = None) fun_tab f ses =
-      assert (Option.is_some last_popped_frame) ;
-      let { cur_deps; param_constrs; _ } = Option.get last_popped_frame in
-
-      (* 1. Update the summary: x depends on some (or none) of the arguments of the call to f. *)
-
-      (* Helper that returns the (caller) variable that x depends on.
-         Uses a mapping of (callee) params to (callee) args (i.e. caller local vars). *)
-      let get_deps_for x =
-        let params = Stdlib.fst @@ FunTab.find f fun_tab in
-        let args = List.map VarSet.collect_se ses in
-        let mapping = List.fold_left2 (fun acc p a -> Env.add p a acc) Env.empty params args in
-        Env.get_or x mapping ~default:VarSet.empty in
-
-      (* (caller) x depends on (callee) cur_deps, which depends on whatever the mapping says. *)
-      let vars =
-        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) cur_deps VarSet.empty in
-
-      (* Always a strong update, because we can't have a function call in a subset assignment. *)
-      self#update_summary ~is_strong:true ~x vars ;
-
-      (* 2. Add constraints: constraints on f's params should apply to the call site arguments. *)
-
-      (* Note: we want to use the constraints from the most recent invocation, not constraints from
-         the global merged state. *)
-      let arg_constraints = Env.filter (fun _ c -> c = Must_not_be_NA) param_constrs in
-      let arg_vars =
-        Env.fold (fun x _ acc -> VarSet.union (get_deps_for x) acc) arg_constraints VarSet.empty
-      in
-      self#add_constraints arg_vars
-
-    method private merge_constraints fun_id new_params new_inputs =
-      self#debug_print @@ ">> Updating constraints for " ^ fun_id ;
-      let ({ params = _; param_constrs = old_params; input_constrs = old_inputs } as state) =
-        FunTab.find fun_id constraints in
-      let run_merge k o n =
-        let result =
-          match (o, n) with
-          | Some x, Some y -> Some (merge x y)
-          | Some x, None -> Some x
-          | None, Some y -> Some y
-          | _ -> None in
-        let print_opt = function
-          | Some v -> show_constr v
-          | None -> "none" in
-        self#debug_print @@ ">> " ^ k ^ ": old=" ^ print_opt o ^ ", new=" ^ print_opt n
-        ^ ", result=" ^ print_opt result ;
-        result in
-      let merged_params = FunTab.merge run_merge old_params new_params in
-      let merged_inputs = FunTab.merge run_merge old_inputs new_inputs in
-      let new_state = { state with param_constrs = merged_params; input_constrs = merged_inputs } in
-      FunTab.add fun_id new_state constraints
-
-    method private add_constraints vars =
-      let ({ deps; param_constrs; input_constrs; _ } as frame) = self#pop_stack in
-      let dependencies =
-        let get_deps_for x = Env.get_or x deps ~default:VarSet.empty in
-        VarSet.fold (fun x acc -> VarSet.union (get_deps_for x) acc) vars VarSet.empty in
-      let update_constrs constrs =
-        VarSet.fold
-          (fun x acc ->
-            FunTab.update x
-              (function
-                | Some _ -> Some Must_not_be_NA
-                | None -> None)
-              acc)
-          dependencies constrs in
-      self#push_stack
-        { frame with
-          param_constrs = update_constrs param_constrs
-        ; input_constrs = update_constrs input_constrs
-        } ;
-      if debug then
-        let dependencies_str =
-          if VarSet.is_empty dependencies then "<none>" else VarSet.to_string dependencies in
-        self#debug_print @@ ">> Must not be NA: " ^ dependencies_str ^ " (via: "
-        ^ VarSet.to_string vars ^ ")"
+    (* Given an id and a new avalue, replace the old avalue in the pool. *)
+    method private set_avalue (id : avalue_id) (aval' : avalue) : unit =
+      Vector.set aval_pool_ id aval' ;
+      self#debug_print @@ Printf.sprintf "  # aval pool: %d ↦ %s" id (show_avalue aval')
 
     (******************************************************************************
      * Callbacks to record interpreter operations
      ******************************************************************************)
 
+    (* TODO: add constraints *)
     (* In a sequence expression x:y, x and y must not be NA. *)
     method! record_binary_op
         (_ : configuration)
-        (op : binary_op)
-        ((se1, _) : simple_expression * value)
-        ((se2, _) : simple_expression * value)
+        (_ : binary_op)
+        (_ : simple_expression * value)
+        (_ : simple_expression * value)
         (_ : value) : unit =
-      match op with
-      | Seq ->
-          let vars = VarSet.union (VarSet.collect_se se1) (VarSet.collect_se se2) in
-          self#add_constraints vars
-      | Arithmetic _ | Relational _ | Logical _ -> ()
+      ()
 
+    (* TODO: add constraints *)
     (* In a subset2 expression x[[i]], i must not be NA. *)
     method! record_subset2
         (_ : configuration)
         (_ : simple_expression * value)
-        ((se, _) : simple_expression * value)
+        (_ : simple_expression * value)
         (_ : value) : unit =
-      self#add_constraints (VarSet.collect_se se)
+      ()
 
-    (* Entering a function call, so we need to initialize some things. *)
+    (* Initialize a stack frame and push onto the shadow stack. *)
     method! record_call_entry
-        (conf : configuration) (fun_id : identifier) (_ : simple_expression list * value list)
-        : unit =
-      (* Initialize a stack frame and push onto the shadow stack.
-         Set each param as a self-dependency. *)
-      let params = Stdlib.fst @@ FunTab.find fun_id conf.fun_tab in
-      let deps =
-        let map_self map x = Env.add x (VarSet.singleton x) map in
-        List.fold_left map_self Env.empty params in
-      (* Initialize the constraint signature for this function.
-         All params "may be NA" at this point. *)
-      let param_constrs = List.fold_left (fun acc p -> Env.add p May_be_NA acc) Env.empty params in
-      if debug then self#debug_print @@ "--> Entering " ^ fun_id ;
-      self#push_stack @@ make_stack_frame ~fun_id ~deps ~param_constrs ()
+        (_ : configuration) (fun_id : identifier) (_ : simple_expression list * value list) : unit =
+      let frame = make_astack_frame ~fun_id () in
+      self#debug_print @@ "--> Entering " ^ frame.fun_id ;
+      astack_ <- frame :: astack_
 
     (* Exiting a function call, so pop the shadow stack.
        Assert that the call we're exiting corresponds to the popped stack frame. *)
@@ -266,117 +203,173 @@ class monitor ?(strategy = Underapproximate) () =
         (fun_id : identifier)
         (_ : simple_expression list * value list)
         (_ : value) : unit =
-      (* Merge the constraints from the popped frame with the current state. *)
-      let { fun_id = popped_fun; cur_deps; param_constrs; input_constrs; _ } = self#pop_stack in
-      constraints <- self#merge_constraints fun_id param_constrs input_constrs ;
-      assert (popped_fun = fun_id) ;
-      if debug then (
-        self#debug_print @@ "<-- Exiting " ^ popped_fun ;
-        self#debug_print @@ popped_fun ^ "'s result depended on params " ^ VarSet.to_string cur_deps)
+      assert (List.length astack_ > 0) ;
+      let top, rest = List.hd_tl astack_ in
+      assert (equal_identifier top.fun_id fun_id) ;
+      astack_ <- rest ;
+      self#debug_print @@ "<-- Exiting " ^ top.fun_id
 
-    (* Assigning a value to some variable x, so update the variables that x depends on.
-       Specifically, we want to transitively follow the dependencies, to compute which params x
-       depends on. *)
-    method! record_assign (conf : configuration) (x : identifier) ((e, _) : expression * value)
-        : unit =
+    method! record_assign
+        ({ cur_fun; _ } : configuration) (x : identifier) ((e, v) : expression * value) : unit =
+      let collect_lits = List.rev % ExprFold.literals#expr [] in
+      let collect_vars = List.rev % ExprFold.variables#expr [] in
+
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print @@ Deparser.stmt_to_r @@ Assign (x, e) ;
+
       match e with
-      | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
-      | Simple_Expression _ ->
-          (* Assignment (non-subset) is always a strong update. *)
-          self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_e e)
-      | Call (".input", ses) when List.length ses = 1 ->
-          let ({ deps; input_constrs; _ } as frame) = self#pop_stack in
-          (* Treat the target variable as an input, so it is a self-dependency. *)
-          (* Initialize a constraint for the input, which "may be NA" at this point. *)
-          let new_deps = Env.add x (VarSet.singleton x) deps in
-          let new_input_constrs = Env.add x May_be_NA input_constrs in
-          self#push_stack { frame with deps = new_deps; input_constrs = new_input_constrs } ;
-          self#debug_print @@ x ^ " (input)"
-      | Call (f, ses) -> self#update_summary_and_constraints_for_call conf.fun_tab f ses
+      | Simple_Expression (Lit l) ->
+          (* Create a new abstract value for the result, and add it to the avalue pool.
+              Then update the abstract env so that x refers to the new aval. *)
+          make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> self#add_env_binding x
+      | Simple_Expression (Var y) ->
+          (* Look up the id for y's abstract value.
+             Then update the abstract env so x refers to y's aval. *)
+          (* TODO: workaround for WIP where y isn't in the environment *)
+          (* assert (Env.mem y aenv) ; *)
+          Env.get y aenv |> Option.iter (fun yid -> self#add_env_binding x yid)
+      | Combine _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _ ->
+          (* Collect deps: create new avals for each literal, look up avals for each variable. *)
+          let alits =
+            collect_lits e
+            |> List.map (fun l -> self#push_avalue @@ make_avalue ~lower:(Lattice.alpha_lit l) ())
+          in
+          (* TODO: workaround for WIP where y isn't in the environment *)
+          let avars = collect_vars e |> List.filter_map (fun y -> Env.get y aenv) in
 
+          (* Create a new aval (with deps) for the expression result, and update the aenv *)
+          make_avalue ~lower:(Lattice.alpha v) ~deps:(AValueSet.of_list (alits @ avars)) ()
+          |> self#push_avalue |> self#add_env_binding x
+      | Call _ ->
+          (* TODO: Needs special handling; for now, create a placeholder aval for the result *)
+          make_avalue ~lower:(Lattice.alpha v) () |> self#push_avalue |> self#add_env_binding x
+      | Dataframe_Ctor _ -> raise Not_supported
+
+    (* TODO: add constraints *)
     (* In a subset1 assignment x[i] <- v, i must not be NA. *)
     method! record_subset1_assign
-        (_ : configuration)
-        (x : identifier)
-        ((se2, _) : simple_expression option * value option)
+        ({ cur_fun; env; _ } : configuration)
+        (x1 : identifier)
+        ((opt_se2, _) : simple_expression option * value option)
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
-      (match se2 with
-      | Some se -> self#add_constraints (VarSet.collect_se se)
-      | None -> ()) ;
-      (* Strong update if there is no index, i.e. assigning to entire vector. *)
-      let is_strong = Option.is_none se2 in
-      self#update_summary ~is_strong ~x:(Some x) (VarSet.collect_se se3)
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print @@ Deparser.stmt_to_r @@ Subset1_Assign (x1, opt_se2, se3) ;
 
+      (* Update for x1: its aval might have new deps and a new lower bound. *)
+      assert (Env.mem x1 aenv) ;
+      let aid = Env.find x1 aenv in
+      let aval = self#get_avalue aid in
+
+      (* TODO: workaround for WIP where y isn't in the environment *)
+      (* If se3 is a lit, create a new aval that x1's aval depends on.
+         If se3 is a var y, then x1's aval depends on y's aval. *)
+      (match se3 with
+      | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> Option.some
+      | Var y -> Env.get y aenv)
+      |> Option.iter (fun id ->
+             (* Update the aval's lower bound, based on the concrete val. *)
+             let lower = Lattice.alpha (Env.find x1 env) in
+             (* If opt_se2 is Some se2, then it's a weak update.
+                If opt_se2 is None, then it's a strong update, since we're overwriting the vector. *)
+             let deps =
+               match opt_se2 with
+               | Some _ -> AValueSet.add id aval.deps
+               | None -> AValueSet.singleton id in
+             self#set_avalue aid { aval with lower; deps })
+
+    (* TODO: add constraints *)
     (* In a subset2 assignment x[[i]] <- v, i must not be NA. *)
     method! record_subset2_assign
-        (_ : configuration)
-        (x : identifier)
+        ({ cur_fun; env; _ } : configuration)
+        (x1 : identifier)
         ((se2, _) : simple_expression * value)
         ((se3, _) : simple_expression * value)
         (_ : value) : unit =
-      self#add_constraints (VarSet.collect_se se2) ;
-      self#update_summary ~x:(Some x) (VarSet.collect_se se3)
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print @@ Deparser.stmt_to_r @@ Subset2_Assign (x1, se2, se3) ;
+
+      (* Weak update for x1: its abstract val has new depedencies added. *)
+      assert (Env.mem x1 aenv) ;
+      let aid = Env.find x1 aenv in
+      let aval = self#get_avalue aid in
+
+      (* TODO: workaround for WIP where y isn't in the environment *)
+      (* If se3 is a lit, create a new aval that x1's aval depends on.
+         If se3 is a var y, then x1's aval depends on y's aval. *)
+      (match se3 with
+      | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue |> Option.some
+      | Var y -> Env.get y aenv)
+      |> Option.iter (fun id ->
+             let lower = Lattice.alpha (Env.find x1 env) in
+             let deps = AValueSet.add id aval.deps in
+             self#set_avalue aid { aval with lower; deps })
 
     (* In an if statement, the condition cannot be NA. *)
-    method! record_if
+    method! record_if_entry
         (_ : configuration)
-        ((se, _) : simple_expression * value)
+        (_ : simple_expression * value)
         (_ : statement list)
         (_ : statement list) : unit =
-      self#add_constraints (VarSet.collect_se se)
+      ()
 
-    method! record_for
-        (_ : configuration)
+    (* Get the aval for the vector we're looping over, and add it to the for loop stack. *)
+    method! record_for_entry
+        ({ cur_fun; _ } : configuration)
         (x : identifier)
         ((se, _) : simple_expression * value)
         (_ : statement list) : unit =
-      self#update_summary ~is_strong:true ~x:(Some x) (VarSet.collect_se se)
+      let { fun_id; aenv } = self#top_frame in
+      assert (equal_identifier cur_fun fun_id) ;
+      self#debug_print @@ Printf.sprintf "for (%s in %s) {" x (show_simple_expression se) ;
 
-    (* Function definition, so let's initialize the constraints map. *)
+      (* If the vector is a lit, create an aval. If it's a var, look up its aval. *)
+      let aid =
+        match se with
+        | Lit l -> make_avalue ~lower:(Lattice.alpha_lit l) () |> self#push_avalue
+        | Var y -> Env.find y aenv in
+      for_loop_stack_ <- (x, aid) :: for_loop_stack_
+
+    (* Iterating through a vector, so create aval for the current vector element. *)
+    method! record_for_iteration
+        (_ : configuration) ((x, v) : identifier * value) (_ : value) (_ : statement list) : unit =
+      assert (List.length for_loop_stack_ > 0) ;
+      let x', seq_id = List.hd for_loop_stack_ in
+      assert (equal_identifier x x') ;
+
+      self#debug_print @@ Printf.sprintf "  # iterating 'for (%s in ...)'" x ;
+      make_avalue ~lower:(Lattice.alpha v) ~deps:(AValueSet.singleton seq_id) ()
+      |> self#push_avalue |> self#add_env_binding x
+
+    method! record_for_exit (_ : configuration) (_ : value) : unit =
+      assert (List.length for_loop_stack_ > 0) ;
+      let (x, _), rest = List.hd_tl for_loop_stack_ in
+      for_loop_stack_ <- rest ;
+      self#debug_print @@ Printf.sprintf "} # exiting 'for (%s in ...)'" x
+
     method! record_fun_def
-        (_ : configuration) (fun_id : identifier) (params : identifier list) (_ : statement list)
-        : unit =
-      (* Initialize the "global" constraints for this function. There have been no invocations yet,
-         so the param constraints map is empty. *)
-      let fun_constraints = make_fun_constraints ~params () in
-      constraints <- FunTab.add fun_id fun_constraints constraints
+        (_ : configuration) (_ : identifier) (_ : identifier list) (_ : statement list) : unit =
+      ()
 
-    (* This is an expression statement, so it may an expression returned by a function call.
-       So we need to update the cur_deps to be the dependencies of the last variables seen. *)
-    method! record_expr_stmt (conf : configuration) ((e, _) : expression * value) : unit =
-      match e with
-      | Combine _ | Dataframe_Ctor _ | Unary_Op _ | Binary_Op _ | Subset1 _ | Subset2 _
-      | Simple_Expression _ ->
-          self#update_summary (VarSet.collect_e e)
-      | Call (f, ses) -> self#update_summary_and_constraints_for_call conf.fun_tab f ses
+    method! record_print_stmt (_ : configuration) ((e, _) : expression * value) : unit =
+      self#debug_print @@ Deparser.stmt_to_r (Print e)
 
-    method! program_entry (conf : configuration) : unit =
-      (* Initialize constraints for the top level. *)
-      let fun_id = conf.cur_fun in
-      let fun_constraints = make_fun_constraints () in
-      constraints <- FunTab.add fun_id fun_constraints constraints ;
-      (* Initialize a shadow stack frame for the top level. *)
-      self#push_stack @@ make_stack_frame ~fun_id ()
+    method! record_expr_stmt (_ : configuration) (_ : expression * value) : unit = ()
 
-    method! program_exit (conf : configuration) : unit =
-      (* Pop the shadow stack and update the global constraints. *)
-      let { fun_id; param_constrs; input_constrs; _ } = self#pop_stack in
-      assert (fun_id = conf.cur_fun) ;
-      constraints <- self#merge_constraints fun_id param_constrs input_constrs
+    (* Initializing the program, so create a stack frame for main$. *)
+    method! program_entry ({ cur_fun = fun_id; _ } : configuration) : unit =
+      self#debug_print @@ "=== PROGRAM ENTRY ===" ;
+      (* Initializing the stack with a frame for the top level. *)
+      astack_ <- [ make_astack_frame ~fun_id () ]
 
-    method! dump_table : unit =
-      Stdlib.print_endline ">>> InferSpec <<<" ;
-      let dump_function f { params; param_constrs; input_constrs } =
-        let param_str = String.concat ", " params in
-        Printf.printf "function %s(%s):\n" f param_str ;
-        Printf.printf "    Parameters:\n" ;
-        List.iter
-          (fun p ->
-            let c = Env.find p param_constrs in
-            Printf.printf "        %s: %s\n" p (show_constr c))
-          params ;
-        Printf.printf "    Inputs:\n" ;
-        Env.iter (fun x c -> Printf.printf "        %s: %s\n" x (show_constr c)) input_constrs in
-      FunTab.iter dump_function constraints
+    (* Exiting the program, so pop main$'s stack frame *)
+    method! program_exit (_ : configuration) : unit =
+      self#debug_print @@ "=== PROGRAM EXIT ===" ;
+      (* We might have an abnormal exit, so clean up the stack. *)
+      astack_ <- []
+
+    method! dump_table : unit = ()
   end

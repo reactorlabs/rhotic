@@ -1,10 +1,10 @@
+open Containers
 open Lib
-open Util
 
 let parse_and_run
     monitors ?(conf = Eval.start) ?(print_result = true) ?(exit_on_error = false) input =
   try
-    let stmts = Parse.parse input in
+    let stmts = Parser.parse input in
     let conf', result = Eval.run ~monitors ~conf stmts in
     (* don't print result if we already printed it *)
     (match[@warning "-4"] stmts with
@@ -14,16 +14,14 @@ let parse_and_run
     conf'
   with e ->
     (match e with
-    | Parse.Parse_error msg -> Printf.printf "Parse error%s\n" msg
+    | Parser.Parse_error msg -> Printf.printf "Parse error%s\n" msg
     | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
     (* return the old configuration *)
     if exit_on_error then exit 255 else conf
 
 let parse_to_r input =
-  try
-    let stmts = Parse.parse input in
-    Stdlib.print_endline @@ Deparse.to_r stmts
-  with Parse.Parse_error msg -> Printf.printf "Parse error%s\n" msg
+  try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
+  with Parser.Parse_error msg -> Printf.printf "Parse error%s\n" msg
 
 let repl monitors =
   let repl_help () =
@@ -35,12 +33,13 @@ let repl monitors =
 
   let run_once conf =
     let handle_directive input =
-      if input = "#h" then repl_help ()
-      else if input = "#m" then Monitor.dump_state monitors
-      else if String.prefix ~pre:"#r " input then
-        parse_to_r @@ Option.get @@ String.chop_prefix ~pre:"#r " input
-      else if input = "#q" then raise End_of_file
-      else Printf.printf "Error: unknown directive\n" in
+      if String.equal input "#h" then repl_help ()
+      else if String.equal input "#m" then Monitor.dump_state monitors
+      else if String.equal input "#q" then raise End_of_file
+      else
+        match String.chop_prefix ~pre:"#r" input with
+        | Some str -> parse_to_r str
+        | None -> Printf.printf "Error: unknown directive\n" in
 
     Stdlib.print_string "> " ;
     let input = Stdlib.read_line () in
@@ -48,7 +47,7 @@ let repl monitors =
     else if String.prefix ~pre:"#" input then (
       handle_directive input ;
       conf)
-    else if String.trim input = "" then conf
+    else if String.(trim input = "") then conf
     else parse_and_run monitors ~conf input in
 
   let rec loop conf =
@@ -66,9 +65,7 @@ let () =
       | "fun_types1" -> new FunctionTypesTuplewise.monitor
       | "fun_types2" -> new FunctionTypesElementwiseSet.monitor
       | "fun_types3" -> new FunctionTypesElementwiseMerge.monitor
-      | "infer" -> new InferSpec.monitor ()
-      | "infer_overapprox" -> new InferSpec.monitor ~strategy:InferSpec.Overapproximate ()
-      | "infer_underapprox" -> new InferSpec.monitor ~strategy:InferSpec.Underapproximate ()
+      | "infer" -> new InferSpec.monitor
       | m -> raise (Monitor.Unknown_monitor m) in
     try List.map spec_to_monitor spec
     with Monitor.Unknown_monitor m ->
@@ -87,11 +84,6 @@ let () =
          in a signature is a single abstract type" ;
       Stdlib.print_endline
         "  infer\t\tInferSpec: infer which variables must not be NAs (default, underapproximation)" ;
-      Stdlib.print_endline
-        "  infer_underapprox\t\tInferSpec: infer which variables must not be NAs \
-         (underapproximation)" ;
-      Stdlib.print_endline
-        "  infer_overapprox\t\tInferSpec: infer which variables must not be NAs (overapproximation)" ;
       Stdlib.exit 1 in
 
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
@@ -112,7 +104,7 @@ let () =
 
   let monitors = create_monitors !monitor_spec in
 
-  if !path = "" then repl monitors
+  if String.equal !path "" then repl monitors
   else
     let chan = Stdlib.open_in !path in
     let input = Stdlib.really_input_string chan @@ Stdlib.in_channel_length chan in

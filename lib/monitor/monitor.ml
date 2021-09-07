@@ -1,3 +1,4 @@
+open Containers
 open Expr
 open Common
 
@@ -68,17 +69,25 @@ class virtual monitor =
         (_ : value) : unit =
       ()
 
-    method record_if
+    method record_if_entry
         (_ : configuration)
         (_ : simple_expression * value)
         (_ : statement list)
         (_ : statement list) : unit =
       ()
 
-    method record_for
+    method record_if_exit (_ : configuration) (_ : value) : unit = ()
+
+    method record_for_entry
         (_ : configuration) (_ : identifier) (_ : simple_expression * value) (_ : statement list)
         : unit =
       ()
+
+    method record_for_iteration
+        (_ : configuration) (_ : identifier * value) (_ : value) (_ : statement list) : unit =
+      ()
+
+    method record_for_exit (_ : configuration) (_ : value) : unit = ()
 
     method record_fun_def
         (_ : configuration) (_ : identifier) (_ : identifier list) (_ : statement list) : unit =
