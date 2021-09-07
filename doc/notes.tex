@@ -2,6 +2,7 @@
 
 \usepackage{amsfonts}
 \usepackage{mathtools}
+\usepackage{stmaryrd}
 \usepackage{xspace}
 \usepackage{xcolor}
 
@@ -18,12 +19,25 @@
 \newcommand{\strings}{\ensuremath{\mathbb{S}}\xspace} % strings
 \newcommand{\sna}{\ensuremath{\mathsf{NA}_{S}}\xspace} % string NA
 \newcommand{\ipt}{\ensuremath{\mathsf{\mathbf{\color{teal}input}}()}\xspace} % input
+\newcommand{\powerset}[1]{\ensuremath{\mathcal{P}\left(#1\right)}\xspace} % set
 \newcommand{\set}[1]{\ensuremath{\left\{#1\right\}}\xspace} % set
+\newcommand{\tuple}[2]{\ensuremath{\langle #1, #2 \rangle}\xspace} % tuple
+\newcommand{\lfp}{\ensuremath{\mathrm{lfp}}\xspace} % least fixpoint
+%
 \newcommand{\labels}{\ensuremath{\mathcal{L}}\xspace} % labels
+\newcommand{\envs}{\ensuremath{\mathcal{E}}\xspace} % environments
+\newcommand{\files}{\ensuremath{\mathcal{D}}\xspace} % files
+\newcommand{\semantics}[1]{\ensuremath{\left\llbracket #1 \right\rrbracket}\xspace} % semantics
+\newcommand{\arith}[1]{\ensuremath{\mathcal{A}\semantics{#1}}\xspace} % arithmetic semantics
+\newcommand{\bool}[1]{\ensuremath{\mathcal{B}\semantics{#1}}\xspace} % boolean semantics
+\newcommand{\stmt}[1]{\ensuremath{\mathcal{S}\semantics{#1}}\xspace} % statement semantics
+\newcommand{\deps}[1]{\ensuremath{\textsc{deps}\!\semantics{#1}}\xspace} % dependency semantics
+\newcommand{\ids}[1]{\ensuremath{\textsc{vars}\!\semantics{#1}}\xspace} % 
 
-\newcommand{\irem}[3]{{\textcolor{#1}{\textsf{[#2: 
+\newcommand{\irem}[3]{{\noindent\textcolor{#1}{\textsf{[#2: 
 #3]}}}}
 \newcommand{\todo}[1]{\irem{orange}{TODO}{#1}}	
+\newcommand{\note}[1]{\irem{magenta}{NOTE}{#1}}	
 
 \begin{document}
 
@@ -51,23 +65,24 @@
 			&$\vert$& $B_1 
 			\land B_2$ \\
 			\\
-			E &$\Coloneqq$& $\ipt~~\vert~~A~~\vert~~B~~\vert~~\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ & \\
+			E &$\Coloneqq$& $\ipt~~\vert~~A~~\vert~~B$%~~\vert~~\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ 
+			& \\
 			%&$\vert$& $\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ \\
 			\\
-			S & $\Coloneqq$& $^lX := E$ & $l \in 
+			S & $\Coloneqq$& $^\ell{}X := E$ & $\ell{} \in 
 			\labels, X \in 
 			\vars$ \\
 			&$\vert$& 
-			$\mathsf{\mathbf{if}}~^lX~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}$
-			 & $l \in 
+			$\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}$
+			 & $\ell{} \in 
 			 \labels$ \\
-			 &$\vert$& \dots
-			 %$\mathsf{\mathbf{for}}~^lA~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}~~\vert~~\mathsf{\mathbf{while}}~^lB~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$
-			 & %$l \in \labels$ 
+			 &$\vert$& 
+			 $\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$%~~\vert~~\mathsf{\mathbf{while}}~^lB~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$
+			 & $\ell{} \in \labels$ 
 			 \\
 			 &$\vert$&  $S_1 ; S_2$ & \\
 			 \\
-			 P & $\Coloneqq$& $S^l$ & $l \in 
+			 P & $\Coloneqq$& $S^\ell{}$ & $\ell{} \in 
 			 \labels$
 		\end{tabular}
 	\end{center}
@@ -75,14 +90,56 @@
 	\caption{Syntax}\label{fig:syntax}
 \end{figure}
 
-Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. 
+Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. Each value type admits a special value $\bna$, $\ina$, or $\sna$ representing missing values.
 The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
+
+\section*{Concrete Input-Aware Semantics}
+
+An environment $\rho\colon \vars \rightarrow \vals$ maps each program variable $X \in \vars$ to its value $\rho(X) \in \vals$. Let \envs denote the set of all environments. 
+
+\todo{Patrick Cousot - Abstract Semantic Dependency (SAS 2019)}
+
 
 \section*{Syntactic Dependencies}
 
-\begin{align}
+\subsection*{Static Syntactic Dependencies Analysis}
+
+The program dependency semantics $\deps{P} \colon \powerset{\vars \times \labels}$ yields an \emph{over-approximation} of the input-output dependencies of the program $P$:
+\begin{equation*}
+\deps{S^\ell{}} \defined \deps{S}\emptyset
+\end{equation*}
+\note{we start the analysis with the empty set of dependencies}
+where the statement dependency semantics $\deps{S} \colon \powerset{\vars \times \labels} \rightarrow  \powerset{\vars \times \labels}$ updates the input-output dependencies through the program:
+
+%\begin{figure}[t]
+	\begin{align*}
+	&\deps{^\ell{}X := \ipt}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}} \} 
+	%
+	\\
+	&\mbox{\note{\ipt expressions introduce new dependencies}} \\
+	&\deps{^\ell{}X := E}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}'} \mid \exists X'\colon X' \in \ids{E} \land \tuple{X'}{\ell{}'} \in R \} \\
+	&\qquad\mbox{where $E \not= \ipt$} \\
+	&\mbox{\note{\ids{E} is the set of all program variables appearing in the expression $E$}} \\
+%
+	&\deps{\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}}R
+	 \defined \deps{S_1}R \cup \deps{S_2}R \\ 
+%
+&\deps{\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
+\defined \lfp~R \cup \deps{S}\emptyset  \\
+&\todo{Is this ok? We keep all dependencies in R to account for executions that do not enter the loop.} \\
+&\todo{We iterate to account for the loop executions. It may be equivalent to do $R \cup \deps{S}R$.} \\
+%
+&\deps{S_1; S_2}R \defined \deps{S_2} \circ 
+\deps{S_1}R
+	\end{align*}
+%	\caption{Input-Aware Concrete Semantics of 
+%	Instructions}\label{fig:concrete}
+%\end{figure}
 
 
-\end{align}
+%\begin{align}
+%
+%
+%\end{align}
 
 \end{document}
