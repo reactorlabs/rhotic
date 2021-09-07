@@ -31,8 +31,11 @@
 \newcommand{\arith}[1]{\ensuremath{\mathcal{A}\semantics{#1}}\xspace} % arithmetic semantics
 \newcommand{\bool}[1]{\ensuremath{\mathcal{B}\semantics{#1}}\xspace} % boolean semantics
 \newcommand{\stmt}[1]{\ensuremath{\mathcal{S}\semantics{#1}}\xspace} % statement semantics
-\newcommand{\deps}[1]{\ensuremath{\textsc{deps}\!\semantics{#1}}\xspace} % dependency semantics
+% dependency semantics
+\newcommand{\sdeps}[1]{\ensuremath{\textsc{s-deps}\!\semantics{#1}}\xspace} % static  
+\newcommand{\ddeps}[1]{\ensuremath{\textsc{d-deps}\!\semantics{#1}}\xspace} % dynamic
 \newcommand{\ids}[1]{\ensuremath{\textsc{vars}\!\semantics{#1}}\xspace} % 
+\newcommand{\peek}[1]{\ensuremath{\textsc{peek}\!\semantics{#1}}\xspace} % 
 
 \newcommand{\irem}[3]{{\noindent\textcolor{#1}{\textsf{[#2: 
 #3]}}}}
@@ -104,42 +107,56 @@ An environment $\rho\colon \vars \rightarrow \vals$ maps each program variable $
 
 \subsection*{Static Syntactic Dependencies Analysis}
 
-The program dependency semantics $\deps{P} \colon \powerset{\vars \times \labels}$ yields an \emph{over-approximation} of the input-output dependencies of the program $P$:
+The program dependency semantics $\sdeps{P} \colon \powerset{\vars \times \labels}$ yields an \emph{over-approximation} of the input-output dependencies of the program $P$:
 \begin{equation*}
-\deps{S^\ell{}} \defined \deps{S}\emptyset
+\sdeps{S^\ell{}} \defined \sdeps{S}\emptyset
 \end{equation*}
 \note{we start the analysis with the empty set of dependencies}
-where the statement dependency semantics $\deps{S} \colon \powerset{\vars \times \labels} \rightarrow  \powerset{\vars \times \labels}$ updates the input-output dependencies through the program:
+where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \times \labels} \rightarrow  \powerset{\vars \times \labels}$ updates the input-output dependencies through the program:
 
 %\begin{figure}[t]
 	\begin{align*}
-	&\deps{^\ell{}X := \ipt}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}} \} 
+	&\sdeps{^\ell{}X := \ipt}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}} \} 
 	%
 	\\
 	&\mbox{\note{\ipt expressions introduce new dependencies}} \\
-	&\deps{^\ell{}X := E}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}'} \mid \exists X'\colon X' \in \ids{E} \land \tuple{X'}{\ell{}'} \in R \} \\
+	&\sdeps{^\ell{}X := E}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}'} \mid \exists X'\colon X' \in \ids{E} \land \tuple{X'}{\ell{}'} \in R \} \\
 	&\qquad\mbox{where $E \not= \ipt$} \\
 	&\mbox{\note{\ids{E} is the set of all program variables appearing in the expression $E$}} \\
 %
-	&\deps{\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}}R
-	 \defined \deps{S_1}R \cup \deps{S_2}R \\ 
+	&\sdeps{\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}}R
+	 \defined \sdeps{S_1}R \cup \sdeps{S_2}R \\ 
 %
-&\deps{\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
-\defined \lfp~R \cup \deps{S}\emptyset  \\
+&\sdeps{\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
+\defined \lfp~R \cup \sdeps{S}\emptyset  \\
 &\todo{Is this ok? We keep all dependencies in R to account for executions that do not enter the loop.} \\
-&\todo{We iterate to account for the loop executions. It may be equivalent to do $R \cup \deps{S}R$.} \\
+&\todo{We iterate to account for the loop executions. It may be equivalent to do $R \cup \sdeps{S}R$.} \\
 %
-&\deps{S_1; S_2}R \defined \deps{S_2} \circ 
-\deps{S_1}R
+&\sdeps{S_1; S_2}R \defined \sdeps{S_2} \circ 
+\sdeps{S_1}R
 	\end{align*}
-%	\caption{Input-Aware Concrete Semantics of 
-%	Instructions}\label{fig:concrete}
 %\end{figure}
 
+\subsection*{Dynamic Syntactic Dependencies Analysis}
 
-%\begin{align}
+	\begin{align*}
+	&\ddeps{^\ell{}X := \ipt}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}} \} 
+	%
+	\\
+	&\ddeps{^\ell{}X := E}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}'} \mid \exists X'\colon X' \in \ids{E} \land \tuple{X'}{\ell{}'} \in R \} \\
+	&\qquad\mbox{where $E \not= \ipt$} \\
+	&\mbox{\note{same as \sdeps{S} so far}} \\
 %
+	&\ddeps{\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}}R
+	 \defined \begin{cases} \ddeps{S_1}R & \peek{X} \\
+	  \ddeps{S_2}R & \neg \peek{X} \end{cases} \\ 
+	  &\mbox{\note{we peek at the actual value of $X$ to choose the execution path}} \\
 %
-%\end{align}
+&\ddeps{\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
+\defined \todo{}  \\
+%
+&\ddeps{S_1; S_2}R \defined \ddeps{S_2} \circ 
+\ddeps{S_1}R
+	\end{align*}
 
 \end{document}
