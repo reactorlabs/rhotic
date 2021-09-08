@@ -1,8 +1,10 @@
 \documentclass{article}
 
 \usepackage{amsfonts}
+\usepackage[fleqn]{amsmath}
 \usepackage{mathtools}
 \usepackage{stmaryrd}
+\usepackage{tikz}
 \usepackage{xspace}
 \usepackage{xcolor}
 
@@ -36,6 +38,9 @@
 \newcommand{\ddeps}[1]{\ensuremath{\textsc{d-deps}\!\semantics{#1}}\xspace} % dynamic
 \newcommand{\ids}[1]{\ensuremath{\textsc{vars}\!\semantics{#1}}\xspace} % 
 \newcommand{\peek}[1]{\ensuremath{\textsc{peek}\!\semantics{#1}}\xspace} % 
+% not-na semantics
+\newcommand{\snna}[1]{\ensuremath{\textsc{s-not-na}\!\semantics{#1}}\xspace} % static  
+\newcommand{\dnna}[1]{\ensuremath{\textsc{d-not-na}\!\semantics{#1}}\xspace} % dynamic
 
 \newcommand{\irem}[3]{{\noindent\textcolor{#1}{\textsf{[#2: 
 #3]}}}}
@@ -139,6 +144,8 @@ where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \time
 
 \subsection*{Dynamic Syntactic Dependencies Analysis}
 
+\note{this is the semantics for a single run}
+
 	\begin{align*}
 	&\ddeps{^\ell{}X := \ipt}R \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}} \} 
 	%
@@ -159,5 +166,94 @@ where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \time
 &\ddeps{S_1; S_2}R \defined \ddeps{S_2} \circ 
 \ddeps{S_1}R
 	\end{align*}
+
+\section*{Not-NA Analysis}
+
+
+	\begin{center}
+		\begin{tikzpicture}[node distance=1cm]
+		\node (A) {$\top$};
+		\node (B) [below of=A] {};
+		\node (C) [left of=B] {\textsc{na}};
+		\node (D) [right of=B] {\textsc{not-na}};
+		\node (H) [below of=B] {$\bot$};
+		\draw (A) -- (C);
+		\draw (A) -- (D);
+		\draw (C) -- (H);
+		\draw (D) -- (H);
+		\end{tikzpicture}
+	\end{center}
+	
+\note{We compute dependencies and Not-NA constraints at the same time}
+	
+\subsection*{Dynamic Not-NA Analysis}
+
+
+\begin{description}
+\item[dependencies] $R \in \powerset{\vars \times \labels}$: pairs of a variable and a program label indicating the label of the input expression the variable depends from;
+\item[constraints] $C \in \powerset{\labels}$: program labels of the input expressions that should not be NA; 
+\end{description}
+
+\note{this is the semantics for a single run}
+
+	\begin{align*}
+	&\dnna{^\ell{}X := \ipt}\tuple{R}{C} \defined \tuple{R'}{C} \\
+	&\qquad\mbox{where } R' \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}} \} 
+	%
+	\\
+	&\ddeps{^\ell{}X := E}\tuple{R}{C} \defined \tuple{R'}{C} \qquad\qquad\qquad\qquad\qquad\qquad\qquad\qquad E \not= \ipt\\
+	&\qquad\mbox{where } R' \defined R \setminus \{ \tuple{X}{\ell{}'} \mid \ell{}' \in \labels \} \cup \{ \tuple{X}{\ell{}'} \mid \exists X'\colon X' \in \ids{E} \land \tuple{X'}{\ell{}'} \in R \} \\
+%
+	&\note{only the dependencies are updated} \\
+%
+	&\dnna{\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}}\tuple{R}{C} \defined \\
+	 &\qquad\defined  \begin{cases} \dnna{S_1}\tuple{R}{C'} & \peek{X} \\
+	  \dnna{S_2}\tuple{R}{C'} & \neg \peek{X} \end{cases} \\ 
+	  &\qquad\mbox{where } C' \defined C \cup \{\ell{}' \in \labels \mid \tuple{X}{\ell{}'} \in R \} \\ 
+	  &\note{we update the constraints because $X$ cannot be \textsc{na}} \\
+%
+&\dnna{\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}} \tuple{R}{C}
+\defined \\
+&\qquad\defined \begin{cases} \dnna{\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}} \circ \dnna{S}\tuple{R}{C'} & \peek{X} \\
+	  \dnna{S}\tuple{R}{C'} & \neg \peek{X} \end{cases} \\ 
+	  &\qquad\mbox{where } C' \defined C \cup \{\ell{}' \in \labels \mid \tuple{X}{\ell{}'} \in R \} \\ 
+%
+&\dnna{S_1; S_2}R \defined \dnna{S_2} \circ 
+\dnna{S_1}R
+	\end{align*}
+
+\begin{align*}
+&^1 a := \ipt \\
+&^2 x := \ipt \\
+&^3 y := \ipt \\
+&^4 b := \textsc{true} \\
+& \mathsf{\mathbf{while}}~^5b~\mathsf{\mathbf{do}} \\
+& \qquad\mathsf{\mathbf{if}}~^6x == 3~\mathsf{\mathbf{then}} \\
+&\qquad\qquad ^7 y = a \\
+& \qquad\mathsf{\mathbf{else}} \\
+& \qquad\qquad\mathsf{\mathbf{if}}~^8x == 2~\mathsf{\mathbf{then}} \\
+& \qquad\qquad\qquad \mathsf{\mathbf{while}}~^9y~\mathsf{\mathbf{do}}~\dots~\mathsf{\mathbf{od}} \\
+& \qquad\qquad\mathsf{\mathbf{else}} \\
+& \qquad\qquad\qquad ^{10} b := \textsc{false} \\
+& \qquad\qquad\mathsf{\mathbf{fi}} \\
+& \qquad\mathsf{\mathbf{fi}} \\
+& \qquad^{11} y = \ipt \\
+& \qquad^{12} x = x - 1 \\
+\end{align*}
+
+\begin{description}
+\item[dependencies] $R \defined \emptyset$ 
+\item[constraints] $C \defined \emptyset$
+
+\item[1] \tuple{R\colon \set{\tuple{a}{1}}}{C\colon \emptyset}
+\item[2] \tuple{R\colon \set{\tuple{a}{1}, \tuple{x}{2}
+}}{C\colon \emptyset}
+\item[3] \tuple{R\colon \set{\tuple{a}{1}, \tuple{x}{2}, \tuple{y}{3}
+}}{C\colon \emptyset}
+\item[4] \tuple{R\colon \set{\tuple{a}{1}, \tuple{x}{2}, \tuple{y}{3}
+}}{C\colon \emptyset}
+\item[\peek{x} = 1]
+\item[5] $\rightarrow$ 6
+\end{description}
 
 \end{document}
