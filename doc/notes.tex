@@ -80,7 +80,7 @@
 			 & $\ell{} \in 
 			 \labels$ \\
 			 &$\vert$& 
-			 $\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$%~~\vert~~\mathsf{\mathbf{while}}~^lB~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$
+			 $\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$%~~\vert~~\mathsf{\mathbf{while}}~^lB~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$
 			 & $\ell{} \in \labels$ 
 			 \\
 			 &$\vert$&  $S_1 ; S_2$ & \\
@@ -127,7 +127,7 @@ where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \time
 	&\sdeps{\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}}R
 	 \defined \sdeps{S_1}R \cup \sdeps{S_2}R \\ 
 %
-&\sdeps{\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
+&\sdeps{\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
 \defined \lfp~R \cup \sdeps{S}\emptyset  \\
 &\todo{Is this ok? We keep all dependencies in R to account for executions that do not enter the loop.} \\
 &\todo{We iterate to account for the loop executions. It may be equivalent to do $R \cup \sdeps{S}R$.} \\
@@ -152,8 +152,9 @@ where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \time
 	  \ddeps{S_2}R & \neg \peek{X} \end{cases} \\ 
 	  &\mbox{\note{we peek at the actual value of $X$ to choose the execution path}} \\
 %
-&\ddeps{\mathsf{\mathbf{for}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
-\defined \todo{}  \\
+&\ddeps{\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}}R
+\defined \begin{cases} \ddeps{\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}} \circ \ddeps{S}R & \peek{X} \\
+	  \ddeps{S}R & \neg \peek{X} \end{cases} \\ 
 %
 &\ddeps{S_1; S_2}R \defined \ddeps{S_2} \circ 
 \ddeps{S_1}R
