@@ -7,6 +7,7 @@ TEXFILE := notes
 all: $(TEXFILE).tex
 ifndef LATEXMK
 	$(LATEX) $<
+	$(LATEX) $<
 else
 	latexmk -pdf $<
 endif

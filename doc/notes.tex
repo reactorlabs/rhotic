@@ -20,8 +20,14 @@
 \newcommand{\svals}{\ensuremath{\mathbb{S}_\mathsf{NA}}\xspace} % string values
 \newcommand{\strings}{\ensuremath{\mathbb{S}}\xspace} % strings
 \newcommand{\sna}{\ensuremath{\mathsf{NA}_{S}}\xspace} % string NA
+\newcommand{\isna}{\ensuremath{\mathsf{isNA?}}\xspace} % isNA?
 \newcommand{\ipt}{\ensuremath{\mathsf{\mathbf{\color{teal}input}}()}\xspace} % input
-\newcommand{\powerset}[1]{\ensuremath{\mathcal{P}\left(#1\right)}\xspace} % set
+\newcommand{\unopexpr}[2]{\ensuremath{#1~#2}\xspace} % unary op expr
+\newcommand{\binopexpr}[3]{\ensuremath{#2 #1 #3}\xspace} % binary op expr
+\newcommand{\assignstmt}[2]{\ensuremath{#1 := #2}\xspace} % assignment statement
+\newcommand{\ifstmt}[3]{\ensuremath{\mathsf{\mathbf{if}}~#1~\mathsf{\mathbf{then}}~#2~\mathsf{\mathbf{else}}~#3~\mathsf{\mathbf{fi}} }\xspace} % if statement
+\newcommand{\forstmt}[4]{\ensuremath{\mathsf{\mathbf{for}}~#1~\mathsf{\mathbf{in}}~#2~\mathsf{\mathbf{to}}~#3~\mathsf{\mathbf{do}}~#4~\mathsf{\mathbf{od}}}\xspace} % for statement
+\newcommand{\powerset}[1]{\ensuremath{\mathcal{P}\left(#1\right)}\xspace} % powerset
 \newcommand{\set}[1]{\ensuremath{\left\{#1\right\}}\xspace} % set
 \newcommand{\tuple}[2]{\ensuremath{\langle #1, #2 \rangle}\xspace} % tuple
 \newcommand{\lfp}{\ensuremath{\mathrm{lfp}}\xspace} % least fixpoint
@@ -54,44 +60,25 @@
 \begin{figure}[t]
 	\begin{center}
 		\begin{tabular}{lclr}
-			A &$\Coloneqq$& $X$ & $X\in 
-			\vars$ 
+			$v$ &$\Coloneqq$& $\mathsf{true} ~~\vert~~ \mathsf{false} ~~\vert~~ \bna$ & $\bvals$\\
+			&$\vert$& $\cdots ~~\vert~~ -1 ~~\vert~~ 0 ~~\vert~~ 1 ~~\vert~~ \cdots ~~\vert~~ \ina$ & $\ivals$\\
+			&$\vert$& $\cdots ~~\vert~~ \sna$ & $\svals$\\
 			\\
+			$se$ &$\Coloneqq$& $x$ & $x\in \vars$ \\
 			&$\vert$& $v$ & $v \in \vals$ \\
-			&$\vert$& $A_1 \diamond A_2 $ &
-			\hspace{3em}$\diamond \in 
-			\set{+,-,*,/}$ 
 			\\
+			$e$ &$\Coloneqq$& $\unopexpr{\circ}{se}$& $\circ~\in \set{\neg, +, -, \isna}$ \\
+			& $\vert$& $\binopexpr{\diamond}{se_1}{se_2}$& $\diamond \in \set{+, -, *, /, \%, <, \leq, =, \neq, >, \geq, \lor, \land}$ \\
+			& $\vert$& $^\ell{}\ipt$ & $\ell{} \in \labels$ \\
+			& $\vert$& $se$ & \\
 			\\
-			B & $\Coloneqq$& $A_1 \bowtie A_2$ 
-			&
-			$\bowtie~\in
-			\{<, \leq, =, \not=, >, \geq\}$ \\
-			&$\vert$ & $%\neg B~~\vert~~
-			B_1 \lor 
-			B_2$ & \\
-			&$\vert$& $B_1 
-			\land B_2$ \\
+			$s$ &$\Coloneqq$& $\assignstmt{x}{e}$ & $x \in \vars$ \\
+			&$\vert$& \ifstmt{x}{s_1}{s_2} & \\
+			&$\vert$& \forstmt{x}{se_1}{se_2}{s} & \\
+			&$\vert$& $s_1 ; s_2$ & \\
+			&$\vert$& $e$ & \\
 			\\
-			E &$\Coloneqq$& $\ipt~~\vert~~A~~\vert~~B$%~~\vert~~\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ 
-			& \\
-			%&$\vert$& $\mathsf{\mathbf{bool}}(E)~~\vert~~\mathsf{\mathbf{int}}(E)$ \\
-			\\
-			S & $\Coloneqq$& $^\ell{}X := E$ & $\ell{} \in 
-			\labels, X \in 
-			\vars$ \\
-			&$\vert$& 
-			$\mathsf{\mathbf{if}}~^\ell{}X~\mathsf{\mathbf{then}}~S_1~\mathsf{\mathbf{else}}~S_2~\mathsf{\mathbf{fi}}$
-			 & $\ell{} \in 
-			 \labels$ \\
-			 &$\vert$& 
-			 $\mathsf{\mathbf{while}}~^\ell{}X~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$%~~\vert~~\mathsf{\mathbf{while}}~^lB~\mathsf{\mathbf{do}}~S~\mathsf{\mathbf{od}}$
-			 & $\ell{} \in \labels$ 
-			 \\
-			 &$\vert$&  $S_1 ; S_2$ & \\
-			 \\
-			 P & $\Coloneqq$& $S^\ell{}$ & $\ell{} \in 
-			 \labels$
+			P & $\Coloneqq$& $s$ &
 		\end{tabular}
 	\end{center}
 	\vspace{-1em}
