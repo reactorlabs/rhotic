@@ -1,0 +1,85 @@
+metavar termvar, x ::= {{ tex \mathit{[[termvar]]} }} {{ com metavariables }}
+
+metavar int ::= {{ lex numeral  }} {{ com integers }}
+metavar str ::= {{ lex alphanum }} {{ com strings }}
+metavar l   ::= {{ lex alphanum }} {{ tex \ell }} {{ com labels }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+grammar
+
+%%% Values %%%
+v :: 'v_' ::=                       {{ com values }}
+    | true          :: :: True          {{ tex \mathsf{true} }}
+    | false         :: :: False         {{ tex \mathsf{false} }}
+    | NA_b          :: :: NA_bool       {{ tex \mathsf{NA_B} }} {{ com boolean \textsf{NA} }}
+    | int           :: :: Int
+    | NA_z          :: :: NA_int        {{ tex \mathsf{NA_Z} }} {{ com integer \textsf{NA} }}
+    | str           :: :: Str
+    | NA_s          :: :: NA_str        {{ tex \mathsf{NA_S} }} {{ com string \textsf{NA} }}
+
+%%% Simple expressions %%%
+se :: 'se_' ::=                     {{ com simple expressions }}
+    | x             :: :: Var           {{ com variable }}
+    | v             :: :: Val           {{ com value }}
+
+%%%% Unary operator %%%
+%uop :: 'uop_' ::=                   {{ tex \circ }} {{ com unary operator }}
+%    | !             :: :: UnaryNegate   {{ tex \neg }} {{ com logical negation }}
+%    | +             :: :: UnaryPlus
+%    | -             :: :: UnaryMinus
+%    | isNA          :: :: IsNA          {{ tex \mathsf{isNA?} }} {{ com is NA check }}
+%
+%%%% Binary operator %%%a
+%bop :: 'bop_' ::=                   {{ tex \diamond }} {{ com binary operator }}
+%    | +             :: :: Plus
+%    | -             :: :: Minus
+%    | *             :: :: Times         {{ tex \times }}
+%    | /             :: :: Divide        {{ tex \div }}
+%    | %             :: :: Modulo        {{ com modulo }}
+%    | <             :: :: Less
+%    | <=            :: :: LessEqual     {{ tex \leq }}
+%    | >=            :: :: GreaterEqual  {{ tex \geq }}
+%    | >             :: :: Greater
+%    | =             :: :: Equal
+%    | =/=           :: :: NotEqaul      {{ tex \neq }}
+%    | /\            :: :: And           {{ tex \wedge }}
+%    | \/            :: :: Or            {{ tex \vee }}
+
+%%% Expressions %%%
+e :: 'e_' ::=                           {{ com expressions }}
+    | isNA se           :: :: IsNA          {{ tex \mathsf{isNA?\: [[se]]} }}
+    | uop se            :: :: UOp           {{ tex \circ\: [[se]] }} {{ com unary op }}
+    | se1 bop se2       :: :: BOp           {{ tex [[se1]] \diamond [[se2]] }} {{ com binary op }}
+    | l : input ()      :: :: Input         {{ tex ^[[l]] \textsf{input \negmedspace ()} }} {{ com labelled input }}
+    | se                :: :: SimpleExp     {{ com simple expression }}
+
+%%% Statements %%%
+s :: 's_' ::=                                       {{ com statements }}
+    | x := e                        :: :: Assign        {{ com assignment }}
+    | if x then s1 else s2 fi       :: :: If            {{ tex \mathsf{if\: [[x]]\: then\: [[s1]]\: else\: [[s2]]\: fi} }} {{ com if statement }}
+    | for x in se1 : se2 do s od    :: :: For           {{ tex \mathsf{for\: [[x]]\: in\: [[se1]] \negmedspace : \negmedspace [[se2]]\: do\: [[s]]\: od} }} {{ com for loop }}
+    | se1 ; se2                     :: :: Seq           {{ com sequencing }}
+    | e                             :: :: Exp           {{ com expression }}
+
+%%% TERMINALS %%%
+terminals :: 'terminals_' ::=
+  | -->       :: :: reduce     {{ tex \longrightarrow }}
+
+%%% FORMULAS %%%
+formula :: 'formula_' ::=
+  | judgement               :: :: judgement
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%defns
+%OperationalSemantics :: '' ::=
+%
+%  defn
+%  e1 --> e2 :: :: reduce :: E_ {{ com $[[e1]]$ reduces to $[[e2]]$ }} by
+%
+%    ------------------- :: LitCtor
+%    num --> [ num ],Int
+%
+%    e1 --> num1 .. en --> numn
+%    -------------------------------------- :: VecCtor
+%    Vec(e1, .., en) --> [num1 .. numn],Int
