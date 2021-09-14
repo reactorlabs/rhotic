@@ -30,7 +30,7 @@
  $ \mathit{x} $ & \ottcom{metavariables} \\
  $ \ottmv{num} $ & \ottcom{numbers} \\
  $ \ottmv{chr} $ & \ottcom{character sequences} \\
- $ \ottmv{l} $ & \ottcom{labels} \\
+ $ \ell $ & \ottcom{labels} \\
 }}
 
 \newcommand{\ottbool}{
@@ -86,14 +86,14 @@
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
 \ottfirstprodline{|}{ \mathsf{isNA?} ( \ottnt{se} ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \circ ~ \ottnt{se} }{}{}{}{\ottcom{unary op}}\ottprodnewline
+\ottprodline{|}{ \circ \ottnt{se} }{}{}{}{\ottcom{unary op}}\ottprodnewline
 \ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}} }{}{}{}{\ottcom{binary op}}\ottprodnewline
-\ottprodline{|}{ ^ \ottmv{l}   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{labelled input}}\ottprodnewline
 \ottprodline{|}{\ottnt{se}}{}{}{}{\ottcom{simple expression}}}
 
 \newcommand{\otts}{
 \ottrulehead{\ottnt{s}}{::=}{\ottcom{statements}}\ottprodnewline
 \ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{assignment}}\ottprodnewline
+\ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{read input (labelled)}}\ottprodnewline
 \ottprodline{|}{ \mathsf{if} ~ \mathit{x} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{\ottcom{if statement}}\ottprodnewline
 \ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{\ottcom{for loop}}\ottprodnewline
 \ottprodline{|}{\ottnt{se_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{se_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequencing}}\ottprodnewline
@@ -127,16 +127,23 @@
 \ottprodline{|}{ \mathsf{do} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{od} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \emptyset }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \rightharpoonup }{}{}{}{}}
+\ottprodline{|}{ \rightharpoonup }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \longrightarrow_e }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \longmapsto }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \neq }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}{}{}{}{}}
+\ottprodline{|}{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \llbracket  \circ  \rrbracket_1 (  \ottnt{se}  ) =  \ottnt{v} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \llbracket  \diamond  \rrbracket_2 (  \ottnt{se_{{\mathrm{1}}}} ,  \ottnt{se_{{\mathrm{2}}}}  ) =  \ottnt{v} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v_{{\mathrm{1}}}}   \neq   \ottnt{v_{{\mathrm{2}}}} }{}{}{}{}}
 
 \newcommand{\ottoperationalXXsemantics}{
 \ottrulehead{\ottnt{operational\_semantics}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{E} \, \ottnt{se}  \rightharpoonup  \ottnt{v}}{}{}{}{\ottcom{evaluation of simple expressions}}}
+\ottfirstprodline{|}{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }{}{}{}{\ottcom{evaluation of simple expressions}}\ottprodnewline
+\ottprodline{|}{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} }{}{}{}{\ottcom{evaluation of expressions}}}
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
@@ -147,7 +154,7 @@
 \ottfirstprodline{|}{\mathit{x}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{chr}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottmv{l}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ell}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{int}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{str}}{}{}{}{}\ottprodnewline
@@ -188,7 +195,7 @@
 %% defn eval_se
 \newcommand{\ottdruleSEXXLiteral}[1]{\ottdrule[#1]{%
 }{
-\ottnt{E} \, \ottnt{v}  \rightharpoonup  \ottnt{v}}{%
+ \ottnt{E} \enspace \ottnt{v}   \rightharpoonup   \ottnt{v} }{%
 {\ottdrulename{SE\_Literal}}{}%
 }}
 
@@ -196,18 +203,90 @@
 \newcommand{\ottdruleSEXXLookup}[1]{\ottdrule[#1]{%
 \ottpremise{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}%
 }{
-\ottnt{E} \, \mathit{x}  \rightharpoonup  \ottnt{v}}{%
+ \ottnt{E} \enspace \mathit{x}   \rightharpoonup   \ottnt{v} }{%
 {\ottdrulename{SE\_Lookup}}{}%
 }}
 
-\newcommand{\ottdefnevalXXse}[1]{\begin{ottdefnblock}[#1]{$\ottnt{E} \, \ottnt{se}  \rightharpoonup  \ottnt{v}$}{\ottcom{evaluation of simple expressions}}
+\newcommand{\ottdefnevalXXse}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} $}{\ottcom{evaluation of simple expressions}}
 \ottusedrule{\ottdruleSEXXLiteral{}}
 \ottusedrule{\ottdruleSEXXLookup{}}
 \end{ottdefnblock}}
 
+%% defn eval_e
+\newcommand{\ottdruleEXXIsNAb}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_B}  }%
+}{
+ \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+{\ottdrulename{E\_IsNAb}}{}%
+}}
+
+
+\newcommand{\ottdruleEXXIsNAi}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_I}  }%
+}{
+ \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+{\ottdrulename{E\_IsNAi}}{}%
+}}
+
+
+\newcommand{\ottdruleEXXIsNAs}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_S}  }%
+}{
+ \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+{\ottdrulename{E\_IsNAs}}{}%
+}}
+
+
+\newcommand{\ottdruleEXXIsNotNA}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
+\ottpremise{ \ottnt{v}   \neq    \mathsf{NA_B}  }%
+\ottpremise{ \ottnt{v}   \neq    \mathsf{NA_I}  }%
+\ottpremise{ \ottnt{v}   \neq    \mathsf{NA_S}  }%
+}{
+ \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+{\ottdrulename{E\_IsNotNA}}{}%
+}}
+
+
+\newcommand{\ottdruleEXXUnaryOp}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
+\ottpremise{ \llbracket  \circ  \rrbracket_1 (  \ottnt{se}  ) =  \ottnt{v'} }%
+}{
+ \ottnt{E} \enspace  \circ \ottnt{se}    \longrightarrow_e   \ottnt{v'} }{%
+{\ottdrulename{E\_UnaryOp}}{}%
+}}
+
+
+\newcommand{\ottdruleEXXBinaryOp}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
+\ottpremise{ \llbracket  \diamond  \rrbracket_2 (  \ottnt{v_{{\mathrm{1}}}} ,  \ottnt{v_{{\mathrm{2}}}}  ) =  \ottnt{v'} }%
+}{
+ \ottnt{E} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \longrightarrow_e   \ottnt{v'} }{%
+{\ottdrulename{E\_BinaryOp}}{}%
+}}
+
+
+\newcommand{\ottdruleEXXSimpleExp}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
+}{
+ \ottnt{E} \enspace \ottnt{se}   \longrightarrow_e   \ottnt{v} }{%
+{\ottdrulename{E\_SimpleExp}}{}%
+}}
+
+\newcommand{\ottdefnevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} $}{\ottcom{evaluation of expressions}}
+\ottusedrule{\ottdruleEXXIsNAb{}}
+\ottusedrule{\ottdruleEXXIsNAi{}}
+\ottusedrule{\ottdruleEXXIsNAs{}}
+\ottusedrule{\ottdruleEXXIsNotNA{}}
+\ottusedrule{\ottdruleEXXUnaryOp{}}
+\ottusedrule{\ottdruleEXXBinaryOp{}}
+\ottusedrule{\ottdruleEXXSimpleExp{}}
+\end{ottdefnblock}}
+
 
 \newcommand{\ottdefnsoperationalXXsemantics}{
-\ottdefnevalXXse{}}
+\ottdefnevalXXse{}\ottdefnevalXXe{}}
 
 \newcommand{\ottdefnss}{
 \ottdefnsoperationalXXsemantics

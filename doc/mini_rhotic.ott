@@ -2,7 +2,7 @@ metavar x ::= {{ com metavariables }} {{ tex \mathit{[[x]]} }}
 
 metavar num ::= {{ com numbers }} {{ lex numeral  }}
 metavar chr ::= {{ com character sequences }} {{ lex alphanum }}
-metavar l   ::= {{ com labels }} {{ lex alphanum }}
+metavar l   ::= {{ com labels }} {{ lex alphanum }} {{ tex \ell }}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -58,14 +58,14 @@ bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }
 %%% Expressions %%%
 e :: 'e_' ::=                           {{ com expressions }}
     | isNA se           :: :: IsNA          {{ tex [[isNA]]([[se]]) }}
-    | uop se            :: :: UOp           {{ com unary op }} {{ tex [[uop]]~[[se]] }}
+    | uop se            :: :: UOp           {{ com unary op }} {{ tex [[uop]][[se]] }}
     | se1 bop se2       :: :: BOp           {{ com binary op }} {{ tex [[se1]] [[bop]] [[se2]] }}
-    | l : input()       :: :: Input         {{ com labelled input }} {{ tex ^[[l]] [[input()]] }}
     | se                :: :: SimpleExp     {{ com simple expression }}
 
 %%% Statements %%%
 s :: 's_' ::=                                       {{ com statements }}
     | x <- e                        :: :: Assign        {{ com assignment }}
+    | x <- l ^ input()              :: :: Read          {{ com read input (labelled) }} {{ tex [[x]] [[<-]]\, ^[[l]] [[input()]] }}
     | if x then s1 else s2 fi       :: :: If            {{ com if statement }} {{ tex [[if]]~[[x]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
     | for x in se1 : se2 do s od    :: :: For           {{ com for loop }} {{ tex [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
     | se1 ; se2                     :: :: Seq           {{ com sequencing }}
@@ -100,24 +100,82 @@ terminals :: 'terminals_' ::=
     | od            :: :: Od        {{ tex \mathsf{od} }}
     | empty         :: :: Empty     {{ tex \emptyset }}
     | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
+    | -e->          :: :: EEval     {{ tex \longrightarrow_e }}
+    | -->           :: :: SEval     {{ tex \longmapsto }}
+    | =/=           :: :: NEq       {{ tex \neq }}
 
 %%% FORMULAS %%%
 formula :: 'formula_' ::=
-  | judgement               :: :: judgement
-  | E ( x ) = v             :: :: lookup
+  | judgement                       :: :: judgement
+  | E ( x ) = v                     :: :: lookup
+  | [[ uop ]] ( se ) = v            :: :: primop_uop    {{ tex \llbracket [[uop]] \rrbracket_1 ( [[se]] ) = [[v]] }}
+  | [[ bop ]] ( se1 , se2 ) = v     :: :: primop_bop    {{ tex \llbracket [[bop]] \rrbracket_2 ( [[se1]], [[se2]] ) = [[v]] }}
+  | v1 =/= v2                       :: :: not_equal     {{ tex [[v1]] [[=/=]] [[v2]] }}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 defns
 operational_semantics :: '' ::=
 
+    %%% Evaluation of simple expressions %%%
     defn
-    E se -se-> v :: :: eval_se :: 'SE_' {{ com evaluation of simple expressions }} by
+    E se -se-> v :: :: eval_se :: 'SE_'
+        {{ com evaluation of simple expressions }}
+        {{ tex [[E]]\enspace[[se]] [[-se->]] [[v]] }}
+    by
 
-    -----------  :: Literal
-    E v -se-> v
+        -----------  :: Literal
+        E v -se-> v
 
-    E ( x ) = v
-    --------------  :: Lookup
-    E x -se-> v
+        E(x) = v
+        --------------  :: Lookup
+        E x -se-> v
 
+    %%% Evaluation of expressions %%%
+    defn
+    E e -e-> v :: :: eval_e :: 'E_'
+        {{ com evaluation of expressions }}
+        {{ tex [[E]]\enspace[[e]] [[-e->]] [[v]] }}
+    by
+
+        E se -se-> NA_b
+        ------------------- :: IsNAb
+        E isNA se -e-> true
+
+        E se -se-> NA_i
+        ------------------- :: IsNAi
+        E isNA se -e-> true
+
+        E se -se-> NA_s
+        ------------------- :: IsNAs
+        E isNA se -e-> true
+
+        E se -se-> v
+        v =/= NA_b
+        v =/= NA_i
+        v =/= NA_s
+        ------------------- :: IsNotNA
+        E isNA se -e-> true
+
+        E se -se-> v
+        [[uop]](se) = v'
+        ----------------  :: UnaryOp
+        E uop se -e-> v'
+
+        E se1 -se-> v1
+        E se2 -se-> v2
+        [[bop]](v1, v2) = v'
+        ---------------------  :: BinaryOp
+        E se1 bop se2 -e-> v'
+
+        E se -se-> v
+        ------------  :: SimpleExp
+        E se -e-> v
+
+% statements
+%   assign
+%   input
+%   if
+%   for
+%   seq
+%   e
