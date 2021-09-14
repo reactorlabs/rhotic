@@ -80,8 +80,8 @@
 \ottprodline{|}{\ottsym{>}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{=}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \wedge }{}{}{}{\ottcom{logical and}}\ottprodnewline
-\ottprodline{|}{ \vee }{}{}{}{\ottcom{logical or}}}
+\ottprodline{|}{ \land }{}{}{}{\ottcom{logical and}}\ottprodnewline
+\ottprodline{|}{ \lor }{}{}{}{\ottcom{logical or}}}
 
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
@@ -94,15 +94,15 @@
 \ottrulehead{\ottnt{s}}{::=}{\ottcom{statements}}\ottprodnewline
 \ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{assignment}}\ottprodnewline
 \ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{read input (labelled)}}\ottprodnewline
-\ottprodline{|}{ \mathsf{if} ~ \mathit{x} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{\ottcom{if statement}}\ottprodnewline
+\ottprodline{|}{ \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{\ottcom{if statement}}\ottprodnewline
 \ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{\ottcom{for loop}}\ottprodnewline
-\ottprodline{|}{\ottnt{se_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{se_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequencing}}\ottprodnewline
+\ottprodline{|}{\ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequencing}}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{\ottcom{expression}}}
 
 \newcommand{\ottE}{
 \ottrulehead{\ottnt{E}}{::=}{\ottcom{environments}}\ottprodnewline
 \ottfirstprodline{|}{\emptyset}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{E} [  \mathit{x}  \mapsto  \ottnt{v}  ] }{}{}{}{\ottcom{environment update}}}
+\ottprodline{|}{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] }{}{}{}{\ottcom{environment update}}}
 
 \newcommand{\ottI}{
 \ottrulehead{\ottnt{I}}{::=}{\ottcom{input streams}}\ottprodnewline
@@ -127,6 +127,7 @@
 \ottprodline{|}{ \mathsf{do} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{od} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \emptyset }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mapsto }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \rightharpoonup }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longrightarrow_e }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longmapsto }{}{}{}{}\ottprodnewline
@@ -138,12 +139,20 @@
 \ottprodline{|}{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \llbracket  \circ  \rrbracket_1 (  \ottnt{se}  ) =  \ottnt{v} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \llbracket  \diamond  \rrbracket_2 (  \ottnt{se_{{\mathrm{1}}}} ,  \ottnt{se_{{\mathrm{2}}}}  ) =  \ottnt{v} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{v_{{\mathrm{1}}}}   \neq   \ottnt{v_{{\mathrm{2}}}} }{}{}{}{}}
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v_{{\mathrm{1}}}}   \neq   \ottnt{v_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{<}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  \ottnt{v_{{\mathrm{2}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{3}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{3}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] =  \ottnt{E'} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}}
 
 \newcommand{\ottoperationalXXsemantics}{
 \ottrulehead{\ottnt{operational\_semantics}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }{}{}{}{\ottcom{evaluation of simple expressions}}\ottprodnewline
-\ottprodline{|}{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} }{}{}{}{\ottcom{evaluation of expressions}}}
+\ottprodline{|}{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} }{}{}{}{\ottcom{evaluation of expressions}}\ottprodnewline
+\ottprodline{|}{ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'} }{}{}{}{\ottcom{evaluation of statements}}}
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
@@ -267,11 +276,11 @@
 }}
 
 
-\newcommand{\ottdruleEXXSimpleExp}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleEXXSimpleExpression}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
 }{
  \ottnt{E} \enspace \ottnt{se}   \longrightarrow_e   \ottnt{v} }{%
-{\ottdrulename{E\_SimpleExp}}{}%
+{\ottdrulename{E\_SimpleExpression}}{}%
 }}
 
 \newcommand{\ottdefnevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} $}{\ottcom{evaluation of expressions}}
@@ -281,12 +290,111 @@
 \ottusedrule{\ottdruleEXXIsNotNA{}}
 \ottusedrule{\ottdruleEXXUnaryOp{}}
 \ottusedrule{\ottdruleEXXBinaryOp{}}
-\ottusedrule{\ottdruleEXXSimpleExp{}}
+\ottusedrule{\ottdruleEXXSimpleExpression{}}
+\end{ottdefnblock}}
+
+%% defn eval_s
+\newcommand{\ottdruleSXXAssign}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} }%
+\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] =  \ottnt{E'} }%
+}{
+ \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'} }{%
+{\ottdrulename{S\_Assign}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXRead}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
+\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] =  \ottnt{E'} }%
+}{
+  \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() }  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+{\ottdrulename{S\_Read}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXIfTrue}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
+\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{true} }%
+}{
+  \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E} }{%
+{\ottdrulename{S\_IfTrue}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXIfFalse}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
+\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{false} }%
+}{
+  \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E} }{%
+{\ottdrulename{S\_IfFalse}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXForIncr}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
+\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  1  \ottsym{=}  \ottnt{v'_{{\mathrm{1}}}}}%
+\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v_{{\mathrm{1}}}}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{<}  \ottnt{v_{{\mathrm{2}}}}}%
+}{
+  \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'} }{%
+{\ottdrulename{S\_ForIncr}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXForDecr}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
+\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  1  \ottsym{=}  \ottnt{v'_{{\mathrm{1}}}}}%
+\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v_{{\mathrm{1}}}}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}%
+}{
+  \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'} }{%
+{\ottdrulename{S\_ForDecr}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXForEnd}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
+\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v_{{\mathrm{1}}}}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{2}}}}}%
+}{
+  \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s} \enspace \ottnt{I} \, \ottnt{E'} }{%
+{\ottdrulename{S\_ForEnd}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXSeq}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }%
+}{
+ \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+{\ottdrulename{S\_Seq}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXExpression}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} }%
+}{
+ \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{e} \enspace \ottnt{I} \, \ottnt{E} }{%
+{\ottdrulename{S\_Expression}}{}%
+}}
+
+\newcommand{\ottdefnevalXXs}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'} $}{\ottcom{evaluation of statements}}
+\ottusedrule{\ottdruleSXXAssign{}}
+\ottusedrule{\ottdruleSXXRead{}}
+\ottusedrule{\ottdruleSXXIfTrue{}}
+\ottusedrule{\ottdruleSXXIfFalse{}}
+\ottusedrule{\ottdruleSXXForIncr{}}
+\ottusedrule{\ottdruleSXXForDecr{}}
+\ottusedrule{\ottdruleSXXForEnd{}}
+\ottusedrule{\ottdruleSXXSeq{}}
+\ottusedrule{\ottdruleSXXExpression{}}
 \end{ottdefnblock}}
 
 
 \newcommand{\ottdefnsoperationalXXsemantics}{
-\ottdefnevalXXse{}\ottdefnevalXXe{}}
+\ottdefnevalXXse{}\ottdefnevalXXe{}\ottdefnevalXXs{}}
 
 \newcommand{\ottdefnss}{
 \ottdefnsoperationalXXsemantics
