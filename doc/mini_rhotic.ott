@@ -1,69 +1,105 @@
-metavar termvar, x ::= {{ tex \mathit{[[termvar]]} }} {{ com metavariables }}
+metavar termvar, x ::= {{ com metavariables }} {{ tex \mathit{[[termvar]]} }}
 
-metavar int ::= {{ lex numeral  }} {{ com integers }}
-metavar str ::= {{ lex alphanum }} {{ com strings }}
-metavar l   ::= {{ lex alphanum }} {{ tex \ell }} {{ com labels }}
+metavar num ::= {{ com numbers }} {{ lex numeral  }}
+metavar chr ::= {{ com character sequences }} {{ lex alphanum }}
+metavar l   ::= {{ com labels }} {{ lex alphanum }}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 grammar
 
 %%% Values %%%
-v :: 'v_' ::=                       {{ com values }}
+bool :: 'bool_' ::=                 {{ com boolean literals }}
     | true          :: :: True          {{ tex \mathsf{true} }}
     | false         :: :: False         {{ tex \mathsf{false} }}
-    | NA_b          :: :: NA_bool       {{ tex \mathsf{NA_B} }} {{ com boolean \textsf{NA} }}
+    | NA_b          :: :: NA_bool       {{ com boolean \textsf{NA} }} {{ tex \mathsf{NA_B} }}
+
+int :: 'int_' ::=                   {{ com integer literals }}
+    | num           :: :: Int
+    | ~ num         :: :: NegInt        {{ tex - [[num]] }}
+    | NA_i          :: :: NA_int        {{ com integer \textsf{NA} }} {{ tex \mathsf{NA_I} }}
+
+str :: 'str_' ::=                   {{ com string literals }}
+    | " chr "       :: :: Str           {{ tex ``[[chr]]" }}
+    | NA_s          :: :: NA_str        {{ com string \textsf{NA} }} {{ tex \mathsf{NA_S} }}
+
+v :: 'v_' ::=                       {{ com values }}
+    | bool          :: :: Bool
     | int           :: :: Int
-    | NA_z          :: :: NA_int        {{ tex \mathsf{NA_Z} }} {{ com integer \textsf{NA} }}
     | str           :: :: Str
-    | NA_s          :: :: NA_str        {{ tex \mathsf{NA_S} }} {{ com string \textsf{NA} }}
 
 %%% Simple expressions %%%
 se :: 'se_' ::=                     {{ com simple expressions }}
-    | x             :: :: Var           {{ com variable }}
-    | v             :: :: Val           {{ com value }}
+    | x             :: :: Var           {{ com variables }}
+    | v             :: :: Val           {{ com values }}
 
-%%%% Unary operator %%%
-%uop :: 'uop_' ::=                   {{ tex \circ }} {{ com unary operator }}
-%    | !             :: :: UnaryNegate   {{ tex \neg }} {{ com logical negation }}
-%    | +             :: :: UnaryPlus
-%    | -             :: :: UnaryMinus
-%    | isNA          :: :: IsNA          {{ tex \mathsf{isNA?} }} {{ com is NA check }}
-%
-%%%% Binary operator %%%a
-%bop :: 'bop_' ::=                   {{ tex \diamond }} {{ com binary operator }}
-%    | +             :: :: Plus
-%    | -             :: :: Minus
-%    | *             :: :: Times         {{ tex \times }}
-%    | /             :: :: Divide        {{ tex \div }}
-%    | %             :: :: Modulo        {{ com modulo }}
-%    | <             :: :: Less
-%    | <=            :: :: LessEqual     {{ tex \leq }}
-%    | >=            :: :: GreaterEqual  {{ tex \geq }}
-%    | >             :: :: Greater
-%    | =             :: :: Equal
-%    | =/=           :: :: NotEqaul      {{ tex \neq }}
-%    | /\            :: :: And           {{ tex \wedge }}
-%    | \/            :: :: Or            {{ tex \vee }}
+%%% Unary operators %%%
+uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
+    | !             :: :: Negate        {{ com logical negation }} {{ tex \neg }}
+    | +             :: :: Plus
+    | -             :: :: Minus
+
+%%% Binary operators %%%a
+bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }}
+    | +             :: :: Plus
+    | -             :: :: Minus
+    | *             :: :: Times         {{ tex \times }}
+    | /             :: :: Divide        {{ tex \div }}
+    | %             :: :: Modulo        {{ com modulo }}
+    | <             :: :: Less
+    | <=            :: :: LessEqual     {{ tex \leq }}
+    | >=            :: :: GreaterEqual  {{ tex \geq }}
+    | >             :: :: Greater
+    | =             :: :: Equal
+    | =/=           :: :: NotEqaul      {{ tex \neq }}
+    | /\            :: :: And           {{ com logical and }} {{ tex \wedge }}
+    | \/            :: :: Or            {{ com logical or }} {{ tex \vee }}
 
 %%% Expressions %%%
 e :: 'e_' ::=                           {{ com expressions }}
-    | isNA se           :: :: IsNA          {{ tex \mathsf{isNA?\: [[se]]} }}
-    | uop se            :: :: UOp           {{ tex \circ\: [[se]] }} {{ com unary op }}
-    | se1 bop se2       :: :: BOp           {{ tex [[se1]] \diamond [[se2]] }} {{ com binary op }}
-    | l : input ()      :: :: Input         {{ tex ^[[l]] \textsf{input \negmedspace ()} }} {{ com labelled input }}
+    | isNA se           :: :: IsNA          {{ tex [[isNA]]([[se]]) }}
+    | uop se            :: :: UOp           {{ com unary op }} {{ tex [[uop]]~[[se]] }}
+    | se1 bop se2       :: :: BOp           {{ com binary op }} {{ tex [[se1]] [[bop]] [[se2]] }}
+    | l : input()       :: :: Input         {{ com labelled input }} {{ tex ^[[l]] [[input()]] }}
     | se                :: :: SimpleExp     {{ com simple expression }}
 
 %%% Statements %%%
 s :: 's_' ::=                                       {{ com statements }}
-    | x := e                        :: :: Assign        {{ com assignment }}
-    | if x then s1 else s2 fi       :: :: If            {{ tex \mathsf{if\: [[x]]\: then\: [[s1]]\: else\: [[s2]]\: fi} }} {{ com if statement }}
-    | for x in se1 : se2 do s od    :: :: For           {{ tex \mathsf{for\: [[x]]\: in\: [[se1]] \negmedspace : \negmedspace [[se2]]\: do\: [[s]]\: od} }} {{ com for loop }}
+    | x <- e                        :: :: Assign        {{ com assignment }}
+    | if x then s1 else s2 fi       :: :: If            {{ com if statement }} {{ tex [[if]]~[[x]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
+    | for x in se1 : se2 do s od    :: :: For           {{ com for loop }} {{ tex [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
     | se1 ; se2                     :: :: Seq           {{ com sequencing }}
     | e                             :: :: Exp           {{ com expression }}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Environment %%%
+E :: 'E_' ::=                                       {{ com environments }}
+    | empty                         :: :: Empty
+    | update E [ x -> v ]           :: :: UpdateEnv     {{ com environment update }} {{ tex [[E]][ [[x]] \mapsto [[v]] ] }}
+
+%%% Input stream %%%
+I :: 'I_' ::=                                       {{ com input streams }}
+    | empty                         :: :: Empty
+    | v . I                         :: :: Single        {{ tex [[v]] \cdot [[I]] }}
+
+%%% Machine configuration %%%
+C :: 'C_' ::=                                       {{ com machine configuration }}
+    | s I E                         :: :: sIE           {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
+
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
-  | -->       :: :: reduce     {{ tex \longrightarrow }}
+    | isNA          :: :: IsNA      {{ tex \mathsf{isNA?} }}
+    | input()       :: :: Input     {{ tex \mathsf{ {\color{teal}input}() } }}
+    | <-            :: :: Assign    {{ tex \leftarrow }}
+    | if            :: :: If        {{ tex \mathsf{if} }}
+    | then          :: :: Then      {{ tex \mathsf{then} }}
+    | else          :: :: Else      {{ tex \mathsf{else} }}
+    | fi            :: :: Fi        {{ tex \mathsf{fi} }}
+    | for           :: :: For       {{ tex \mathsf{for} }}
+    | in            :: :: In        {{ tex \mathsf{in} }}
+    | do            :: :: Do        {{ tex \mathsf{do} }}
+    | od            :: :: Od        {{ tex \mathsf{od} }}
+    | empty         :: :: Empty     {{ tex \emptyset }}
 
 %%% FORMULAS %%%
 formula :: 'formula_' ::=

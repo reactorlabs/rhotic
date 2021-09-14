@@ -12,6 +12,8 @@ TEXFILE := notes2
 
 all: $(TEXFILE).pdf
 
+ott: $(OTTFILE)_.tex
+
 ifdef OTT
 $(OTTFILE)_.tex: $(OTTFILE).ott
 	$(OTT) $(OTTFLAGS) -i $< -o $@
@@ -37,4 +39,7 @@ halfclean:
 clean: halfclean
 	rm -rf $(TEXFILE).pdf
 
-.PHONY: all auto halfclean clean
+cleanott:
+	rm -rf $(OTTFILE)_.tex
+
+.PHONY: all ott auto halfclean clean cleanott

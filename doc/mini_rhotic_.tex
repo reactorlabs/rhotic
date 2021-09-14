@@ -28,45 +28,105 @@
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
  $ \mathit{termvar} ,\, \mathit{x} $ & \ottcom{metavariables} \\
- $ \ottmv{int} $ & \ottcom{integers} \\
- $ \ottmv{str} $ & \ottcom{strings} \\
- $ \ell $ & \ottcom{labels} \\
+ $ \ottmv{num} $ & \ottcom{numbers} \\
+ $ \ottmv{chr} $ & \ottcom{character sequences} \\
+ $ \ottmv{l} $ & \ottcom{labels} \\
 }}
+
+\newcommand{\ottbool}{
+\ottrulehead{\ottnt{bool}}{::=}{\ottcom{boolean literals}}\ottprodnewline
+\ottfirstprodline{|}{ \mathsf{true} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{false} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{NA_B} }{}{}{}{\ottcom{boolean \textsf{NA}}}}
+
+\newcommand{\ottint}{
+\ottrulehead{\ottnt{int}}{::=}{\ottcom{integer literals}}\ottprodnewline
+\ottfirstprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ -  \ottmv{num} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{NA_I} }{}{}{}{\ottcom{integer \textsf{NA}}}}
+
+\newcommand{\ottstr}{
+\ottrulehead{\ottnt{str}}{::=}{\ottcom{string literals}}\ottprodnewline
+\ottfirstprodline{|}{ `` \ottmv{chr} " }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{NA_S} }{}{}{}{\ottcom{string \textsf{NA}}}}
 
 \newcommand{\ottv}{
 \ottrulehead{\ottnt{v}}{::=}{\ottcom{values}}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{true} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{false} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{NA_B} }{}{}{}{\ottcom{boolean \textsf{NA}}}\ottprodnewline
-\ottprodline{|}{\ottmv{int}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{NA_Z} }{}{}{}{\ottcom{integer \textsf{NA}}}\ottprodnewline
-\ottprodline{|}{\ottmv{str}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{NA_S} }{}{}{}{\ottcom{string \textsf{NA}}}}
+\ottfirstprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{int}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{str}}{}{}{}{}}
 
 \newcommand{\ottse}{
 \ottrulehead{\ottnt{se}}{::=}{\ottcom{simple expressions}}\ottprodnewline
-\ottfirstprodline{|}{\mathit{x}}{}{}{}{\ottcom{variable}}\ottprodnewline
-\ottprodline{|}{\ottnt{v}}{}{}{}{\ottcom{value}}}
+\ottfirstprodline{|}{\mathit{x}}{}{}{}{\ottcom{variables}}\ottprodnewline
+\ottprodline{|}{\ottnt{v}}{}{}{}{\ottcom{values}}}
+
+\newcommand{\ottuop}{
+\ottrulehead{\circ}{::=}{\ottcom{unary operators}}\ottprodnewline
+\ottfirstprodline{|}{ \neg }{}{}{}{\ottcom{logical negation}}\ottprodnewline
+\ottprodline{|}{\ottsym{+}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{-}}{}{}{}{}}
+
+\newcommand{\ottbop}{
+\ottrulehead{\diamond}{::=}{\ottcom{binary operators}}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{+}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{-}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \times }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{\%}}{}{}{}{\ottcom{modulo}}\ottprodnewline
+\ottprodline{|}{\ottsym{<}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \leq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \geq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{>}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{=}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \wedge }{}{}{}{\ottcom{logical and}}\ottprodnewline
+\ottprodline{|}{ \vee }{}{}{}{\ottcom{logical or}}}
 
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{isNA?\:  \ottnt{se} } }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \circ\:  \ottnt{se} }{}{}{}{\ottcom{unary op}}\ottprodnewline
-\ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}  \diamond  \ottnt{se_{{\mathrm{2}}}} }{}{}{}{\ottcom{binary op}}\ottprodnewline
-\ottprodline{|}{ ^ \ell  \textsf{input \negmedspace ()} }{}{}{}{\ottcom{labelled input}}\ottprodnewline
+\ottfirstprodline{|}{ \mathsf{isNA?} ( \ottnt{se} ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \circ ~ \ottnt{se} }{}{}{}{\ottcom{unary op}}\ottprodnewline
+\ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}} }{}{}{}{\ottcom{binary op}}\ottprodnewline
+\ottprodline{|}{ ^ \ottmv{l}   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{labelled input}}\ottprodnewline
 \ottprodline{|}{\ottnt{se}}{}{}{}{\ottcom{simple expression}}}
 
 \newcommand{\otts}{
 \ottrulehead{\ottnt{s}}{::=}{\ottcom{statements}}\ottprodnewline
-\ottfirstprodline{|}{\mathit{x}  \ottsym{:=}  \ottnt{e}}{}{}{}{\ottcom{assignment}}\ottprodnewline
-\ottprodline{|}{ \mathsf{if\:  \mathit{x} \: then\:  \ottnt{s_{{\mathrm{1}}}} \: else\:  \ottnt{s_{{\mathrm{2}}}} \: fi} }{}{}{}{\ottcom{if statement}}\ottprodnewline
-\ottprodline{|}{ \mathsf{for\:  \mathit{x} \: in\:  \ottnt{se_{{\mathrm{1}}}}  \negmedspace : \negmedspace  \ottnt{se_{{\mathrm{2}}}} \: do\:  \ottnt{s} \: od} }{}{}{}{\ottcom{for loop}}\ottprodnewline
+\ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{assignment}}\ottprodnewline
+\ottprodline{|}{ \mathsf{if} ~ \mathit{x} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{\ottcom{if statement}}\ottprodnewline
+\ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{\ottcom{for loop}}\ottprodnewline
 \ottprodline{|}{\ottnt{se_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{se_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequencing}}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{\ottcom{expression}}}
 
+\newcommand{\ottE}{
+\ottrulehead{\ottnt{E}}{::=}{\ottcom{environments}}\ottprodnewline
+\ottfirstprodline{|}{\emptyset}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{E} [  \mathit{x}  \mapsto  \ottnt{v}  ] }{}{}{}{\ottcom{environment update}}}
+
+\newcommand{\ottI}{
+\ottrulehead{\ottnt{I}}{::=}{\ottcom{input streams}}\ottprodnewline
+\ottfirstprodline{|}{\emptyset}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  \cdot  \ottnt{I} }{}{}{}{}}
+
+\newcommand{\ottC}{
+\ottrulehead{\ottnt{C}}{::=}{\ottcom{machine configuration}}\ottprodnewline
+\ottfirstprodline{|}{ \langle  \ottnt{s} \, \ottnt{I} \, \ottnt{E}  \rangle }{}{}{}{}}
+
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \longrightarrow }{}{}{}{}}
+\ottfirstprodline{|}{ \mathsf{isNA?} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{ {\color{teal}input}() } }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \leftarrow }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{if} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{then} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{else} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{fi} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{for} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{in} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{do} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{od} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \emptyset }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
@@ -78,21 +138,37 @@
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\mathit{termvar}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottmv{int}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottmv{str}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ell}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{chr}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{l}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{int}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{str}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{se}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\circ}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\diamond}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{s}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{E}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{I}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{C}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}}
 
 \newcommand{\ottgrammar}{\ottgrammartabular{
+\ottbool\ottinterrule
+\ottint\ottinterrule
+\ottstr\ottinterrule
 \ottv\ottinterrule
 \ottse\ottinterrule
+\ottuop\ottinterrule
+\ottbop\ottinterrule
 \otte\ottinterrule
 \otts\ottinterrule
+\ottE\ottinterrule
+\ottI\ottinterrule
+\ottC\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
 \ottjudgement\ottinterrule
