@@ -67,12 +67,13 @@
 			$se$ &$\Coloneqq$& $x$ & $x\in \vars$ \\
 			&$\vert$& $v$ & $v \in \vals$ \\
 			\\
-			$e$ &$\Coloneqq$& $\unopexpr{\circ}{se}$& $\circ~\in \set{\neg, +, -, \isna}$ \\
+      $e$ &$\Coloneqq$& $\isna(se)$ & \\
+			&$\vert$& $\unopexpr{\circ}{se}$& $\circ~\in \set{\neg, +, -}$ \\
 			& $\vert$& $\binopexpr{\diamond}{se_1}{se_2}$& $\diamond \in \set{+, -, *, /, \%, <, \leq, =, \neq, >, \geq, \lor, \land}$ \\
-			& $\vert$& $^\ell{}\ipt$ & $\ell{} \in \labels$ \\
 			& $\vert$& $se$ & \\
 			\\
 			$s$ &$\Coloneqq$& $\assignstmt{x}{e}$ & $x \in \vars$ \\
+      &$\vert$& $\assignstmt{x}{\,^\ell{}\ipt}$ & $\ell{} \in \labels$ \\
 			&$\vert$& \ifstmt{x}{s_1}{s_2} & \\
 			&$\vert$& \forstmt{x}{se_1}{se_2}{s} & \\
 			&$\vert$& $s_1 ; s_2$ & \\
