@@ -1,8 +1,9 @@
-metavar termvar, x ::= {{ com metavariables }} {{ tex \mathit{[[termvar]]} }}
+metavar x ::= {{ com metavariables }} {{ tex \mathit{[[x]]} }}
 
 metavar num ::= {{ com numbers }} {{ lex numeral  }}
 metavar chr ::= {{ com character sequences }} {{ lex alphanum }}
 metavar l   ::= {{ com labels }} {{ lex alphanum }}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 grammar
@@ -29,8 +30,8 @@ v :: 'v_' ::=                       {{ com values }}
 
 %%% Simple expressions %%%
 se :: 'se_' ::=                     {{ com simple expressions }}
-    | x             :: :: Var           {{ com variables }}
     | v             :: :: Val           {{ com values }}
+    | x             :: :: Var           {{ com variables }}
 
 %%% Unary operators %%%
 uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
@@ -70,12 +71,10 @@ s :: 's_' ::=                                       {{ com statements }}
     | se1 ; se2                     :: :: Seq           {{ com sequencing }}
     | e                             :: :: Exp           {{ com expression }}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %%% Environment %%%
 E :: 'E_' ::=                                       {{ com environments }}
     | empty                         :: :: Empty
-    | update E [ x -> v ]           :: :: UpdateEnv     {{ com environment update }} {{ tex [[E]][ [[x]] \mapsto [[v]] ] }}
+    | E [ x -> v ]                  :: :: UpdateEnv     {{ com environment update }} {{ tex [[E]][ [[x]] \mapsto [[v]] ] }}
 
 %%% Input stream %%%
 I :: 'I_' ::=                                       {{ com input streams }}
@@ -84,7 +83,7 @@ I :: 'I_' ::=                                       {{ com input streams }}
 
 %%% Machine configuration %%%
 C :: 'C_' ::=                                       {{ com machine configuration }}
-    | s I E                         :: :: sIE           {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
+    | s I E                         :: :: sIE           {{ com statements, input stream, environment }} {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
 
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
@@ -100,22 +99,25 @@ terminals :: 'terminals_' ::=
     | do            :: :: Do        {{ tex \mathsf{do} }}
     | od            :: :: Od        {{ tex \mathsf{od} }}
     | empty         :: :: Empty     {{ tex \emptyset }}
+    | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
 
 %%% FORMULAS %%%
 formula :: 'formula_' ::=
   | judgement               :: :: judgement
+  | E ( x ) = v             :: :: lookup
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%defns
-%OperationalSemantics :: '' ::=
-%
-%  defn
-%  e1 --> e2 :: :: reduce :: E_ {{ com $[[e1]]$ reduces to $[[e2]]$ }} by
-%
-%    ------------------- :: LitCtor
-%    num --> [ num ],Int
-%
-%    e1 --> num1 .. en --> numn
-%    -------------------------------------- :: VecCtor
-%    Vec(e1, .., en) --> [num1 .. numn],Int
+defns
+operational_semantics :: '' ::=
+
+    defn
+    E se -se-> v :: :: eval_se :: 'SE_' {{ com evaluation of simple expressions }} by
+
+    -----------  :: Literal
+    E v -se-> v
+
+    E ( x ) = v
+    --------------  :: Lookup
+    E x -se-> v
+

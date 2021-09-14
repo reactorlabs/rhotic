@@ -27,7 +27,7 @@
 \newcommand{\ottafterlastrule}{\\}
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
- $ \mathit{termvar} ,\, \mathit{x} $ & \ottcom{metavariables} \\
+ $ \mathit{x} $ & \ottcom{metavariables} \\
  $ \ottmv{num} $ & \ottcom{numbers} \\
  $ \ottmv{chr} $ & \ottcom{character sequences} \\
  $ \ottmv{l} $ & \ottcom{labels} \\
@@ -58,8 +58,8 @@
 
 \newcommand{\ottse}{
 \ottrulehead{\ottnt{se}}{::=}{\ottcom{simple expressions}}\ottprodnewline
-\ottfirstprodline{|}{\mathit{x}}{}{}{}{\ottcom{variables}}\ottprodnewline
-\ottprodline{|}{\ottnt{v}}{}{}{}{\ottcom{values}}}
+\ottfirstprodline{|}{\ottnt{v}}{}{}{}{\ottcom{values}}\ottprodnewline
+\ottprodline{|}{\mathit{x}}{}{}{}{\ottcom{variables}}}
 
 \newcommand{\ottuop}{
 \ottrulehead{\circ}{::=}{\ottcom{unary operators}}\ottprodnewline
@@ -111,7 +111,7 @@
 
 \newcommand{\ottC}{
 \ottrulehead{\ottnt{C}}{::=}{\ottcom{machine configuration}}\ottprodnewline
-\ottfirstprodline{|}{ \langle  \ottnt{s} \, \ottnt{I} \, \ottnt{E}  \rangle }{}{}{}{}}
+\ottfirstprodline{|}{ \langle  \ottnt{s} \, \ottnt{I} \, \ottnt{E}  \rangle }{}{}{}{\ottcom{statements, input stream, environment}}}
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
@@ -126,18 +126,25 @@
 \ottprodline{|}{ \mathsf{in} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{do} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{od} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \emptyset }{}{}{}{}}
+\ottprodline{|}{ \emptyset }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \rightharpoonup }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}}
+\ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}{}{}{}{}}
+
+\newcommand{\ottoperationalXXsemantics}{
+\ottrulehead{\ottnt{operational\_semantics}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{E} \, \ottnt{se}  \rightharpoonup  \ottnt{v}}{}{}{}{\ottcom{evaluation of simple expressions}}}
 
 \newcommand{\ottjudgement}{
-\ottrulehead{\ottnt{judgement}}{::=}{}}
+\ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{operational\_semantics}}{}{}{}{}}
 
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\mathit{termvar}}{}{}{}{}\ottprodnewline
+\ottfirstprodline{|}{\mathit{x}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{chr}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{l}}{}{}{}{}\ottprodnewline
@@ -171,12 +178,39 @@
 \ottC\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
+\ottoperationalXXsemantics\ottinterrule
 \ottjudgement\ottinterrule
 \ottuserXXsyntax\ottafterlastrule
 }}
 
 % defnss
+% defns operational_semantics
+%% defn eval_se
+\newcommand{\ottdruleSEXXLiteral}[1]{\ottdrule[#1]{%
+}{
+\ottnt{E} \, \ottnt{v}  \rightharpoonup  \ottnt{v}}{%
+{\ottdrulename{SE\_Literal}}{}%
+}}
+
+
+\newcommand{\ottdruleSEXXLookup}[1]{\ottdrule[#1]{%
+\ottpremise{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}%
+}{
+\ottnt{E} \, \mathit{x}  \rightharpoonup  \ottnt{v}}{%
+{\ottdrulename{SE\_Lookup}}{}%
+}}
+
+\newcommand{\ottdefnevalXXse}[1]{\begin{ottdefnblock}[#1]{$\ottnt{E} \, \ottnt{se}  \rightharpoonup  \ottnt{v}$}{\ottcom{evaluation of simple expressions}}
+\ottusedrule{\ottdruleSEXXLiteral{}}
+\ottusedrule{\ottdruleSEXXLookup{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnsoperationalXXsemantics}{
+\ottdefnevalXXse{}}
+
 \newcommand{\ottdefnss}{
+\ottdefnsoperationalXXsemantics
 }
 
 \newcommand{\ottall}{\ottmetavars\\[0pt]
