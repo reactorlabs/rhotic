@@ -28,9 +28,10 @@
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
  $ \mathit{x} $ & \ottcom{metavariables} \\
+ $ \ell $ & \ottcom{labels} \\
  $ \ottmv{num} $ & \ottcom{numbers} \\
  $ \ottmv{chr} $ & \ottcom{character sequences} \\
- $ \ell $ & \ottcom{labels} \\
+ $ \ottmv{n} $ & \ottcom{index variables} \\
 }}
 
 \newcommand{\ottbool}{
@@ -75,13 +76,13 @@
 \ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{\%}}{}{}{}{\ottcom{modulo}}\ottprodnewline
 \ottprodline{|}{\ottsym{<}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \leq }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \geq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\leq}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\geq}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{>}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{=}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \land }{}{}{}{\ottcom{logical and}}\ottprodnewline
-\ottprodline{|}{ \lor }{}{}{}{\ottcom{logical or}}}
+\ottprodline{|}{\neq}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\land}{}{}{}{\ottcom{logical and}}\ottprodnewline
+\ottprodline{|}{\lor}{}{}{}{\ottcom{logical or}}}
 
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
@@ -102,7 +103,16 @@
 \newcommand{\ottE}{
 \ottrulehead{\ottnt{E}}{::=}{\ottcom{environments}}\ottprodnewline
 \ottfirstprodline{|}{\emptyset}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] }{}{}{}{\ottcom{environment update}}}
+\ottprodline{|}{\ottnt{bindings}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}{}{}{}{\ottcom{environment update}}}
+
+\newcommand{\ottbindings}{
+\ottrulehead{\ottnt{bindings}}{::=}{\ottcom{binders}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{bind_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{bind_{\ottmv{n}}}}{}{}{}{}}
+
+\newcommand{\ottbind}{
+\ottrulehead{\ottnt{bind}}{::=}{\ottcom{binding}}\ottprodnewline
+\ottfirstprodline{|}{\mathit{x}  \mapsto  \ottnt{v}}{}{}{}{}}
 
 \newcommand{\ottI}{
 \ottrulehead{\ottnt{I}}{::=}{\ottcom{input streams}}\ottprodnewline
@@ -131,21 +141,27 @@
 \ottprodline{|}{ \rightharpoonup }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longrightarrow_e }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longmapsto }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \neq }{}{}{}{}}
+\ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \leq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \geq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \land }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \lor }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \llbracket  \circ  \rrbracket_1 (  \ottnt{se}  ) =  \ottnt{v} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \llbracket  \diamond  \rrbracket_2 (  \ottnt{se_{{\mathrm{1}}}} ,  \ottnt{se_{{\mathrm{2}}}}  ) =  \ottnt{v} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{formula_{{\mathrm{1}}}}  \land  \ottnt{formula_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{formula_{{\mathrm{1}}}}  \lor  \ottnt{formula_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v}  \ottsym{=}  \ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  = \llbracket  \circ  \rrbracket_1 ( \ottnt{se} ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  = \llbracket  \diamond  \rrbracket_2 ( \ottnt{se_{{\mathrm{1}}}} ,  \ottnt{se_{{\mathrm{2}}}} ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{v_{{\mathrm{1}}}}   \neq   \ottnt{v_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \neq  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{<}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  \ottnt{v_{{\mathrm{2}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{3}}}}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{3}}}}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] =  \ottnt{E'} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}}
 
 \newcommand{\ottoperationalXXsemantics}{
@@ -161,9 +177,10 @@
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\mathit{x}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ell}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{chr}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ell}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{n}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{int}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{str}}{}{}{}{}\ottprodnewline
@@ -174,6 +191,8 @@
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{s}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{E}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bindings}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{bind}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{I}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{C}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
@@ -190,6 +209,8 @@
 \otte\ottinterrule
 \otts\ottinterrule
 \ottE\ottinterrule
+\ottbindings\ottinterrule
+\ottbind\ottinterrule
 \ottI\ottinterrule
 \ottC\ottinterrule
 \ottterminals\ottinterrule
@@ -210,7 +231,7 @@
 
 
 \newcommand{\ottdruleSEXXLookup}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}  \ottsym{=}  \ottnt{v}}%
+\ottpremise{\ottnt{v}  \ottsym{=}  \ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}%
 }{
  \ottnt{E} \enspace \mathit{x}   \rightharpoonup   \ottnt{v} }{%
 {\ottdrulename{SE\_Lookup}}{}%
@@ -248,9 +269,7 @@
 
 \newcommand{\ottdruleEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{ \ottnt{v}   \neq    \mathsf{NA_B}  }%
-\ottpremise{ \ottnt{v}   \neq    \mathsf{NA_I}  }%
-\ottpremise{ \ottnt{v}   \neq    \mathsf{NA_S}  }%
+\ottpremise{\ottnt{v}  \neq   \mathsf{NA_B}   \land  \ottnt{v}  \neq   \mathsf{NA_I}   \land  \ottnt{v}  \neq   \mathsf{NA_S} }%
 }{
  \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
 {\ottdrulename{E\_IsNotNA}}{}%
@@ -259,7 +278,7 @@
 
 \newcommand{\ottdruleEXXUnaryOp}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{ \llbracket  \circ  \rrbracket_1 (  \ottnt{se}  ) =  \ottnt{v'} }%
+\ottpremise{ \ottnt{v'}  = \llbracket  \circ  \rrbracket_1 ( \ottnt{se} ) }%
 }{
  \ottnt{E} \enspace  \circ \ottnt{se}    \longrightarrow_e   \ottnt{v'} }{%
 {\ottdrulename{E\_UnaryOp}}{}%
@@ -269,7 +288,7 @@
 \newcommand{\ottdruleEXXBinaryOp}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
-\ottpremise{ \llbracket  \diamond  \rrbracket_2 (  \ottnt{v_{{\mathrm{1}}}} ,  \ottnt{v_{{\mathrm{2}}}}  ) =  \ottnt{v'} }%
+\ottpremise{ \ottnt{v'}  = \llbracket  \diamond  \rrbracket_2 ( \ottnt{v_{{\mathrm{1}}}} ,  \ottnt{v_{{\mathrm{2}}}} ) }%
 }{
  \ottnt{E} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \longrightarrow_e   \ottnt{v'} }{%
 {\ottdrulename{E\_BinaryOp}}{}%
@@ -296,7 +315,7 @@
 %% defn eval_s
 \newcommand{\ottdruleSXXAssign}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow_e   \ottnt{v} }%
-\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
  \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'} }{%
 {\ottdrulename{S\_Assign}}{}%
@@ -305,9 +324,9 @@
 
 \newcommand{\ottdruleSXXRead}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
-\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
-  \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() }  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+  \mathit{x}   \leftarrow \, ^ l   \mathsf{ {\color{teal}input}() }  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
 {\ottdrulename{S\_Read}}{}%
 }}
 
@@ -333,8 +352,8 @@
 \newcommand{\ottdruleSXXForIncr}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
-\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  1  \ottsym{=}  \ottnt{v'_{{\mathrm{1}}}}}%
-\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v_{{\mathrm{1}}}}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{v'_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  1}%
+\ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{<}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'} }{%
@@ -345,8 +364,8 @@
 \newcommand{\ottdruleSXXForDecr}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
-\ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  1  \ottsym{=}  \ottnt{v'_{{\mathrm{1}}}}}%
-\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v_{{\mathrm{1}}}}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{v'_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  1}%
+\ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'} }{%
@@ -357,7 +376,7 @@
 \newcommand{\ottdruleSXXForEnd}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
-\ottpremise{ \ottnt{E} [  \mathit{x}   \mapsto   \ottnt{v_{{\mathrm{1}}}}  ] =  \ottnt{E'} }%
+\ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s} \enspace \ottnt{I} \, \ottnt{E'} }{%

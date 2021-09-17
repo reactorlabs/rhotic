@@ -17,6 +17,10 @@ ott: $(OTTFILE)_.tex
 ifdef OTT
 $(OTTFILE)_.tex: $(OTTFILE).ott
 	$(OTT) $(OTTFLAGS) -i $< -o $@
+
+ottdebug: $(OTTFILE)_.tex
+	$(OTT) $(OTTFLAGS) -show_sort true -show_defns true -i $(OTTFILE).ott
+	$(LATEX) --interaction=batchmode $(OTTFILE)_debug.tex
 endif
 
 $(TEXFILE).pdf: $(TEXFILE).tex $(OTTFILE)_.tex
@@ -37,9 +41,9 @@ halfclean:
 	rm -rf *.log *.aux *.blg *~ *.out *.fdb_latexmk *.fls *.vtc
 
 clean: halfclean
-	rm -rf $(TEXFILE).pdf
+	rm -rf $(TEXFILE).pdf $(OTTFILE)_debug.pdf
 
-cleanott:
+cleanall: clean
 	rm -rf $(OTTFILE)_.tex
 
-.PHONY: all ott auto halfclean clean cleanott
+.PHONY: all ott ottdebug auto halfclean clean cleanall
