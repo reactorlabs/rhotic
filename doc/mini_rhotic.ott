@@ -1,0 +1,239 @@
+metavar x ::= {{ com metavariables }} {{ tex \mathit{[[x]]} }}
+
+metavar num ::= {{ com numbers }} {{ lex numeral  }}
+metavar chr ::= {{ com character sequences }} {{ lex alphanum }}
+metavar l   ::= {{ com labels }} {{ lex alphanum }} {{ tex \ell }}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+grammar
+
+%%% Values %%%
+bool :: 'bool_' ::=                 {{ com boolean literals }}
+    | true          :: :: True          {{ tex \mathsf{true} }}
+    | false         :: :: False         {{ tex \mathsf{false} }}
+    | NA_b          :: :: NA_bool       {{ com boolean \textsf{NA} }} {{ tex \mathsf{NA_B} }}
+
+int :: 'int_' ::=                   {{ com integer literals }}
+    | num           :: :: Int
+    | ~ num         :: :: NegInt        {{ tex - [[num]] }}
+    | NA_i          :: :: NA_int        {{ com integer \textsf{NA} }} {{ tex \mathsf{NA_I} }}
+
+str :: 'str_' ::=                   {{ com string literals }}
+    | " chr "       :: :: Str           {{ tex ``[[chr]]" }}
+    | NA_s          :: :: NA_str        {{ com string \textsf{NA} }} {{ tex \mathsf{NA_S} }}
+
+v :: 'v_' ::=                       {{ com values }}
+    | bool          :: :: Bool
+    | int           :: :: Int
+    | str           :: :: Str
+
+%%% Simple expressions %%%
+se :: 'se_' ::=                     {{ com simple expressions }}
+    | v             :: :: Val           {{ com values }}
+    | x             :: :: Var           {{ com variables }}
+
+%%% Unary operators %%%
+uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
+    | !             :: :: Negate        {{ com logical negation }} {{ tex \neg }}
+    | +             :: :: Plus
+    | -             :: :: Minus
+
+%%% Binary operators %%%a
+bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }}
+    | +             :: :: Plus
+    | -             :: :: Minus
+    | *             :: :: Times         {{ tex \times }}
+    | /             :: :: Divide        {{ tex \div }}
+    | %             :: :: Modulo        {{ com modulo }}
+    | <             :: :: Less
+    | <=            :: :: LessEqual     {{ tex \leq }}
+    | >=            :: :: GreaterEqual  {{ tex \geq }}
+    | >             :: :: Greater
+    | =             :: :: Equal
+    | =/=           :: :: NotEqaul      {{ tex \neq }}
+    | /\            :: :: And           {{ com logical and }} {{ tex \land }}
+    | \/            :: :: Or            {{ com logical or }} {{ tex \lor }}
+
+%%% Expressions %%%
+e :: 'e_' ::=                           {{ com expressions }}
+    | isNA se           :: :: IsNA          {{ tex [[isNA]]([[se]]) }}
+    | uop se            :: :: UOp           {{ com unary op }} {{ tex [[uop]][[se]] }}
+    | se1 bop se2       :: :: BOp           {{ com binary op }} {{ tex [[se1]] [[bop]] [[se2]] }}
+    | se                :: :: SimpleExp     {{ com simple expression }}
+
+%%% Statements %%%
+s :: 's_' ::=                                       {{ com statements }}
+    | x <- e                        :: :: Assign        {{ com assignment }}
+    | x <- l ^ input()              :: :: Read          {{ com read input (labelled) }} {{ tex [[x]] [[<-]]\, ^[[l]] [[input()]] }}
+    | if se then s1 else s2 fi      :: :: If            {{ com if statement }} {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
+    | for x in se1 : se2 do s od    :: :: For           {{ com for loop }} {{ tex [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
+    | s1 ; s2                       :: :: Seq           {{ com sequencing }}
+    | e                             :: :: Exp           {{ com expression }}
+
+%%% Environment %%%
+E :: 'E_' ::=                                       {{ com environments }}
+    | empty                         :: :: Empty
+    | E [ x -> v ]                  :: :: UpdateEnv     {{ com environment update }} {{ tex [[E]][ [[x]] [[->]] [[v]] ] }}
+
+%%% Input stream %%%
+I :: 'I_' ::=                                       {{ com input streams }}
+    | empty                         :: :: Empty
+    | v . I                         :: :: Single        {{ tex [[v]] \cdot [[I]] }}
+
+%%% Machine configuration %%%
+C :: 'C_' ::=                                       {{ com machine configuration }}
+    | s I E                         :: :: sIE           {{ com statements, input stream, environment }} {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
+
+%%% TERMINALS %%%
+terminals :: 'terminals_' ::=
+    | isNA          :: :: IsNA      {{ tex \mathsf{isNA?} }}
+    | input()       :: :: Input     {{ tex \mathsf{ {\color{teal}input}() } }}
+    | <-            :: :: Assign    {{ tex \leftarrow }}
+    | if            :: :: If        {{ tex \mathsf{if} }}
+    | then          :: :: Then      {{ tex \mathsf{then} }}
+    | else          :: :: Else      {{ tex \mathsf{else} }}
+    | fi            :: :: Fi        {{ tex \mathsf{fi} }}
+    | for           :: :: For       {{ tex \mathsf{for} }}
+    | in            :: :: In        {{ tex \mathsf{in} }}
+    | do            :: :: Do        {{ tex \mathsf{do} }}
+    | od            :: :: Od        {{ tex \mathsf{od} }}
+    | empty         :: :: Empty     {{ tex \emptyset }}
+    | ->            :: :: MapsTo    {{ tex \mapsto }}
+    | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
+    | -e->          :: :: EEval     {{ tex \longrightarrow_e }}
+    | -->           :: :: SEval     {{ tex \longmapsto }}
+    | =/=           :: :: NEq       {{ tex \neq }}
+
+%%% FORMULAS %%%
+formula :: 'formula_' ::=
+  | judgement                       :: :: judgement
+  | E ( x ) = v                     :: :: lookup
+  | [[ uop ]] ( se ) = v            :: :: primop_uop    {{ tex \llbracket [[uop]] \rrbracket_1 ( [[se]] ) = [[v]] }}
+  | [[ bop ]] ( se1 , se2 ) = v     :: :: primop_bop    {{ tex \llbracket [[bop]] \rrbracket_2 ( [[se1]], [[se2]] ) = [[v]] }}
+  | v1 = v2                         :: :: equal
+  | v1 =/= v2                       :: :: not_equal     {{ tex [[v1]] [[=/=]] [[v2]] }}
+  | v1 < v2                         :: :: less_than
+  | v1 > v2                         :: :: greater_than
+  | v1 + v2 = v3                    :: :: plus
+  | v1 - v2 = v3                    :: :: minus
+  | E [ x -> v ] = E'               :: :: env_update    {{ tex [[E]][ [[x]] [[->]] [[v]] ] = [[E']] }}
+  | I = v . I'                      :: :: input_stream  {{ tex [[I]] = [[v]] \cdot [[I']] }}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+defns
+operational_semantics :: '' ::=
+
+    %%% Evaluation of simple expressions %%%
+    defn
+    E se -se-> v :: :: eval_se :: 'SE_'
+        {{ com evaluation of simple expressions }}
+        {{ tex [[E]]\enspace[[se]] [[-se->]] [[v]] }}
+    by
+
+        -----------  :: Literal
+        E v -se-> v
+
+        E(x) = v
+        --------------  :: Lookup
+        E x -se-> v
+
+    %%% Evaluation of expressions %%%
+    defn
+    E e -e-> v :: :: eval_e :: 'E_'
+        {{ com evaluation of expressions }}
+        {{ tex [[E]]\enspace[[e]] [[-e->]] [[v]] }}
+    by
+
+        E se -se-> NA_b
+        ------------------- :: IsNAb
+        E isNA se -e-> true
+
+        E se -se-> NA_i
+        ------------------- :: IsNAi
+        E isNA se -e-> true
+
+        E se -se-> NA_s
+        ------------------- :: IsNAs
+        E isNA se -e-> true
+
+        E se -se-> v
+        v =/= NA_b
+        v =/= NA_i
+        v =/= NA_s
+        ------------------- :: IsNotNA
+        E isNA se -e-> true
+
+        E se -se-> v
+        [[uop]](se) = v'
+        ----------------  :: UnaryOp
+        E uop se -e-> v'
+
+        E se1 -se-> v1
+        E se2 -se-> v2
+        [[bop]](v1, v2) = v'
+        ---------------------  :: BinaryOp
+        E se1 bop se2 -e-> v'
+
+        E se -se-> v
+        ------------  :: SimpleExpression
+        E se -e-> v
+
+    %%% Evaluation of statements %%%
+    defn
+    s I E --> s' I' E' :: :: eval_s :: 'S_'
+        {{ com evaluation of statements }}
+        {{ tex [[s]]\enspace[[I]]\,[[E]] [[-->]] [[s']]\enspace[[I']]\,[[E']] }}
+    by
+
+        E e -e-> v
+        E[x -> v] = E'
+        ---------------------  :: Assign
+        x <- e I E --> v I E'
+
+        I = v . I'
+        E[x -> v] = E'
+        --------------------------------  :: Read
+        x <- l ^ input() I E --> v I' E'
+
+        E se -se-> v
+        v = true
+        ---------------------------------------  :: IfTrue
+        if se then s1 else s2 fi I E --> s1 I E
+
+        E se -se-> v
+        v = false
+        ---------------------------------------  :: IfFalse
+        if se then s1 else s2 fi I E --> s2 I E
+
+        E se1 -se-> v1
+        E se2 -se-> v2
+        v1 + 1 = v1'
+        E[x -> v1] = E'
+        v1 < v2
+        ---------------------------------------------------------------------  :: ForIncr
+        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+
+        E se1 -se-> v1
+        E se2 -se-> v2
+        v1 - 1 = v1'
+        E[x -> v1] = E'
+        v1 > v2
+        ---------------------------------------------------------------------  :: ForDecr
+        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+
+        E se1 -se-> v1
+        E se2 -se-> v2
+        E[x -> v1] = E'
+        v1 = v2
+        -----------------------------------------  :: ForEnd
+        for x in se1 : se2 do s od I E --> s I E'
+
+        s1 I E --> v I' E'
+        ------------------------  :: Seq
+        s1 ; s2 I E --> s2 I' E'
+
+        E e -e-> v
+        ---------------  :: Expression
+        e I E --> e I E
