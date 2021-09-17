@@ -4,9 +4,21 @@
 \usepackage[fleqn]{amsmath}
 \usepackage{mathtools}
 \usepackage{stmaryrd}
+\usepackage{mathpartir}
+\usepackage{supertabular}
+\usepackage{ottlayout}
 \usepackage{tikz}
 \usepackage{xspace}
 \usepackage{xcolor}
+
+% include generated LaTeX from Ott
+\input{mini_rhotic_}
+
+% overrides to use ottlayout
+\renewcommand{\ottpremise}[1]{\premiseSTY{#1}}
+\renewcommand{\ottusedrule}[1]{\usedruleSTY{#1}}
+\renewcommand{\ottdrule}[4][]{\druleSTY[#1]{#2}{#3}{#4}}
+\renewenvironment{ottdefnblock}[3][]{\defnblockSTY[#1]{#2}{#3}}{\enddefnblockSTY}
 
 \newcommand{\defined}{\ensuremath{\stackrel{\mbox{\tiny def}}{=}}\xspace} %
 \newcommand{\vars}{\ensuremath{\mathcal{X}}\xspace} % variables
@@ -57,33 +69,19 @@
 
 \section*{Syntax}
 
-\begin{figure}[t]
-	\begin{center}
-		\begin{tabular}{lclr}
-			$v$ &$\Coloneqq$& $\mathsf{true} ~~\vert~~ \mathsf{false} ~~\vert~~ \bna$ & $\bvals$\\
-			&$\vert$& $\cdots ~~\vert~~ -1 ~~\vert~~ 0 ~~\vert~~ 1 ~~\vert~~ \cdots ~~\vert~~ \ina$ & $\ivals$\\
-			&$\vert$& $\cdots ~~\vert~~ \sna$ & $\svals$\\
-			\\
-			$se$ &$\Coloneqq$& $x$ & $x\in \vars$ \\
-			&$\vert$& $v$ & $v \in \vals$ \\
-			\\
-      $e$ &$\Coloneqq$& $\isna(se)$ & \\
-			&$\vert$& $\unopexpr{\circ}{se}$& $\circ~\in \set{\neg, +, -}$ \\
-			& $\vert$& $\binopexpr{\diamond}{se_1}{se_2}$& $\diamond \in \set{+, -, *, /, \%, <, \leq, =, \neq, >, \geq, \lor, \land}$ \\
-			& $\vert$& $se$ & \\
-			\\
-			$s$ &$\Coloneqq$& $\assignstmt{x}{e}$ & $x \in \vars$ \\
-      &$\vert$& $\assignstmt{x}{\,^\ell{}\ipt}$ & $\ell{} \in \labels$ \\
-			&$\vert$& \ifstmt{x}{s_1}{s_2} & \\
-			&$\vert$& \forstmt{x}{se_1}{se_2}{s} & \\
-			&$\vert$& $s_1 ; s_2$ & \\
-			&$\vert$& $e$ & \\
-			\\
-			P & $\Coloneqq$& $s$ &
-		\end{tabular}
-	\end{center}
-	\vspace{-1em}
-	\caption{Syntax}\label{fig:syntax}
+\begin{figure}[th]
+  \begin{center}
+    \ottgrammartabular{
+    \ottbool\ottinterrule
+    \ottv\ottinterrule
+    \ottse\ottinterrule
+    \otte\ottinterrule
+    \otts\ottinterrule
+    \ottP\ottinterrule
+    }
+  \end{center}
+  \vspace{-1em}
+  \caption{Syntax}\label{fig:syntax}
 \end{figure}
 
 Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. Each value type admits a special value $\bna$, $\ina$, or $\sna$ representing missing values.

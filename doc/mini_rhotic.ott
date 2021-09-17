@@ -27,18 +27,18 @@ str :: 'str_' ::=                   {{ com string literals }}
     | NA_s          :: :: NA            {{ com string \textsf{NA} }} {{ tex \mathsf{NA_S} }}
 
 v :: 'v_' ::=                       {{ com values }}
-    | bool          :: :: Bool
-    | int           :: :: Int
-    | str           :: :: Str
+    | bool          :: :: Bool          {{ com \bvals }} {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }}
+    | int           :: :: Int           {{ com \ivals }} {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }}
+    | str           :: :: Str           {{ com \svals }} {{ tex \cdots ~|~ \sna }}
 
 %%% Simple expressions %%%
 se :: 'se_' ::=                     {{ com simple expressions }}
-    | v             :: :: Val           {{ com values }}
-    | x             :: :: Var           {{ com variables }}
+    | v             :: :: Val           {{ com $v \in \vals$ }}
+    | x             :: :: Var           {{ com $x \in \vars $ }}
 
 %%% Unary operators %%%
 uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
-    | !             :: :: Negate        {{ com logical negation }} {{ tex \neg }}
+    | !             :: :: Negate        {{ com logical negation }}
     | +             :: :: Plus
     | -             :: :: Minus
 
@@ -46,8 +46,8 @@ uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
 bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }}
     | +             :: :: Plus
     | -             :: :: Minus
-    | *             :: :: Times         {{ tex \times }}
-    | /             :: :: Divide        {{ tex \div }}
+    | *             :: :: Times
+    | /             :: :: Divide
     | %             :: :: Modulo        {{ com modulo }}
     | <             :: :: Less
     | <=            :: :: LessEqual
@@ -61,18 +61,31 @@ bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }
 %%% Expressions %%%
 e :: 'e_' ::=                           {{ com expressions }}
     | isNA se           :: :: IsNA          {{ tex [[isNA]]([[se]]) }}
-    | uop se            :: :: UOp           {{ com unary op }} {{ tex [[uop]][[se]] }}
-    | se1 bop se2       :: :: BOp           {{ com binary op }} {{ tex [[se1]] [[bop]] [[se2]] }}
-    | se                :: :: SimpleExp     {{ com simple expression }}
+    | uop se            :: :: UOp
+        {{ com $[[uop]] \in \{ \neg, +, - \}$ }}
+        {{ tex [[uop]][[se]] }}
+    | se1 bop se2       :: :: BOp
+        {{ com $[[bop]] \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$ }}
+        {{ tex [[se1]] [[bop]] [[se2]] }}
+    | se                :: :: SimpleExp
 
 %%% Statements %%%
 s :: 's_' ::=                                       {{ com statements }}
-    | x <- e                        :: :: Assign        {{ com assignment }}
-    | x <- L ^ input()              :: :: Read          {{ com read input (labelled) }} {{ tex [[x]] [[<-]]\, ^[[L]] [[input()]] }}
-    | if se then s1 else s2 fi      :: :: If            {{ com if statement }} {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
-    | for x in se1 : se2 do s od    :: :: For           {{ com for loop }} {{ tex [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
-    | s1 ; s2                       :: :: Seq           {{ com sequencing }}
-    | e                             :: :: Exp           {{ com expression }}
+    | x <- e                        :: :: Assign
+        {{ com $x \in \vars$ }}
+    | x <- L ^ input()              :: :: Read
+        {{ com $[[L]] \in \labels$ }}
+        {{ tex [[x]] [[<-]]\, ^[[L]] [[input()]] }}
+    | if se then s1 else s2 fi      :: :: If
+        {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
+    | for x in se1 : se2 do s od    :: :: For
+        {{ tex [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
+    | s1 ; s2                       :: :: Seq
+    | e                             :: :: Exp
+
+%%% Program %%%
+P :: 'P_' ::=                                       {{ com program }}
+    | s                             :: :: Statement
 
 %%% Environment %%%
 E :: 'Env_' ::=                                     {{ com environments }}
@@ -97,7 +110,7 @@ C :: 'C_' ::=                                       {{ com machine configuration
 
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
-    | isNA          :: :: IsNA      {{ tex \mathsf{isNA?} }}
+    | isNA          :: :: IsNA      {{ tex \isna }}
     | input()       :: :: Input     {{ tex \mathsf{ {\color{teal}input}() } }}
     | <-            :: :: Assign    {{ tex \leftarrow }}
     | if            :: :: If        {{ tex \mathsf{if} }}
@@ -113,9 +126,12 @@ terminals :: 'terminals_' ::=
     | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
     | -e->          :: :: EEval     {{ tex \longrightarrow_e }}
     | -->           :: :: SEval     {{ tex \longmapsto }}
-    | =/=           :: :: NEq       {{ tex \neq }}
+    | !             :: :: Negate    {{ tex \neg }}
+    | *             :: :: Times     {{ tex \times }}
+    | /             :: :: Divide    {{ tex \div }}
     | <=            :: :: LEq       {{ tex \leq }}
     | >=            :: :: GEq       {{ tex \geq }}
+    | =/=           :: :: NEq       {{ tex \neq }}
     | /\            :: :: And       {{ tex \land }}
     | \/            :: :: Or        {{ tex \lor }}
 

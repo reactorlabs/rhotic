@@ -53,18 +53,18 @@
 
 \newcommand{\ottv}{
 \ottrulehead{\ottnt{v}}{::=}{\ottcom{values}}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{bool}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{int}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{str}}{}{}{}{}}
+\ottfirstprodline{|}{ \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }{}{}{}{\ottcom{\bvals}}\ottprodnewline
+\ottprodline{|}{ \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }{}{}{}{\ottcom{\ivals}}\ottprodnewline
+\ottprodline{|}{ \cdots ~|~ \sna }{}{}{}{\ottcom{\svals}}}
 
 \newcommand{\ottse}{
 \ottrulehead{\ottnt{se}}{::=}{\ottcom{simple expressions}}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{v}}{}{}{}{\ottcom{values}}\ottprodnewline
-\ottprodline{|}{\mathit{x}}{}{}{}{\ottcom{variables}}}
+\ottfirstprodline{|}{\ottnt{v}}{}{}{}{\ottcom{$v \in \vals$}}\ottprodnewline
+\ottprodline{|}{\mathit{x}}{}{}{}{\ottcom{$x \in \vars $}}}
 
 \newcommand{\ottuop}{
 \ottrulehead{\circ}{::=}{\ottcom{unary operators}}\ottprodnewline
-\ottfirstprodline{|}{ \neg }{}{}{}{\ottcom{logical negation}}\ottprodnewline
+\ottfirstprodline{|}{\neg}{}{}{}{\ottcom{logical negation}}\ottprodnewline
 \ottprodline{|}{\ottsym{+}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{-}}{}{}{}{}}
 
@@ -72,8 +72,8 @@
 \ottrulehead{\diamond}{::=}{\ottcom{binary operators}}\ottprodnewline
 \ottfirstprodline{|}{\ottsym{+}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{-}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \times }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\times}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\div}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{\%}}{}{}{}{\ottcom{modulo}}\ottprodnewline
 \ottprodline{|}{\ottsym{<}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\leq}{}{}{}{}\ottprodnewline
@@ -86,19 +86,23 @@
 
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{isNA?} ( \ottnt{se} ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \circ \ottnt{se} }{}{}{}{\ottcom{unary op}}\ottprodnewline
-\ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}} }{}{}{}{\ottcom{binary op}}\ottprodnewline
-\ottprodline{|}{\ottnt{se}}{}{}{}{\ottcom{simple expression}}}
+\ottfirstprodline{|}{ \isna ( \ottnt{se} ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \circ \ottnt{se} }{}{}{}{\ottcom{$\circ \in \{ \neg, +, - \}$}}\ottprodnewline
+\ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}} }{}{}{}{\ottcom{$\diamond \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$}}\ottprodnewline
+\ottprodline{|}{\ottnt{se}}{}{}{}{}}
 
 \newcommand{\otts}{
 \ottrulehead{\ottnt{s}}{::=}{\ottcom{statements}}\ottprodnewline
-\ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{assignment}}\ottprodnewline
-\ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{read input (labelled)}}\ottprodnewline
-\ottprodline{|}{ \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{\ottcom{if statement}}\ottprodnewline
-\ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{\ottcom{for loop}}\ottprodnewline
-\ottprodline{|}{\ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}}}{}{}{}{\ottcom{sequencing}}\ottprodnewline
-\ottprodline{|}{\ottnt{e}}{}{}{}{\ottcom{expression}}}
+\ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{$x \in \vars$}}\ottprodnewline
+\ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{$\ell \in \labels$}}\ottprodnewline
+\ottprodline{|}{ \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{e}}{}{}{}{}}
+
+\newcommand{\ottP}{
+\ottrulehead{\ottnt{P}}{::=}{\ottcom{program}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{s}}{}{}{}{}}
 
 \newcommand{\ottE}{
 \ottrulehead{\ottnt{E}}{::=}{\ottcom{environments}}\ottprodnewline
@@ -125,7 +129,7 @@
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{isNA?} }{}{}{}{}\ottprodnewline
+\ottfirstprodline{|}{ \isna }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{ {\color{teal}input}() } }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \leftarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{if} }{}{}{}{}\ottprodnewline
@@ -141,9 +145,12 @@
 \ottprodline{|}{ \rightharpoonup }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longrightarrow_e }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longmapsto }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \neg }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \times }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \leq }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \geq }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \land }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \lor }{}{}{}{}}
 
@@ -190,6 +197,7 @@
 \ottprodline{|}{\diamond}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{s}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{P}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{E}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{bindings}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{bind}}{}{}{}{}\ottprodnewline
@@ -208,6 +216,7 @@
 \ottbop\ottinterrule
 \otte\ottinterrule
 \otts\ottinterrule
+\ottP\ottinterrule
 \ottE\ottinterrule
 \ottbindings\ottinterrule
 \ottbind\ottinterrule
@@ -244,34 +253,34 @@
 
 %% defn eval_e
 \newcommand{\ottdruleEXXIsNAb}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_B}  }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{true} ~|~ \mathsf{false} ~|~ \bna  }%
 }{
- \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow_e    \mathsf{true} ~|~ \mathsf{false} ~|~ \bna  }{%
 {\ottdrulename{E\_IsNAb}}{}%
 }}
 
 
 \newcommand{\ottdruleEXXIsNAi}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_I}  }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina  }%
 }{
- \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow_e    \mathsf{true} ~|~ \mathsf{false} ~|~ \bna  }{%
 {\ottdrulename{E\_IsNAi}}{}%
 }}
 
 
 \newcommand{\ottdruleEXXIsNAs}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_S}  }%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \cdots ~|~ \sna  }%
 }{
- \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow_e    \mathsf{true} ~|~ \mathsf{false} ~|~ \bna  }{%
 {\ottdrulename{E\_IsNAs}}{}%
 }}
 
 
 \newcommand{\ottdruleEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \neq   \mathsf{NA_B}   \land  \ottnt{v}  \neq   \mathsf{NA_I}   \land  \ottnt{v}  \neq   \mathsf{NA_S} }%
+\ottpremise{\ottnt{v}  \neq   \mathsf{true} ~|~ \mathsf{false} ~|~ \bna   \land  \ottnt{v}  \neq   \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina   \land  \ottnt{v}  \neq   \cdots ~|~ \sna }%
 }{
- \ottnt{E} \enspace  \mathsf{isNA?} ( \ottnt{se} )    \longrightarrow_e    \mathsf{true}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow_e    \mathsf{true} ~|~ \mathsf{false} ~|~ \bna  }{%
 {\ottdrulename{E\_IsNotNA}}{}%
 }}
 
@@ -333,7 +342,7 @@
 
 \newcommand{\ottdruleSXXIfTrue}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{true} }%
+\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }%
 }{
   \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E} }{%
 {\ottdrulename{S\_IfTrue}}{}%
@@ -342,7 +351,7 @@
 
 \newcommand{\ottdruleSXXIfFalse}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{false} }%
+\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }%
 }{
   \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E} }{%
 {\ottdrulename{S\_IfFalse}}{}%
@@ -352,7 +361,7 @@
 \newcommand{\ottdruleSXXForIncr}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
-\ottpremise{\ottnt{v'_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  1}%
+\ottpremise{\ottnt{v'_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}   \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{<}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
@@ -364,7 +373,7 @@
 \newcommand{\ottdruleSXXForDecr}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{1}}}} }%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
-\ottpremise{\ottnt{v'_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  1}%
+\ottpremise{\ottnt{v'_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}   \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
