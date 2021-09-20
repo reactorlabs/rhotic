@@ -11,6 +11,15 @@
 \usepackage{xspace}
 \usepackage{xcolor}
 
+\ottstyledefaults{%
+  showruleschema=yes,%
+  showcomment=no,%
+  rulelayout=oneperline,%
+  premiselayout=justify,%
+  premisenamelayout=topright,%
+  numberpremises=no,%
+}
+
 % include generated LaTeX from Ott
 \input{mini_rhotic_}
 
@@ -69,15 +78,20 @@
 
 \section*{Syntax}
 
-\begin{figure}[th]
+\begin{figure}[th!]
   \begin{center}
-    \grammartabularSTY{
-    \ottv\ottinterrule
-    \ottse\ottinterrule
-    \otte\ottinterrule
-    \otts\ottinterrule
-    \ottP
-    }
+    \begin{small}
+      \grammartabularSTY{%
+      \ottv\ottinterrule%
+      \ottse\ottinterrule%
+      \otte\ottinterrule%
+      \otts\ottinterrule%
+      \ottP\ottinterrule%
+      \ottE\ottinterrule%
+      \ottI\ottinterrule%
+      \ottC%
+      }
+    \end{small}
   \end{center}
   \vspace{-1em}
   \caption{Syntax}\label{fig:syntax}
@@ -88,10 +102,56 @@ The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
 
 \section*{Concrete Input-Aware Semantics}
 
+\begin{figure}[th!]
+  \begin{small}
+    \begin{mathpar}
+      \ottusedrule{\ottdruleSEXXLiteral{}}
+      \and
+      \ottusedrule{\ottdruleSEXXLookup{}}
+      \and
+
+      \ottusedrule{\ottdruleEXXSimpleExpression{}}
+      \\
+      \ottusedrule{\ottdruleEXXIsNAb{}}
+      \and
+      \ottusedrule{\ottdruleEXXIsNAi{}}
+      \and
+      \ottusedrule{\ottdruleEXXIsNAs{}}
+      \and
+      \ottusedrule{\ottdruleEXXIsNotNA{}}
+      \and
+      \ottusedrule{\ottdruleEXXUnaryOp{}}
+      \and
+      \ottusedrule{\ottdruleEXXBinaryOp{}}
+      \\
+
+      \ottusedrule{\ottdruleSXXExpression{}}
+      \and
+      \ottusedrule{\ottdruleSXXAssign{}}
+      \and
+      \ottusedrule{\ottdruleSXXRead{}}
+      \and
+      \ottusedrule{\ottdruleSXXIfTrue{}}
+      \and
+      \ottusedrule{\ottdruleSXXIfFalse{}}
+      \and
+      \ottusedrule{\ottdruleSXXForIncr{}}
+      \and
+      \ottusedrule{\ottdruleSXXForDecr{}}
+      \and
+      \ottusedrule{\ottdruleSXXForEnd{}}
+      \and
+      \ottusedrule{\ottdruleSXXSeq{}}
+    \end{mathpar}
+  \end{small}
+  \vspace{-1em}
+  \caption{Semantics}\label{fig:semantics}
+\end{figure}
+
 An environment $\rho\colon \vars \rightarrow \vals$ maps each program variable $X \in \vars$ to its value $\rho(X) \in \vals$. Let \envs denote the set of all environments. 
+Figure~\ref{fig:semantics} shows the reduction semantics of simple expressions, expressions, and statements.
 
 \todo{Patrick Cousot - Abstract Semantic Dependency (SAS 2019)}
-
 
 \section*{Syntactic Dependencies}
 

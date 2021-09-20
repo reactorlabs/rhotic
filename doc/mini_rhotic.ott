@@ -12,24 +12,27 @@ indexvar n  ::= {{ com index variables }}
 grammar
 
 %%% Values %%%
-bool :: 'bool_' ::=                 {{ com boolean literals }}
+bool {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }} :: 'bool_' ::=
+                                    {{ com boolean literals }}
     | true          :: :: True          {{ tex \mathsf{true} }}
     | false         :: :: False         {{ tex \mathsf{false} }}
     | NA_b          :: :: NA            {{ com boolean \textsf{NA} }} {{ tex \mathsf{NA_B} }}
 
-int :: 'int_' ::=                   {{ com integer literals }}
+int {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }} :: 'int_' ::=
+                                    {{ com integer literals }}
     | num           :: :: Int
     | ~ num         :: :: NegInt        {{ tex - [[num]] }}
     | NA_i          :: :: NA            {{ com integer \textsf{NA} }} {{ tex \mathsf{NA_I} }}
 
-str :: 'str_' ::=                   {{ com string literals }}
+str {{ tex \cdots ~|~ \sna }} :: 'str_' ::=
+                                    {{ com string literals }}
     | " chr "       :: :: Str           {{ tex ``[[chr]]" }}
     | NA_s          :: :: NA            {{ com string \textsf{NA} }} {{ tex \mathsf{NA_S} }}
 
 v :: 'v_' ::=                       {{ com values }}
-    | bool          :: :: Bool          {{ com \bvals }} {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }}
-    | int           :: :: Int           {{ com \ivals }} {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }}
-    | str           :: :: Str           {{ com \svals }} {{ tex \cdots ~|~ \sna }}
+    | bool          :: :: Bool          {{ com \bvals }}
+    | int           :: :: Int           {{ com \ivals }}
+    | str           :: :: Str           {{ com \svals }}
 
 %%% Simple expressions %%%
 se :: 'se_' ::=                     {{ com simple expressions }}
@@ -88,25 +91,18 @@ P :: 'P_' ::=                                       {{ com program }}
     | s                             :: :: Statement
 
 %%% Environment %%%
-E :: 'Env_' ::=                                     {{ com environments }}
-    | empty                         :: :: Empty
-    | bindings                      :: :: Bindings
+E :: 'Env_' ::=                                     {{ com environment }}
+    | empty                         :: :: Empty         {{ com empty environment }}
     | E [ x -> v ]                  :: :: UpdateEnv     {{ com environment update }}
 
-bindings :: '' ::=                                  {{ com binders }}
-    | bind1 , .. , bindn            :: :: Bindings
-
-bind :: '' ::=                                      {{ com binding }}
-    | x -> v                        :: :: Bind
-
 %%% Input stream %%%
-I :: 'I_' ::=                                       {{ com input streams }}
-    | empty                         :: :: Empty
+I :: 'I_' ::=                                       {{ com input stream }}
+    | empty                         :: :: Empty         {{ com empty stream }}
     | v . I                         :: :: Single        {{ tex [[v]] \cdot [[I]] }}
 
 %%% Machine configuration %%%
 C :: 'C_' ::=                                       {{ com machine configuration }}
-    | s I E                         :: :: sIE           {{ com statements, input stream, environment }} {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
+    | s I E                         :: :: sIE           {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
 
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
@@ -124,7 +120,7 @@ terminals :: 'terminals_' ::=
     | empty         :: :: Empty     {{ tex \emptyset }}
     | ->            :: :: MapsTo    {{ tex \mapsto }}
     | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
-    | -e->          :: :: EEval     {{ tex \longrightarrow_e }}
+    | -e->          :: :: EEval     {{ tex \longrightarrow }}
     | -->           :: :: SEval     {{ tex \longmapsto }}
     | !             :: :: Negate    {{ tex \neg }}
     | *             :: :: Times     {{ tex \times }}
