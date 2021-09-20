@@ -174,22 +174,15 @@ operational_semantics :: '' ::=
         {{ tex [[E]]\enspace[[e]] [[-e->]] [[v]] }}
     by
 
-        E se -se-> NA_b
-        ------------------- :: IsNAb
-        E isNA se -e-> true
-
-        E se -se-> NA_i
-        ------------------- :: IsNAi
-        E isNA se -e-> true
-
-        E se -se-> NA_s
-        ------------------- :: IsNAs
+        E se -se-> v
+        v = NA_b \/ v = NA_i \/ v = NA_s
+        -------------------------------- :: IsNA
         E isNA se -e-> true
 
         E se -se-> v
         v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
         -------------------------------------- :: IsNotNA
-        E isNA se -e-> true
+        E isNA se -e-> false
 
         E se -se-> v
         v' = [[uop]](se)
@@ -221,7 +214,7 @@ operational_semantics :: '' ::=
         I = v . I'
         E' = E[x -> v]
         --------------------------------  :: Read
-        x <- l ^ input() I E --> v I' E'
+        x <- L ^ input() I E --> v I' E'
 
         E se -se-> v
         v = true

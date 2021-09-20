@@ -116,7 +116,7 @@
 
 \newcommand{\ottC}{
 \ottrulehead{\ottnt{C}}{::=}{\ottcom{machine configuration}}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{s} \, \ottnt{I} \, \ottnt{E}}{}{}{}{}}
+\ottfirstprodline{|}{ \langle  \ottnt{s} \, \ottnt{I} \, \ottnt{E}  \rangle }{}{}{}{}}
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
@@ -239,27 +239,12 @@
 \end{ottdefnblock}}
 
 %% defn eval_e
-\newcommand{\ottdruleEXXIsNAb}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_B}  }%
+\newcommand{\ottdruleEXXIsNA}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
+\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{NA_B}   \lor  \ottnt{v}  \ottsym{=}   \mathsf{NA_I}   \lor  \ottnt{v}  \ottsym{=}   \mathsf{NA_S} }%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
-{\ottdrulename{E\_IsNAb}}{}%
-}}
-
-
-\newcommand{\ottdruleEXXIsNAi}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_I}  }%
-}{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
-{\ottdrulename{E\_IsNAi}}{}%
-}}
-
-
-\newcommand{\ottdruleEXXIsNAs}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup    \mathsf{NA_S}  }%
-}{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
-{\ottdrulename{E\_IsNAs}}{}%
+{\ottdrulename{E\_IsNA}}{}%
 }}
 
 
@@ -267,7 +252,7 @@
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
 \ottpremise{\ottnt{v}  \neq   \mathsf{NA_B}   \land  \ottnt{v}  \neq   \mathsf{NA_I}   \land  \ottnt{v}  \neq   \mathsf{NA_S} }%
 }{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{false}  }{%
 {\ottdrulename{E\_IsNotNA}}{}%
 }}
 
@@ -299,9 +284,7 @@
 }}
 
 \newcommand{\ottdefnevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{E} \enspace \ottnt{e}   \longrightarrow   \ottnt{v} $}{\ottcom{evaluation of expressions}}
-\ottusedrule{\ottdruleEXXIsNAb{}}
-\ottusedrule{\ottdruleEXXIsNAi{}}
-\ottusedrule{\ottdruleEXXIsNAs{}}
+\ottusedrule{\ottdruleEXXIsNA{}}
 \ottusedrule{\ottdruleEXXIsNotNA{}}
 \ottusedrule{\ottdruleEXXUnaryOp{}}
 \ottusedrule{\ottdruleEXXBinaryOp{}}
@@ -322,7 +305,7 @@
 \ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
-  \mathit{x}   \leftarrow \, ^ l   \mathsf{ {\color{teal}input}() }  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+  \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() }  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
 {\ottdrulename{S\_Read}}{}%
 }}
 
