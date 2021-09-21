@@ -1,3 +1,6 @@
+% NOTE: Some of the typesetting refers to macros defined in notes.tex
+% This is fine, as long as the generated definitions are only used with notes.tex
+
 metavar x   ::= {{ com metavariables }} {{ tex \mathit{[[x]]} }}
 
 metavar L   ::= {{ com labels }} {{ lex alphanum }} {{ tex \ell }}
@@ -16,28 +19,28 @@ bool {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }} :: 'bool_' ::=
                                     {{ com boolean literals }}
     | true          :: :: True          {{ tex \mathsf{true} }}
     | false         :: :: False         {{ tex \mathsf{false} }}
-    | NA_b          :: :: NA            {{ com boolean \textsf{NA} }} {{ tex \mathsf{NA_B} }}
+    | NA_b          :: :: NA            {{ com boolean \textsf{NA} }} {{ tex \bna }}
 
 int {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }} :: 'int_' ::=
                                     {{ com integer literals }}
     | num           :: :: Int
     | ~ num         :: :: NegInt        {{ tex - [[num]] }}
-    | NA_i          :: :: NA            {{ com integer \textsf{NA} }} {{ tex \mathsf{NA_I} }}
+    | NA_i          :: :: NA            {{ com integer \textsf{NA} }} {{ tex \ina }}
 
 str {{ tex \cdots ~|~ \sna }} :: 'str_' ::=
                                     {{ com string literals }}
     | " chr "       :: :: Str           {{ tex ``[[chr]]" }}
-    | NA_s          :: :: NA            {{ com string \textsf{NA} }} {{ tex \mathsf{NA_S} }}
+    | NA_s          :: :: NA            {{ com string \textsf{NA} }} {{ tex \sna }}
 
-v :: 'v_' ::=                       {{ com values }}
+v :: 'v_' ::=                       {{ com values $\vals$ }}
     | bool          :: :: Bool          {{ com \bvals }}
     | int           :: :: Int           {{ com \ivals }}
     | str           :: :: Str           {{ com \svals }}
 
 %%% Simple expressions %%%
 se :: 'se_' ::=                     {{ com simple expressions }}
-    | v             :: :: Val           {{ com $v \in \vals$ }}
-    | x             :: :: Var           {{ com $x \in \vars $ }}
+    | v             :: :: Val           {{ com $[[v]] \in \vals$ }}
+    | x             :: :: Var           {{ com $[[x]] \in \vars $ }}
 
 %%% Unary operators %%%
 uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
@@ -107,7 +110,7 @@ C :: 'C_' ::=                                       {{ com machine configuration
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
     | isNA          :: :: IsNA      {{ tex \isna }}
-    | input()       :: :: Input     {{ tex \mathsf{ {\color{teal}input}() } }}
+    | input()       :: :: Input     {{ tex \ipt }}
     | <-            :: :: Assign    {{ tex \leftarrow }}
     | if            :: :: If        {{ tex \mathsf{if} }}
     | then          :: :: Then      {{ tex \mathsf{then} }}

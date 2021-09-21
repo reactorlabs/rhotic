@@ -38,29 +38,29 @@
 \ottrulehead{\mathsf{true} ~|~ \mathsf{false} ~|~ \bna}{::=}{\ottcom{boolean literals}}\ottprodnewline
 \ottfirstprodline{|}{ \mathsf{true} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{false} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{NA_B} }{}{}{}{\ottcom{boolean \textsf{NA}}}}
+\ottprodline{|}{ \bna }{}{}{}{\ottcom{boolean \textsf{NA}}}}
 
 \newcommand{\ottint}{
 \ottrulehead{\cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina}{::=}{\ottcom{integer literals}}\ottprodnewline
 \ottfirstprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ -  \ottmv{num} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{NA_I} }{}{}{}{\ottcom{integer \textsf{NA}}}}
+\ottprodline{|}{ \ina }{}{}{}{\ottcom{integer \textsf{NA}}}}
 
 \newcommand{\ottstr}{
 \ottrulehead{\cdots ~|~ \sna}{::=}{\ottcom{string literals}}\ottprodnewline
 \ottfirstprodline{|}{ `` \ottmv{chr} " }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{NA_S} }{}{}{}{\ottcom{string \textsf{NA}}}}
+\ottprodline{|}{ \sna }{}{}{}{\ottcom{string \textsf{NA}}}}
 
 \newcommand{\ottv}{
-\ottrulehead{\ottnt{v}}{::=}{\ottcom{values}}\ottprodnewline
+\ottrulehead{\ottnt{v}}{::=}{\ottcom{values $\vals$}}\ottprodnewline
 \ottfirstprodline{|}{\mathsf{true} ~|~ \mathsf{false} ~|~ \bna}{}{}{}{\ottcom{\bvals}}\ottprodnewline
 \ottprodline{|}{\cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina}{}{}{}{\ottcom{\ivals}}\ottprodnewline
 \ottprodline{|}{\cdots ~|~ \sna}{}{}{}{\ottcom{\svals}}}
 
 \newcommand{\ottse}{
 \ottrulehead{\ottnt{se}}{::=}{\ottcom{simple expressions}}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{v}}{}{}{}{\ottcom{$v \in \vals$}}\ottprodnewline
-\ottprodline{|}{\mathit{x}}{}{}{}{\ottcom{$x \in \vars $}}}
+\ottfirstprodline{|}{\ottnt{v}}{}{}{}{\ottcom{$\ottnt{v} \in \vals$}}\ottprodnewline
+\ottprodline{|}{\mathit{x}}{}{}{}{\ottcom{$\mathit{x} \in \vars $}}}
 
 \newcommand{\ottuop}{
 \ottrulehead{\circ}{::=}{\ottcom{unary operators}}\ottprodnewline
@@ -94,7 +94,7 @@
 \newcommand{\otts}{
 \ottrulehead{\ottnt{s}}{::=}{\ottcom{statements}}\ottprodnewline
 \ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{$x \in \vars$}}\ottprodnewline
-\ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() } }{}{}{}{\ottcom{$\ell \in \labels$}}\ottprodnewline
+\ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \ipt }{}{}{}{\ottcom{$\ell \in \labels$}}\ottprodnewline
 \ottprodline{|}{ \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
@@ -121,7 +121,7 @@
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{ \isna }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{ {\color{teal}input}() } }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ipt }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \leftarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{if} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{then} }{}{}{}{}\ottprodnewline
@@ -241,7 +241,7 @@
 %% defn eval_e
 \newcommand{\ottdruleEXXIsNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{NA_B}   \lor  \ottnt{v}  \ottsym{=}   \mathsf{NA_I}   \lor  \ottnt{v}  \ottsym{=}   \mathsf{NA_S} }%
+\ottpremise{\ottnt{v}  \ottsym{=}   \bna   \lor  \ottnt{v}  \ottsym{=}   \ina   \lor  \ottnt{v}  \ottsym{=}   \sna }%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
 {\ottdrulename{E\_IsNA}}{}%
@@ -250,7 +250,7 @@
 
 \newcommand{\ottdruleEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \neq   \mathsf{NA_B}   \land  \ottnt{v}  \neq   \mathsf{NA_I}   \land  \ottnt{v}  \neq   \mathsf{NA_S} }%
+\ottpremise{\ottnt{v}  \neq   \bna   \land  \ottnt{v}  \neq   \ina   \land  \ottnt{v}  \neq   \sna }%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{false}  }{%
 {\ottdrulename{E\_IsNotNA}}{}%
@@ -305,7 +305,7 @@
 \ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
-  \mathit{x}   \leftarrow \, ^ \ell   \mathsf{ {\color{teal}input}() }  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+  \mathit{x}   \leftarrow \, ^ \ell   \ipt  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
 {\ottdrulename{S\_Read}}{}%
 }}
 

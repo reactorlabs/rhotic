@@ -34,7 +34,6 @@ endif
 
 auto: $(TEXFILE).tex $(OTTFILE).ott $(OTTFILE)_.tex
 	while true; do inotifywait -e modify $^; make all; done
-	#latexmk -pdf -pvc $<
 
 halfclean:
 	rm -rf *.log *.aux *.blg *~ *.out *.fdb_latexmk *.fls *.vtc
