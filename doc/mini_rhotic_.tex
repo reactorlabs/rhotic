@@ -28,7 +28,7 @@
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
  $ \mathit{x} $ & \ottcom{metavariables} \\
- $ \ell $ & \ottcom{labels} \\
+ $ \mathit{l} $ & \ottcom{labels} \\
  $ \ottmv{num} $ & \ottcom{numbers} \\
  $ \ottmv{chr} $ & \ottcom{character sequences} \\
  $ \ottmv{n} $ & \ottcom{index variables} \\
@@ -94,7 +94,7 @@
 \newcommand{\otts}{
 \ottrulehead{\ottnt{s}}{::=}{\ottcom{statements}}\ottprodnewline
 \ottfirstprodline{|}{\mathit{x}  \leftarrow  \ottnt{e}}{}{}{}{\ottcom{$x \in \vars$}}\ottprodnewline
-\ottprodline{|}{ \mathit{x}   \leftarrow \, ^ \ell   \ipt }{}{}{}{\ottcom{$\ell \in \labels$}}\ottprodnewline
+\ottprodline{|}{ \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt }{}{}{}{\ottcom{$\mathit{l} \in \labels$}}\ottprodnewline
 \ottprodline{|}{ \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
@@ -175,7 +175,7 @@
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\mathit{x}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ell}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathit{l}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{chr}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{n}}{}{}{}{}\ottprodnewline
@@ -305,7 +305,7 @@
 \ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
-  \mathit{x}   \leftarrow \, ^ \ell   \ipt  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+  \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
 {\ottdrulename{S\_Read}}{}%
 }}
 

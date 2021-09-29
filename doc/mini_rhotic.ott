@@ -3,7 +3,7 @@
 
 metavar x   ::= {{ com metavariables }} {{ tex \mathit{[[x]]} }}
 
-metavar L   ::= {{ com labels }} {{ lex alphanum }} {{ tex \ell }}
+metavar l   ::= {{ com labels }} {{ lex numeral }} {{ tex \mathit{[[l]]} }}
 
 metavar num ::= {{ com numbers }} {{ lex numeral  }}
 metavar chr ::= {{ com character sequences }} {{ lex alphanum }}
@@ -79,9 +79,9 @@ e :: 'e_' ::=                           {{ com expressions }}
 s :: 's_' ::=                                       {{ com statements }}
     | x <- e                        :: :: Assign
         {{ com $x \in \vars$ }}
-    | x <- L ^ input()              :: :: Read
-        {{ com $[[L]] \in \labels$ }}
-        {{ tex [[x]] [[<-]]\, ^[[L]] [[input()]] }}
+    | x <- l ^ input()              :: :: Read
+        {{ com $[[l]] \in \labels$ }}
+        {{ tex [[x]] [[<-]]\, ^{[[l]]} [[input()]] }}
     | if se then s1 else s2 fi      :: :: If
         {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
     | for x in se1 : se2 do s od    :: :: For
@@ -217,7 +217,7 @@ operational_semantics :: '' ::=
         I = v . I'
         E' = E[x -> v]
         --------------------------------  :: Read
-        x <- L ^ input() I E --> v I' E'
+        x <- l ^ input() I E --> v I' E'
 
         E se -se-> v
         v = true
