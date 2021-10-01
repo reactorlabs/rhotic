@@ -13,7 +13,7 @@
 
 \ottstyledefaults{%
   showruleschema=yes,%
-  showcomment=no,%
+  showcomment=yes,%
   rulelayout=oneperline,%
   premiselayout=justify,%
   premisenamelayout=topright,%
@@ -32,15 +32,16 @@
 \newcommand{\defined}{\ensuremath{\stackrel{\mbox{\tiny def}}{=}}\xspace} %
 \newcommand{\vars}{\ensuremath{\mathcal{X}}\xspace} % variables
 \newcommand{\vals}{\ensuremath{\mathbb{V}}\xspace} % values
-\newcommand{\bvals}{\ensuremath{\mathbb{B}_\mathsf{NA}}\xspace} % bool values
+\newcommand{\na}{\ensuremath{\mathsf{NA}}\xspace} % NA
+\newcommand{\bvals}{\ensuremath{\mathbb{B}_\na}\xspace} % bool values
 \newcommand{\bools}{\ensuremath{\mathbb{B}}\xspace} % bools
-\newcommand{\bna}{\ensuremath{\mathsf{NA}_{B}}\xspace} % bool NA
-\newcommand{\ivals}{\ensuremath{\mathbb{Z}_\mathsf{NA}}\xspace} % int values
+\newcommand{\bna}{\ensuremath{\na_{B}}\xspace} % bool NA
+\newcommand{\ivals}{\ensuremath{\mathbb{Z}_\na}\xspace} % int values
 \newcommand{\ints}{\ensuremath{\mathbb{Z}}\xspace} % ints
-\newcommand{\ina}{\ensuremath{\mathsf{NA}_{Z}}\xspace} % int NA
-\newcommand{\svals}{\ensuremath{\mathbb{S}_\mathsf{NA}}\xspace} % string values
+\newcommand{\ina}{\ensuremath{\na_{Z}}\xspace} % int NA
+\newcommand{\svals}{\ensuremath{\mathbb{S}_\na}\xspace} % string values
 \newcommand{\strings}{\ensuremath{\mathbb{S}}\xspace} % strings
-\newcommand{\sna}{\ensuremath{\mathsf{NA}_{S}}\xspace} % string NA
+\newcommand{\sna}{\ensuremath{\na_{S}}\xspace} % string NA
 \newcommand{\isna}{\ensuremath{\mathsf{isNA?}}\xspace} % isNA?
 \newcommand{\ipt}{\ensuremath{\mathbf{\mathsf{\color{teal}input}}()}\xspace} % input
 \newcommand{\powerset}[1]{\ensuremath{\mathcal{P}\left(#1\right)}\xspace} % powerset
@@ -102,7 +103,7 @@ The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
     \begin{mathpar}
       \ottusedrule{\ottdruleSEXXLiteral{}}
       \and
-      \ottusedrule{\ottdruleSEXXLookup{}}
+      \ottusedrule{\ottdruleSEXXVariable{}}
       \and
 
       \ottusedrule{\ottdruleEXXSimpleExpression{}}
@@ -120,7 +121,7 @@ The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
       \and
       \ottusedrule{\ottdruleSXXAssign{}}
       \and
-      \ottusedrule{\ottdruleSXXRead{}}
+      \ottusedrule{\ottdruleSXXInput{}}
       \and
       \ottusedrule{\ottdruleSXXIfTrue{}}
       \and
@@ -291,5 +292,9 @@ where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \time
 \item[\peek{x} = 1]
 \item[5] $\rightarrow$ 6
 \end{description}
+
+\clearpage
+\section*{Rendered Ott output}
+\ottall
 
 \end{document}

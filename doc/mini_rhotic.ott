@@ -14,23 +14,25 @@ indexvar n  ::= {{ com index variables }}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 grammar
 
+%%% CONCRETE GRAMMAR %%%
+
 %%% Values %%%
 bool {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }} :: 'bool_' ::=
                                     {{ com boolean literals }}
     | true          :: :: True          {{ tex \mathsf{true} }}
     | false         :: :: False         {{ tex \mathsf{false} }}
-    | NA_b          :: :: NA            {{ com boolean \textsf{NA} }} {{ tex \bna }}
+    | NA_b          :: :: NA            {{ com boolean \na }} {{ tex \bna }}
 
 int {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }} :: 'int_' ::=
                                     {{ com integer literals }}
     | num           :: :: Int
     | ~ num         :: :: NegInt        {{ tex - [[num]] }}
-    | NA_i          :: :: NA            {{ com integer \textsf{NA} }} {{ tex \ina }}
+    | NA_i          :: :: NA            {{ com integer \na }} {{ tex \ina }}
 
 str {{ tex \cdots ~|~ \sna }} :: 'str_' ::=
                                     {{ com string literals }}
     | " chr "       :: :: Str           {{ tex ``[[chr]]" }}
-    | NA_s          :: :: NA            {{ com string \textsf{NA} }} {{ tex \sna }}
+    | NA_s          :: :: NA            {{ com string \na }} {{ tex \sna }}
 
 v :: 'v_' ::=                       {{ com values $\vals$ }}
     | bool          :: :: Bool          {{ com \bvals }}
@@ -79,7 +81,7 @@ e :: 'e_' ::=                           {{ com expressions }}
 s :: 's_' ::=                                       {{ com statements }}
     | x <- e                        :: :: Assign
         {{ com $x \in \vars$ }}
-    | x <- l ^ input()              :: :: Read
+    | x <- l ^ input()              :: :: Input
         {{ com $[[l]] \in \labels$ }}
         {{ tex [[x]] [[<-]]\, ^{[[l]]} [[input()]] }}
     | if se then s1 else s2 fi      :: :: If
@@ -107,6 +109,43 @@ I :: 'I_' ::=                                       {{ com input stream }}
 C :: 'C_' ::=                                       {{ com machine configuration }}
     | s I E                         :: :: sIE           {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
 
+L :: 'L_' ::=                                       {{ com label set }}
+    | empty                         :: :: Empty         {{ com empty label set }}
+    | { l1 , ... , ln }             :: :: Set           {{ com labels }}
+    | L1 union L2                   :: :: Intersection  {{ com union }}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ANALYSIS GRAMMAR %%%
+Lat :: 'Lat_' ::=                                   {{ com lattice }}
+    | alpha ( v )                   :: :: alpha         {{ com abstraction of concrete value }} {{ tex \alpha([[v]]) }}
+    | Auop Lat                      :: :: Auop          {{ com abstract unary operation }}
+    | Lat1 Abop Lat2                :: :: Abop          {{ com abstract binary operation }}
+    | NA_Lat                        :: :: NA            {{ com NA analysis }}
+
+Av {{ tex \widehat{v} }} :: 'Av_' ::=               {{ com abstract value }}
+    | NA_Av                         :: :: NA            {{ com NA analysis }}
+
+AE {{ tex \widehat{E} }} :: 'AE_' ::=               {{ com abstract environment }}
+    | NA_AE                         :: :: NA            {{ com NA analysis }}
+
+%%% NA Analysis %%%
+
+NA_Lat :: 'NA_Lat_' ::=
+    | Top                           :: :: Top
+    | NA                            :: :: NA            {{ tex \textsc{na} }}
+    | ! NA                          :: :: NotNA         {{ tex \neg \textsc{na} }}
+    | Bot                           :: :: Bot
+
+NA_Av :: 'NA_Av_' ::=
+    | [ Lat1 , Lat2 , L ]           :: :: AVal          {{ tex \langle [[Lat1]] , [[Lat2]] , [[L]] \rangle }}
+
+NA_AE :: 'NA_AE_' ::=                               {{ com \na analysis abstract environment }}
+    | empty                         :: :: Empty         {{ com empty environment }}
+    | AE [ x -> Av ]                :: :: EnvBind       {{ com environment binding }}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
     | isNA          :: :: IsNA      {{ tex \isna }}
@@ -133,6 +172,13 @@ terminals :: 'terminals_' ::=
     | =/=           :: :: NEq       {{ tex \neq }}
     | /\            :: :: And       {{ tex \land }}
     | \/            :: :: Or        {{ tex \lor }}
+    | Top           :: :: Top       {{ tex \top }}
+    | Bot           :: :: Bot       {{ tex \bot }}
+    | -na-se->      :: :: NA_SEEval {{ tex \rightsquigarrow_{se} }}
+    | -na-e->       :: :: NA_EEval  {{ tex \rightsquigarrow }}
+    | union         :: :: Union     {{ tex \cup }}
+    | Auop          :: :: Auop      {{ tex \widehat{\circ} }}
+    | Abop          :: :: Abop      {{ tex \widehat{\diamond} }}
 
 %%% FORMULAS %%%
 formula :: 'formula_' ::=
@@ -150,9 +196,17 @@ formula :: 'formula_' ::=
   | v' = v1 - v2                    :: :: minus
   | E' = E [ x -> v ]               :: :: env_update
   | I = v . I'                      :: :: input_stream  {{ tex [[I]] = [[v]] \cdot [[I']] }}
+  | Av = AE ( x )                   :: :: abstract_lookup
+  | AE' = AE [ x -> Av ]            :: :: abstract_env_update
+  | Av1 = Av2                       :: :: abstract_val_equal
+  | Peek_se ( se ) = v              :: :: peek_se       {{ tex \mathsf{Peek_{se} } \llbracket [[se]] \rrbracket = [[v]] }}
+  | v = Peek_e ( e )                :: :: peek_expr     {{ tex [[v]] = \mathsf{Peek_e} \llbracket [[e]] \rrbracket }}
+  | v = Peek_s ( s )                :: :: peek_stmt     {{ tex [[v]] = \mathsf{Peek_s} \llbracket [[s]] \rrbracket }}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% CONCRETE OPERATIONAL SEMANTICS %%%
 defns
 operational_semantics :: '' ::=
 
@@ -167,7 +221,7 @@ operational_semantics :: '' ::=
         E v -se-> v
 
         v = E(x)
-        --------------  :: Lookup
+        --------------  :: Variable
         E x -se-> v
 
     %%% Evaluation of expressions %%%
@@ -216,7 +270,7 @@ operational_semantics :: '' ::=
 
         I = v . I'
         E' = E[x -> v]
-        --------------------------------  :: Read
+        --------------------------------  :: Input
         x <- l ^ input() I E --> v I' E'
 
         E se -se-> v
@@ -259,3 +313,129 @@ operational_semantics :: '' ::=
         E e -e-> v
         ---------------  :: Expression
         e I E --> e I E
+
+%%% NA ANALYSIS SEMANTICS %%%
+defns
+na_analysis :: 'NA_' ::=
+
+    defn
+    AE se -na-se-> Av :: :: na_eval_se :: 'SE_'
+        {{ com abstract evaluation of simple expressions }}
+        {{ tex [[AE]]\enspace[[se]] [[-na-se->]] [[Av]] }}
+    by
+
+        Av = [alpha(v), alpha(v), empty]
+        --------------------------------  :: Literal
+        AE v -na-se-> Av
+
+        Av = AE(x)
+        ----------------  :: Variable
+        AE x -na-se-> Av
+
+    defn
+    AE e -na-e-> Av :: :: na_eval_e :: 'E_'
+        {{ com abstract evaluation of expressions }}
+        {{ tex [[AE]]\enspace[[e]] [[-na-e->]] [[Av]] }}
+    by
+
+        Av = [!NA, !NA, empty]
+        ----------------------  :: IsNA
+        AE isNA se -na-e-> Av
+
+        AE se -na-se-> [Lat1, Lat2, L]
+        v = Peek_e(uop se)
+        Av = [alpha(v), Auop Lat2, L]
+        -----------------------------  :: UnaryOp
+        AE uop se -na-e-> Av
+
+        AE se1 -na-se-> [Lat11, Lat12, L1]
+        AE se2 -na-se-> [Lat21, Lat22, L2]
+        v = Peek_e(se1 bop se2)
+        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+        ----------------------------------------------  :: BinaryOp
+        AE se1 bop se2 -na-e-> Av
+
+        AE se -na-se-> Av
+        -----------------  :: SimpleExpression
+        AE se -na-e-> Av
+
+    defn
+    [ s ] AE = AE' :: :: na_analysis :: 'S_'
+        {{ com abstract evaluation of statements returns a new abstract environment }}
+        {{ tex \llbracket [[s]] \rrbracket [[AE]] = [[AE']] }}
+    by
+
+        AE e -na-e-> Av
+        AE' = AE[x -> Av]
+        -----------------  :: Assign
+        [x <- e] AE = AE'
+
+        v = Peek_s(x <- l ^ input())
+        Av = [alpha(v), Top, {l}]
+        AE' = AE[x -> Av]
+        ----------------------------  :: Input
+        [x <- l ^ input()] AE = AE'
+
+
+        %%% TODO: If, For
+        % formalization is pretty messy and redundant...
+
+        Peek_se(v) = true
+        [s1] AE = AE'
+        ----------------------------------  :: IfLiteralTrue
+        [if v then s1 else s2 fi] AE = AE'
+
+        Peek_se(v) = false
+        [s2] AE = AE'
+        ----------------------------------  :: IfLiteralFalse
+        [if v then s1 else s2 fi] AE = AE'
+
+        % TODO: generate constraint
+        Peek_se(x) = true
+        [s1] AE = AE'
+        ----------------------------------  :: IfVariableTrue
+        [if x then s1 else s2 fi] AE = AE'
+
+        % TODO: generate constraint
+        Peek_se(x) = false
+        [s2] AE = AE'
+        ----------------------------------  :: IfVariableFalse
+        [if x then s1 else s2 fi] AE = AE'
+
+
+        % For is harder than If, because there are two positions (se1, se2)
+        % either can be a literal or a variable
+        % and we can be increasing, decreasing, or finishing the loop
+        % could be 24 cases!
+
+
+%        E se1 -se-> v1
+%        E se2 -se-> v2
+%        v1' = v1 + 1
+%        E' = E[x -> v1]
+%        v1 < v2
+%        ---------------------------------------------------------------------  :: ForIncr
+%        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+%
+%        E se1 -se-> v1
+%        E se2 -se-> v2
+%        v1' = v1 - 1
+%        E' = E[x -> v1]
+%        v1 > v2
+%        ---------------------------------------------------------------------  :: ForDecr
+%        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+%
+%        E se1 -se-> v1
+%        E se2 -se-> v2
+%        E' = E[x -> v1]
+%        v1 = v2
+%        -----------------------------------------  :: ForEnd
+%        for x in se1 : se2 do s od I E --> s I E'
+
+        [s1] AE = AE'
+        [s2] AE' = AE''
+        -------------------  :: Seq
+        [s1 ; s2] AE = AE''
+
+        ---------------  :: Expression
+        [e] AE = AE

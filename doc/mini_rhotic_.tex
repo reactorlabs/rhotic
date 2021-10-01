@@ -38,18 +38,18 @@
 \ottrulehead{\mathsf{true} ~|~ \mathsf{false} ~|~ \bna}{::=}{\ottcom{boolean literals}}\ottprodnewline
 \ottfirstprodline{|}{ \mathsf{true} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{false} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \bna }{}{}{}{\ottcom{boolean \textsf{NA}}}}
+\ottprodline{|}{ \bna }{}{}{}{\ottcom{boolean \na}}}
 
 \newcommand{\ottint}{
 \ottrulehead{\cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina}{::=}{\ottcom{integer literals}}\ottprodnewline
 \ottfirstprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ -  \ottmv{num} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ina }{}{}{}{\ottcom{integer \textsf{NA}}}}
+\ottprodline{|}{ \ina }{}{}{}{\ottcom{integer \na}}}
 
 \newcommand{\ottstr}{
 \ottrulehead{\cdots ~|~ \sna}{::=}{\ottcom{string literals}}\ottprodnewline
 \ottfirstprodline{|}{ `` \ottmv{chr} " }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \sna }{}{}{}{\ottcom{string \textsf{NA}}}}
+\ottprodline{|}{ \sna }{}{}{}{\ottcom{string \na}}}
 
 \newcommand{\ottv}{
 \ottrulehead{\ottnt{v}}{::=}{\ottcom{values $\vals$}}\ottprodnewline
@@ -118,6 +118,43 @@
 \ottrulehead{\ottnt{C}}{::=}{\ottcom{machine configuration}}\ottprodnewline
 \ottfirstprodline{|}{ \langle  \ottnt{s} \, \ottnt{I} \, \ottnt{E}  \rangle }{}{}{}{}}
 
+\newcommand{\ottL}{
+\ottrulehead{\ottnt{L}}{::=}{\ottcom{label set}}\ottprodnewline
+\ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty label set}}\ottprodnewline
+\ottprodline{|}{\ottsym{\{}  \mathit{l_{{\mathrm{1}}}}  \ottsym{,} \, ... \, \ottsym{,}  \mathit{l_{\ottmv{n}}}  \ottsym{\}}}{}{}{}{\ottcom{labels}}\ottprodnewline
+\ottprodline{|}{\ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}}{}{}{}{\ottcom{union}}}
+
+\newcommand{\ottLat}{
+\ottrulehead{\ottnt{Lat}}{::=}{\ottcom{lattice}}\ottprodnewline
+\ottfirstprodline{|}{ \alpha( \ottnt{v} ) }{}{}{}{\ottcom{abstraction of concrete value}}\ottprodnewline
+\ottprodline{|}{\widehat{\circ} \, \ottnt{Lat}}{}{}{}{\ottcom{abstract unary operation}}\ottprodnewline
+\ottprodline{|}{\ottnt{Lat_{{\mathrm{1}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{2}}}}}{}{}{}{\ottcom{abstract binary operation}}\ottprodnewline
+\ottprodline{|}{\ottnt{NA\_Lat}}{}{}{}{\ottcom{NA analysis}}}
+
+\newcommand{\ottAv}{
+\ottrulehead{\widehat{v}}{::=}{\ottcom{abstract value}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{NA\_Av}}{}{}{}{\ottcom{NA analysis}}}
+
+\newcommand{\ottAE}{
+\ottrulehead{\widehat{E}}{::=}{\ottcom{abstract environment}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{NA\_AE}}{}{}{}{\ottcom{NA analysis}}}
+
+\newcommand{\ottNAXXLat}{
+\ottrulehead{\ottnt{NA\_Lat}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\top}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \textsc{na} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \neg \textsc{na} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\bot}{}{}{}{}}
+
+\newcommand{\ottNAXXAv}{
+\ottrulehead{\ottnt{NA\_Av}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{ \langle  \ottnt{Lat_{{\mathrm{1}}}}  ,  \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle }{}{}{}{}}
+
+\newcommand{\ottNAXXAE}{
+\ottrulehead{\ottnt{NA\_AE}}{::=}{\ottcom{\na analysis abstract environment}}\ottprodnewline
+\ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty environment}}\ottprodnewline
+\ottprodline{|}{\widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{\ottcom{environment binding}}}
+
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{ \isna }{}{}{}{}\ottprodnewline
@@ -143,7 +180,14 @@
 \ottprodline{|}{ \geq }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \land }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \lor }{}{}{}{}}
+\ottprodline{|}{ \lor }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \top }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \bot }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \rightsquigarrow_{se} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \rightsquigarrow }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \cup }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \widehat{\circ} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \widehat{\diamond} }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
@@ -160,7 +204,13 @@
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}}
+\ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{v}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}  \widehat{v}_{{\mathrm{2}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{Peek_{se} } \llbracket  \ottnt{se}  \rrbracket =  \ottnt{v} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  = \mathsf{Peek_e} \llbracket  \ottnt{e}  \rrbracket }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{v}  = \mathsf{Peek_s} \llbracket  \ottnt{s}  \rrbracket }{}{}{}{}}
 
 \newcommand{\ottoperationalXXsemantics}{
 \ottrulehead{\ottnt{operational\_semantics}}{::=}{}\ottprodnewline
@@ -168,9 +218,16 @@
 \ottprodline{|}{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow   \ottnt{v} }{}{}{}{\ottcom{evaluation of expressions}}\ottprodnewline
 \ottprodline{|}{ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'} }{}{}{}{\ottcom{evaluation of statements}}}
 
+\newcommand{\ottnaXXanalysis}{
+\ottrulehead{\ottnt{na\_analysis}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}   \widehat{v} }{}{}{}{\ottcom{abstract evaluation of simple expressions}}\ottprodnewline
+\ottprodline{|}{ \widehat{E} \enspace \ottnt{e}   \rightsquigarrow   \widehat{v} }{}{}{}{\ottcom{abstract evaluation of expressions}}\ottprodnewline
+\ottprodline{|}{ \llbracket  \ottnt{s}  \rrbracket  \widehat{E}  =  \widehat{E}' }{}{}{}{\ottcom{abstract evaluation of statements returns a new abstract environment}}}
+
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{operational\_semantics}}{}{}{}{}}
+\ottfirstprodline{|}{\ottnt{operational\_semantics}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{na\_analysis}}{}{}{}{}}
 
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
@@ -192,6 +249,13 @@
 \ottprodline{|}{\ottnt{E}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{I}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{C}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{L}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{Lat}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{v}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{E}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{NA\_Lat}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{NA\_Av}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{NA\_AE}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}}
 
@@ -209,9 +273,17 @@
 \ottE\ottinterrule
 \ottI\ottinterrule
 \ottC\ottinterrule
+\ottL\ottinterrule
+\ottLat\ottinterrule
+\ottAv\ottinterrule
+\ottAE\ottinterrule
+\ottNAXXLat\ottinterrule
+\ottNAXXAv\ottinterrule
+\ottNAXXAE\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
 \ottoperationalXXsemantics\ottinterrule
+\ottnaXXanalysis\ottinterrule
 \ottjudgement\ottinterrule
 \ottuserXXsyntax\ottafterlastrule
 }}
@@ -226,16 +298,16 @@
 }}
 
 
-\newcommand{\ottdruleSEXXLookup}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleSEXXVariable}[1]{\ottdrule[#1]{%
 \ottpremise{\ottnt{v}  \ottsym{=}  \ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}%
 }{
  \ottnt{E} \enspace \mathit{x}   \rightharpoonup   \ottnt{v} }{%
-{\ottdrulename{SE\_Lookup}}{}%
+{\ottdrulename{SE\_Variable}}{}%
 }}
 
 \newcommand{\ottdefnevalXXse}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} $}{\ottcom{evaluation of simple expressions}}
 \ottusedrule{\ottdruleSEXXLiteral{}}
-\ottusedrule{\ottdruleSEXXLookup{}}
+\ottusedrule{\ottdruleSEXXVariable{}}
 \end{ottdefnblock}}
 
 %% defn eval_e
@@ -301,12 +373,12 @@
 }}
 
 
-\newcommand{\ottdruleSXXRead}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleSXXInput}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
-{\ottdrulename{S\_Read}}{}%
+{\ottdrulename{S\_Input}}{}%
 }}
 
 
@@ -380,7 +452,7 @@
 
 \newcommand{\ottdefnevalXXs}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'} $}{\ottcom{evaluation of statements}}
 \ottusedrule{\ottdruleSXXAssign{}}
-\ottusedrule{\ottdruleSXXRead{}}
+\ottusedrule{\ottdruleSXXInput{}}
 \ottusedrule{\ottdruleSXXIfTrue{}}
 \ottusedrule{\ottdruleSXXIfFalse{}}
 \ottusedrule{\ottdruleSXXForIncr{}}
@@ -394,8 +466,161 @@
 \newcommand{\ottdefnsoperationalXXsemantics}{
 \ottdefnevalXXse{}\ottdefnevalXXe{}\ottdefnevalXXs{}}
 
+% defns na_analysis
+%% defn na_eval_se
+\newcommand{\ottdruleNAXXSEXXLiteral}[1]{\ottdrule[#1]{%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,   \alpha( \ottnt{v} )   ,  \emptyset  \rangle }%
+}{
+ \widehat{E} \enspace \ottnt{v}   \rightsquigarrow_{se}   \widehat{v} }{%
+{\ottdrulename{NA\_SE\_Literal}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSEXXVariable}[1]{\ottdrule[#1]{%
+\ottpremise{\widehat{v}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}%
+}{
+ \widehat{E} \enspace \mathit{x}   \rightsquigarrow_{se}   \widehat{v} }{%
+{\ottdrulename{NA\_SE\_Variable}}{}%
+}}
+
+\newcommand{\ottdefnNAXXnaXXevalXXse}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}   \widehat{v} $}{\ottcom{abstract evaluation of simple expressions}}
+\ottusedrule{\ottdruleNAXXSEXXLiteral{}}
+\ottusedrule{\ottdruleNAXXSEXXVariable{}}
+\end{ottdefnblock}}
+
+%% defn na_eval_e
+\newcommand{\ottdruleNAXXEXXIsNA}[1]{\ottdrule[#1]{%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \neg \textsc{na}   ,   \neg \textsc{na}   ,  \emptyset  \rangle }%
+}{
+ \widehat{E} \enspace  \isna ( \ottnt{se} )    \rightsquigarrow   \widehat{v} }{%
+{\ottdrulename{NA\_E\_IsNA}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXEXXUnaryOp}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}    \langle  \ottnt{Lat_{{\mathrm{1}}}}  ,  \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle  }%
+\ottpremise{ \ottnt{v}  = \mathsf{Peek_e} \llbracket   \circ \ottnt{se}   \rrbracket }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,  \widehat{\circ} \, \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle }%
+}{
+ \widehat{E} \enspace  \circ \ottnt{se}    \rightsquigarrow   \widehat{v} }{%
+{\ottdrulename{NA\_E\_UnaryOp}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXEXXBinaryOp}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightsquigarrow_{se}    \langle  \ottnt{Lat_{{\mathrm{11}}}}  ,  \ottnt{Lat_{{\mathrm{12}}}}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle  }%
+\ottpremise{ \widehat{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightsquigarrow_{se}    \langle  \ottnt{Lat_{{\mathrm{21}}}}  ,  \ottnt{Lat_{{\mathrm{22}}}}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle  }%
+\ottpremise{ \ottnt{v}  = \mathsf{Peek_e} \llbracket   \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}   \rrbracket }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,  \ottnt{Lat_{{\mathrm{12}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{22}}}}  ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+}{
+ \widehat{E} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \rightsquigarrow   \widehat{v} }{%
+{\ottdrulename{NA\_E\_BinaryOp}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXEXXSimpleExpression}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}   \widehat{v} }%
+}{
+ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow   \widehat{v} }{%
+{\ottdrulename{NA\_E\_SimpleExpression}}{}%
+}}
+
+\newcommand{\ottdefnNAXXnaXXevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \enspace \ottnt{e}   \rightsquigarrow   \widehat{v} $}{\ottcom{abstract evaluation of expressions}}
+\ottusedrule{\ottdruleNAXXEXXIsNA{}}
+\ottusedrule{\ottdruleNAXXEXXUnaryOp{}}
+\ottusedrule{\ottdruleNAXXEXXBinaryOp{}}
+\ottusedrule{\ottdruleNAXXEXXSimpleExpression{}}
+\end{ottdefnblock}}
+
+%% defn na_analysis
+\newcommand{\ottdruleNAXXSXXAssign}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \enspace \ottnt{e}   \rightsquigarrow   \widehat{v} }%
+\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}%
+}{
+ \llbracket  \mathit{x}  \leftarrow  \ottnt{e}  \rrbracket  \widehat{E}  =  \widehat{E}' }{%
+{\ottdrulename{NA\_S\_Assign}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXInput}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{v}  = \mathsf{Peek_s} \llbracket   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt   \rrbracket }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,  \top  ,  \ottsym{\{}  \mathit{l}  \ottsym{\}}  \rangle }%
+\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}%
+}{
+ \llbracket   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt   \rrbracket  \widehat{E}  =  \widehat{E}' }{%
+{\ottdrulename{NA\_S\_Input}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXIfLiteralTrue}[1]{\ottdrule[#1]{%
+\ottpremise{ \mathsf{Peek_{se} } \llbracket  \ottnt{v}  \rrbracket =   \mathsf{true}  }%
+\ottpremise{ \llbracket  \ottnt{s_{{\mathrm{1}}}}  \rrbracket  \widehat{E}  =  \widehat{E}' }%
+}{
+ \llbracket   \mathsf{if} ~ \ottnt{v} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}   \rrbracket  \widehat{E}  =  \widehat{E}' }{%
+{\ottdrulename{NA\_S\_IfLiteralTrue}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXIfLiteralFalse}[1]{\ottdrule[#1]{%
+\ottpremise{ \mathsf{Peek_{se} } \llbracket  \ottnt{v}  \rrbracket =   \mathsf{false}  }%
+\ottpremise{ \llbracket  \ottnt{s_{{\mathrm{2}}}}  \rrbracket  \widehat{E}  =  \widehat{E}' }%
+}{
+ \llbracket   \mathsf{if} ~ \ottnt{v} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}   \rrbracket  \widehat{E}  =  \widehat{E}' }{%
+{\ottdrulename{NA\_S\_IfLiteralFalse}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXIfVariableTrue}[1]{\ottdrule[#1]{%
+\ottpremise{ \mathsf{Peek_{se} } \llbracket  \mathit{x}  \rrbracket =   \mathsf{true}  }%
+\ottpremise{ \llbracket  \ottnt{s_{{\mathrm{1}}}}  \rrbracket  \widehat{E}  =  \widehat{E}' }%
+}{
+ \llbracket   \mathsf{if} ~ \mathit{x} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}   \rrbracket  \widehat{E}  =  \widehat{E}' }{%
+{\ottdrulename{NA\_S\_IfVariableTrue}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXIfVariableFalse}[1]{\ottdrule[#1]{%
+\ottpremise{ \mathsf{Peek_{se} } \llbracket  \mathit{x}  \rrbracket =   \mathsf{false}  }%
+\ottpremise{ \llbracket  \ottnt{s_{{\mathrm{2}}}}  \rrbracket  \widehat{E}  =  \widehat{E}' }%
+}{
+ \llbracket   \mathsf{if} ~ \mathit{x} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}   \rrbracket  \widehat{E}  =  \widehat{E}' }{%
+{\ottdrulename{NA\_S\_IfVariableFalse}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXSeq}[1]{\ottdrule[#1]{%
+\ottpremise{ \llbracket  \ottnt{s_{{\mathrm{1}}}}  \rrbracket  \widehat{E}  =  \widehat{E}' }%
+\ottpremise{ \llbracket  \ottnt{s_{{\mathrm{2}}}}  \rrbracket  \widehat{E}'  =  \widehat{E}'' }%
+}{
+ \llbracket  \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}}  \rrbracket  \widehat{E}  =  \widehat{E}'' }{%
+{\ottdrulename{NA\_S\_Seq}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXExpression}[1]{\ottdrule[#1]{%
+}{
+ \llbracket  \ottnt{e}  \rrbracket  \widehat{E}  =  \widehat{E} }{%
+{\ottdrulename{NA\_S\_Expression}}{}%
+}}
+
+\newcommand{\ottdefnNAXXnaXXanalysis}[1]{\begin{ottdefnblock}[#1]{$ \llbracket  \ottnt{s}  \rrbracket  \widehat{E}  =  \widehat{E}' $}{\ottcom{abstract evaluation of statements returns a new abstract environment}}
+\ottusedrule{\ottdruleNAXXSXXAssign{}}
+\ottusedrule{\ottdruleNAXXSXXInput{}}
+\ottusedrule{\ottdruleNAXXSXXIfLiteralTrue{}}
+\ottusedrule{\ottdruleNAXXSXXIfLiteralFalse{}}
+\ottusedrule{\ottdruleNAXXSXXIfVariableTrue{}}
+\ottusedrule{\ottdruleNAXXSXXIfVariableFalse{}}
+\ottusedrule{\ottdruleNAXXSXXSeq{}}
+\ottusedrule{\ottdruleNAXXSXXExpression{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnsnaXXanalysis}{
+\ottdefnNAXXnaXXevalXXse{}\ottdefnNAXXnaXXevalXXe{}\ottdefnNAXXnaXXanalysis{}}
+
 \newcommand{\ottdefnss}{
 \ottdefnsoperationalXXsemantics
+\ottdefnsnaXXanalysis
 }
 
 \newcommand{\ottall}{\ottmetavars\\[0pt]
