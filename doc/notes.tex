@@ -14,7 +14,7 @@
 \ottstyledefaults{%
   showruleschema=yes,%
   showcomment=yes,%
-  rulelayout=oneperline,%
+  rulelayout=nobreaks,%
   premiselayout=justify,%
   premisenamelayout=topright,%
   numberpremises=no,%
@@ -78,14 +78,14 @@
   \begin{center}
     \begin{small}
       \grammartabularSTY{%
-      \ottv\ottinterrule%
-      \ottse\ottinterrule%
-      \otte\ottinterrule%
-      \otts\ottinterrule%
-      \ottP\ottinterrule%
-      \ottE\ottinterrule%
-      \ottI\ottinterrule%
-      \ottC%
+        \ottv\ottinterrule%
+        \ottse\ottinterrule%
+        \otte\ottinterrule%
+        \otts\ottinterrule%
+        \ottP\ottinterrule%
+        \ottE\ottinterrule%
+        \ottI\ottinterrule%
+        \ottC\ottafterlastrule%
       }
     \end{small}
   \end{center}
@@ -99,45 +99,16 @@ The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
 \section*{Concrete Input-Aware Semantics}
 
 \begin{figure}[th!]
-  \begin{small}
-    \begin{mathpar}
-      \ottusedrule{\ottdruleSEXXLiteral{}}
-      \and
-      \ottusedrule{\ottdruleSEXXVariable{}}
-      \and
-
-      \ottusedrule{\ottdruleEXXSimpleExpression{}}
-      \\
-      \ottusedrule{\ottdruleEXXIsNA{}}
-      \and
-      \ottusedrule{\ottdruleEXXIsNotNA{}}
-      \and
-      \ottusedrule{\ottdruleEXXUnaryOp{}}
-      \and
-      \ottusedrule{\ottdruleEXXBinaryOp{}}
-      \\
-
-      \ottusedrule{\ottdruleSXXExpression{}}
-      \and
-      \ottusedrule{\ottdruleSXXAssign{}}
-      \and
-      \ottusedrule{\ottdruleSXXInput{}}
-      \and
-      \ottusedrule{\ottdruleSXXIfTrue{}}
-      \and
-      \ottusedrule{\ottdruleSXXIfFalse{}}
-      \and
-      \ottusedrule{\ottdruleSXXForIncr{}}
-      \and
-      \ottusedrule{\ottdruleSXXForDecr{}}
-      \and
-      \ottusedrule{\ottdruleSXXForEnd{}}
-      \and
-      \ottusedrule{\ottdruleSXXSeq{}}
-    \end{mathpar}
-  \end{small}
+  \begin{center}
+    \begin{small}
+      \ottdefnevalXXse{}\ottinterrule
+      \ottdefnevalXXe{}\ottinterrule
+      \ottdefnevalXXs{}
+    \end{small}
+  \end{center}
   \vspace{-1em}
   \caption{Semantics}\label{fig:semantics}
+  \vspace{-1em}
 \end{figure}
 
 An environment $\rho\colon \vars \rightarrow \vals$ maps each program variable $X \in \vars$ to its value $\rho(X) \in \vals$. Let \envs denote the set of all environments. 
@@ -295,6 +266,7 @@ where the statement dependency semantics $\sdeps{S} \colon \powerset{\vars \time
 
 \clearpage
 \section*{Rendered Ott output}
+\ottstyledefaults{rulelayout=oneperline}
 \ottall
 
 \end{document}

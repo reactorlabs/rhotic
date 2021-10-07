@@ -312,7 +312,7 @@ operational_semantics :: '' ::=
 
         E e -e-> v
         ---------------  :: Expression
-        e I E --> e I E
+        e I E --> v I E
 
 %%% NA ANALYSIS SEMANTICS %%%
 defns
