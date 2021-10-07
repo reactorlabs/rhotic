@@ -95,6 +95,18 @@
 
 Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. Each value type admits a special value $\bna$, $\ina$, or $\sna$ representing missing values.
 The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
+Expressions contain simple expressions, but not subexpressions. Statements may
+only contain expressions in two cases: the right-hand side of an assignment
+statement, or as a bare expression. In all other cases, statements may only
+contain simple expressions.
+
+Each input expression is given a syntactic label, so the input can be
+identified. A program is a sequence of statements. An instruction stream is a
+stream of values that can only be read one at a time. A machine configuration
+is a triple consisting of a statement, an instruction stream, and an environment.
+
+\todo{Currently, the language does not contain coercions, vectors, functions, or
+eval. Some of these features may be interesting to study.}
 
 \section*{Concrete Input-Aware Semantics}
 
@@ -113,6 +125,13 @@ The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
 
 An environment $\rho\colon \vars \rightarrow \vals$ maps each program variable $X \in \vars$ to its value $\rho(X) \in \vals$. Let \envs denote the set of all environments. 
 Figure~\ref{fig:semantics} shows the reduction semantics of simple expressions, expressions, and statements.
+A simple expression can always be evaluated in a single step. Expressions
+require evaluating one or more simple expressions. Statements require evaluating
+simple expressions, or in the case of an assignment or bare expression, a single
+expression.
+
+\note{The assignment, input, and expression statements return a value as its result.
+However, the value is ignored, and can be treated as a \textsc{skip} instruction.}
 
 \todo{Patrick Cousot - Abstract Semantic Dependency (SAS 2019)}
 
