@@ -116,13 +116,20 @@
 
 \newcommand{\ottC}{
 \ottrulehead{\ottnt{C}}{::=}{\ottcom{machine configuration}}\ottprodnewline
-\ottfirstprodline{|}{ \langle  \ottnt{s} \, \ottnt{I} \, \ottnt{E}  \rangle }{}{}{}{}}
+\ottfirstprodline{|}{ \textsc{Stop} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E} }{}{}{}{}}
 
 \newcommand{\ottL}{
 \ottrulehead{\ottnt{L}}{::=}{\ottcom{label set}}\ottprodnewline
 \ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty label set}}\ottprodnewline
 \ottprodline{|}{\ottsym{\{}  \mathit{l_{{\mathrm{1}}}}  \ottsym{,} \, ... \, \ottsym{,}  \mathit{l_{\ottmv{n}}}  \ottsym{\}}}{}{}{}{\ottcom{labels}}\ottprodnewline
 \ottprodline{|}{\ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}}{}{}{}{\ottcom{union}}}
+
+\newcommand{\ottT}{
+\ottrulehead{\ottnt{T}}{::=}{\ottcom{execution trace}}\ottprodnewline
+\ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty trace}}\ottprodnewline
+\ottprodline{|}{ \ottnt{T}  \cdot \langle  \ottnt{s} \, \ottnt{E}  \rangle }{}{}{}{\ottcom{append}}\ottprodnewline
+\ottprodline{|}{ \langle  \ottnt{s} \, \ottnt{E}  \rangle \cdot  \ottnt{T} }{}{}{}{\ottcom{prepend}}}
 
 \newcommand{\ottLat}{
 \ottrulehead{\ottnt{Lat}}{::=}{\ottcom{lattice}}\ottprodnewline
@@ -173,6 +180,7 @@
 \ottprodline{|}{ \rightharpoonup }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longrightarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longmapsto }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \overset{T}{\longmapsto} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \neg }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \times }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
@@ -216,7 +224,11 @@
 \ottrulehead{\ottnt{operational\_semantics}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }{}{}{}{\ottcom{evaluation of simple expressions}}\ottprodnewline
 \ottprodline{|}{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow   \ottnt{v} }{}{}{}{\ottcom{evaluation of expressions}}\ottprodnewline
-\ottprodline{|}{ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'} }{}{}{}{\ottcom{evaluation of statements}}}
+\ottprodline{|}{ \ottnt{C}   \longmapsto   \ottnt{C'} }{}{}{}{\ottcom{evaluation of program states}}}
+
+\newcommand{\ottrecord}{
+\ottrulehead{\ottnt{record}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{ \ottnt{T} ,\: \ottnt{C}   \overset{T}{\longmapsto}   \ottnt{T'} ,\: \ottnt{C'} }{}{}{}{\ottcom{recording a program state updates the execution trace}}}
 
 \newcommand{\ottnaXXanalysis}{
 \ottrulehead{\ottnt{na\_analysis}}{::=}{}\ottprodnewline
@@ -227,6 +239,7 @@
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{operational\_semantics}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{record}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{na\_analysis}}{}{}{}{}}
 
 \newcommand{\ottuserXXsyntax}{
@@ -250,6 +263,7 @@
 \ottprodline{|}{\ottnt{I}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{C}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{L}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{T}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{Lat}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{E}}{}{}{}{}\ottprodnewline
@@ -274,6 +288,7 @@
 \ottI\ottinterrule
 \ottC\ottinterrule
 \ottL\ottinterrule
+\ottT\ottinterrule
 \ottLat\ottinterrule
 \ottAv\ottinterrule
 \ottAE\ottinterrule
@@ -283,6 +298,7 @@
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
 \ottoperationalXXsemantics\ottinterrule
+\ottrecord\ottinterrule
 \ottnaXXanalysis\ottinterrule
 \ottjudgement\ottinterrule
 \ottuserXXsyntax\ottafterlastrule
@@ -368,7 +384,7 @@
 \ottpremise{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow   \ottnt{v} }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
- \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'} }{%
+  \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'}  }{%
 {\ottdrulename{S\_Assign}}{}%
 }}
 
@@ -377,7 +393,7 @@
 \ottpremise{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }%
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}%
 }{
-  \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
 {\ottdrulename{S\_Input}}{}%
 }}
 
@@ -386,7 +402,7 @@
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
 \ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{true} }%
 }{
-  \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E} }{%
+   \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}  }{%
 {\ottdrulename{S\_IfTrue}}{}%
 }}
 
@@ -395,7 +411,7 @@
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
 \ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{false} }%
 }{
-  \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E} }{%
+   \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}  }{%
 {\ottdrulename{S\_IfFalse}}{}%
 }}
 
@@ -407,7 +423,7 @@
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{<}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
-  \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'} }{%
+   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'}  }{%
 {\ottdrulename{S\_ForIncr}}{}%
 }}
 
@@ -419,7 +435,7 @@
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
-  \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'} }{%
+   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s}  \ottsym{;}   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{v'_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{v_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E'}  }{%
 {\ottdrulename{S\_ForDecr}}{}%
 }}
 
@@ -430,15 +446,15 @@
 \ottpremise{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v_{{\mathrm{1}}}}  \ottsym{]}}%
 \ottpremise{\ottnt{v_{{\mathrm{1}}}}  \ottsym{=}  \ottnt{v_{{\mathrm{2}}}}}%
 }{
-  \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s} \enspace \ottnt{I} \, \ottnt{E'} }{%
+   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s} \enspace \ottnt{I} \, \ottnt{E'}  }{%
 {\ottdrulename{S\_ForEnd}}{}%
 }}
 
 
 \newcommand{\ottdruleSXXSeq}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'} }%
+\ottpremise{  \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'}  }%
 }{
- \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'} }{%
+  \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
 {\ottdrulename{S\_Seq}}{}%
 }}
 
@@ -446,11 +462,11 @@
 \newcommand{\ottdruleSXXExpression}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow   \ottnt{v} }%
 }{
- \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{v} \enspace \ottnt{I} \, \ottnt{E} }{%
+  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I} \, \ottnt{E}  }{%
 {\ottdrulename{S\_Expression}}{}%
 }}
 
-\newcommand{\ottdefnevalXXs}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}   \longmapsto   \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'} $}{\ottcom{evaluation of statements}}
+\newcommand{\ottdefnevalXXs}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{C}   \longmapsto   \ottnt{C'} $}{\ottcom{evaluation of program states}}
 \ottusedrule{\ottdruleSXXAssign{}}
 \ottusedrule{\ottdruleSXXInput{}}
 \ottusedrule{\ottdruleSXXIfTrue{}}
@@ -465,6 +481,31 @@
 
 \newcommand{\ottdefnsoperationalXXsemantics}{
 \ottdefnevalXXse{}\ottdefnevalXXe{}\ottdefnevalXXs{}}
+
+% defns record
+%% defn rec
+\newcommand{\ottdruleRecXXStep}[1]{\ottdrule[#1]{%
+\ottpremise{  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'}  }%
+}{
+ \ottnt{T} ,\:  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \overset{T}{\longmapsto}    \ottnt{T}  \cdot \langle  \ottnt{s} \, \ottnt{E}  \rangle  ,\:  \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
+{\ottdrulename{Rec\_Step}}{}%
+}}
+
+
+\newcommand{\ottdruleRecXXStop}[1]{\ottdrule[#1]{%
+}{
+ \ottnt{T} ,\:  \ottnt{v} \enspace \ottnt{I} \, \ottnt{E}    \overset{T}{\longmapsto}    \ottnt{T}  \cdot \langle  \ottnt{v} \, \ottnt{E}  \rangle  ,\:  \textsc{Stop}  }{%
+{\ottdrulename{Rec\_Stop}}{}%
+}}
+
+\newcommand{\ottdefnrec}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{T} ,\: \ottnt{C}   \overset{T}{\longmapsto}   \ottnt{T'} ,\: \ottnt{C'} $}{\ottcom{recording a program state updates the execution trace}}
+\ottusedrule{\ottdruleRecXXStep{}}
+\ottusedrule{\ottdruleRecXXStop{}}
+\end{ottdefnblock}}
+
+
+\newcommand{\ottdefnsrecord}{
+\ottdefnrec{}}
 
 % defns na_analysis
 %% defn na_eval_se
@@ -620,6 +661,7 @@
 
 \newcommand{\ottdefnss}{
 \ottdefnsoperationalXXsemantics
+\ottdefnsrecord
 \ottdefnsnaXXanalysis
 }
 

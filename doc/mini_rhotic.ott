@@ -107,12 +107,20 @@ I :: 'I_' ::=                                       {{ com input stream }}
 
 %%% Machine configuration %%%
 C :: 'C_' ::=                                       {{ com machine configuration }}
-    | s I E                         :: :: sIE           {{ tex \langle [[s]]\,[[I]]\,[[E]] \rangle }}
+    | stop                          :: :: Stop          {{ tex \textsc{Stop} }}
+    | s I E                         :: :: sIE           {{ tex [[s]]\enspace[[I]]\,[[E]] }}
 
+%%% Label set %%%
 L :: 'L_' ::=                                       {{ com label set }}
     | empty                         :: :: Empty         {{ com empty label set }}
     | { l1 , ... , ln }             :: :: Set           {{ com labels }}
     | L1 union L2                   :: :: Intersection  {{ com union }}
+
+%%% Execution trace %%%
+T :: 'T_' ::=                                       {{ com execution trace }}
+    | empty                         :: :: Empty         {{ com empty trace }}
+    | T . ( s E )                   :: :: Append        {{ com append }} {{ tex [[T]] \cdot \langle [[s]]\,[[E]] \rangle }}
+    | ( s E ) . T                   :: :: Prepend       {{ com prepend }} {{ tex \langle [[s]]\,[[E]] \rangle \cdot [[T]] }}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -164,6 +172,7 @@ terminals :: 'terminals_' ::=
     | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
     | -e->          :: :: EEval     {{ tex \longrightarrow }}
     | -->           :: :: SEval     {{ tex \longmapsto }}
+    | -rec->        :: :: RecEval   {{ tex \overset{T}{\longmapsto} }}
     | !             :: :: Negate    {{ tex \neg }}
     | *             :: :: Times     {{ tex \times }}
     | /             :: :: Divide    {{ tex \div }}
@@ -258,9 +267,9 @@ operational_semantics :: '' ::=
 
     %%% Evaluation of statements %%%
     defn
-    s I E --> s' I' E' :: :: eval_s :: 'S_'
-        {{ com evaluation of statements }}
-        {{ tex [[s]]\enspace[[I]]\,[[E]] [[-->]] [[s']]\enspace[[I']]\,[[E']] }}
+    C --> C' :: :: eval_s :: 'S_'
+        {{ com evaluation of program states }}
+        {{ tex [[C]] [[-->]] [[C']] }}
     by
 
         E e -e-> v
@@ -313,6 +322,25 @@ operational_semantics :: '' ::=
         E e -e-> v
         ---------------  :: Expression
         e I E --> v I E
+
+%%% RECORDING SEMANTICS %%%
+defns
+record :: '' ::=
+
+    defn
+    T , C -rec-> T' , C' :: :: rec :: 'Rec_'
+        {{ com recording a program state updates the execution trace }}
+        {{ tex [[T]],\:[[C]] [[-rec->]] [[T']],\:[[C']] }}
+    by
+
+        s I E --> s' I' E'
+        -------------------------------------  :: Step
+        T , s I E -rec-> T . (s E) , s' I' E'
+
+
+        ---------------------------------  :: Stop
+        T , v I E -rec-> T . (v E) , stop
+
 
 %%% NA ANALYSIS SEMANTICS %%%
 defns
