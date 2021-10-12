@@ -135,6 +135,38 @@ However, the value is ignored and can be treated as a \textsc{skip} instruction.
 
 \todo{Patrick Cousot - Abstract Semantic Dependency (SAS 2019)}
 
+\section*{Recording an Execution Trace}
+
+\begin{figure}[th!]
+  \begin{center}
+    \begin{small}
+      \ottdefnrec{}
+    \end{small}
+  \end{center}
+  \vspace{-1em}
+  \caption{Recording semantics}\label{fig:rec-semantics}
+  \vspace{-1em}
+\end{figure}
+
+To support dynamic analysis, we instrument the interpreter with a mechanism that
+records execution traces. The semantics are described in
+Figure~\ref{fig:rec-semantics}.
+
+An execution trace is a sequence of tuples, each tuple
+containing the statement that was executed and the environment at that point.
+Thus, the execution trace removes all branching and dynamic behavior, and
+records all run-time values in the environments. This allows a dynamic analysis
+to be implemented as a static analysis over execution traces.
+
+\note{The execution trace may record partial environments, i.e. only the
+bindings for variables that occur in the statement, instead of full
+environments.}
+
+\note{The dynamic analysis can be implemented online, as an analysis that
+consumes the execution trace as it is produced on each interpreter step.
+Alternatively, the dynamic analysis can be implemented offline, by analyzing an
+execution trace after it has been recorded. This is an implementation detail.}
+
 \section*{Syntactic Dependencies}
 
 \subsection*{Static Syntactic Dependencies Analysis}

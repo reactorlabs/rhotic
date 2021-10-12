@@ -107,7 +107,7 @@ I :: 'I_' ::=                                       {{ com input stream }}
 
 %%% Machine configuration %%%
 C :: 'C_' ::=                                       {{ com machine configuration }}
-    | stop                          :: :: Stop          {{ tex \textsc{Stop} }}
+    | stop                          :: :: Stop          {{ tex \textsf{Stop} }}
     | s I E                         :: :: sIE           {{ tex [[s]]\enspace[[I]]\,[[E]] }}
 
 %%% Label set %%%
@@ -172,7 +172,7 @@ terminals :: 'terminals_' ::=
     | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
     | -e->          :: :: EEval     {{ tex \longrightarrow }}
     | -->           :: :: SEval     {{ tex \longmapsto }}
-    | -rec->        :: :: RecEval   {{ tex \overset{T}{\longmapsto} }}
+    | -rec->        :: :: RecEval   {{ tex \overset{\mathrm{T} }{\longmapsto} }}
     | !             :: :: Negate    {{ tex \neg }}
     | *             :: :: Times     {{ tex \times }}
     | /             :: :: Divide    {{ tex \div }}
@@ -184,7 +184,7 @@ terminals :: 'terminals_' ::=
     | Top           :: :: Top       {{ tex \top }}
     | Bot           :: :: Bot       {{ tex \bot }}
     | -na-se->      :: :: NA_SEEval {{ tex \rightsquigarrow_{se} }}
-    | -na-e->       :: :: NA_EEval  {{ tex \rightsquigarrow }}
+    | -na-e->       :: :: NA_EEval  {{ tex \rightsquigarrow_{e} }}
     | union         :: :: Union     {{ tex \cup }}
     | Auop          :: :: Auop      {{ tex \widehat{\circ} }}
     | Abop          :: :: Abop      {{ tex \widehat{\diamond} }}
@@ -343,127 +343,127 @@ record :: '' ::=
 
 
 %%% NA ANALYSIS SEMANTICS %%%
-defns
-na_analysis :: 'NA_' ::=
-
-    defn
-    AE se -na-se-> Av :: :: na_eval_se :: 'SE_'
-        {{ com abstract evaluation of simple expressions }}
-        {{ tex [[AE]]\enspace[[se]] [[-na-se->]] [[Av]] }}
-    by
-
-        Av = [alpha(v), alpha(v), empty]
-        --------------------------------  :: Literal
-        AE v -na-se-> Av
-
-        Av = AE(x)
-        ----------------  :: Variable
-        AE x -na-se-> Av
-
-    defn
-    AE e -na-e-> Av :: :: na_eval_e :: 'E_'
-        {{ com abstract evaluation of expressions }}
-        {{ tex [[AE]]\enspace[[e]] [[-na-e->]] [[Av]] }}
-    by
-
-        Av = [!NA, !NA, empty]
-        ----------------------  :: IsNA
-        AE isNA se -na-e-> Av
-
-        AE se -na-se-> [Lat1, Lat2, L]
-        v = Peek_e(uop se)
-        Av = [alpha(v), Auop Lat2, L]
-        -----------------------------  :: UnaryOp
-        AE uop se -na-e-> Av
-
-        AE se1 -na-se-> [Lat11, Lat12, L1]
-        AE se2 -na-se-> [Lat21, Lat22, L2]
-        v = Peek_e(se1 bop se2)
-        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
-        ----------------------------------------------  :: BinaryOp
-        AE se1 bop se2 -na-e-> Av
-
-        AE se -na-se-> Av
-        -----------------  :: SimpleExpression
-        AE se -na-e-> Av
-
-    defn
-    [ s ] AE = AE' :: :: na_analysis :: 'S_'
-        {{ com abstract evaluation of statements returns a new abstract environment }}
-        {{ tex \llbracket [[s]] \rrbracket [[AE]] = [[AE']] }}
-    by
-
-        AE e -na-e-> Av
-        AE' = AE[x -> Av]
-        -----------------  :: Assign
-        [x <- e] AE = AE'
-
-        v = Peek_s(x <- l ^ input())
-        Av = [alpha(v), Top, {l}]
-        AE' = AE[x -> Av]
-        ----------------------------  :: Input
-        [x <- l ^ input()] AE = AE'
-
-
-        %%% TODO: If, For
-        % formalization is pretty messy and redundant...
-
-        Peek_se(v) = true
-        [s1] AE = AE'
-        ----------------------------------  :: IfLiteralTrue
-        [if v then s1 else s2 fi] AE = AE'
-
-        Peek_se(v) = false
-        [s2] AE = AE'
-        ----------------------------------  :: IfLiteralFalse
-        [if v then s1 else s2 fi] AE = AE'
-
-        % TODO: generate constraint
-        Peek_se(x) = true
-        [s1] AE = AE'
-        ----------------------------------  :: IfVariableTrue
-        [if x then s1 else s2 fi] AE = AE'
-
-        % TODO: generate constraint
-        Peek_se(x) = false
-        [s2] AE = AE'
-        ----------------------------------  :: IfVariableFalse
-        [if x then s1 else s2 fi] AE = AE'
-
-
-        % For is harder than If, because there are two positions (se1, se2)
-        % either can be a literal or a variable
-        % and we can be increasing, decreasing, or finishing the loop
-        % could be 24 cases!
-
-
-%        E se1 -se-> v1
-%        E se2 -se-> v2
-%        v1' = v1 + 1
-%        E' = E[x -> v1]
-%        v1 < v2
-%        ---------------------------------------------------------------------  :: ForIncr
-%        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+%defns
+%na_analysis :: 'NA_' ::=
 %
-%        E se1 -se-> v1
-%        E se2 -se-> v2
-%        v1' = v1 - 1
-%        E' = E[x -> v1]
-%        v1 > v2
-%        ---------------------------------------------------------------------  :: ForDecr
-%        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+%    defn
+%    AE se -na-se-> Av :: :: na_eval_se :: 'SE_'
+%        {{ com abstract evaluation of simple expressions }}
+%        {{ tex [[AE]]\enspace[[se]] [[-na-se->]] [[Av]] }}
+%    by
 %
-%        E se1 -se-> v1
-%        E se2 -se-> v2
-%        E' = E[x -> v1]
-%        v1 = v2
-%        -----------------------------------------  :: ForEnd
-%        for x in se1 : se2 do s od I E --> s I E'
-
-        [s1] AE = AE'
-        [s2] AE' = AE''
-        -------------------  :: Seq
-        [s1 ; s2] AE = AE''
-
-        ---------------  :: Expression
-        [e] AE = AE
+%        Av = [alpha(v), alpha(v), empty]
+%        --------------------------------  :: Literal
+%        AE v -na-se-> Av
+%
+%        Av = AE(x)
+%        ----------------  :: Variable
+%        AE x -na-se-> Av
+%
+%    defn
+%    AE e -na-e-> Av :: :: na_eval_e :: 'E_'
+%        {{ com abstract evaluation of expressions }}
+%        {{ tex [[AE]]\enspace[[e]] [[-na-e->]] [[Av]] }}
+%    by
+%
+%        Av = [!NA, !NA, empty]
+%        ----------------------  :: IsNA
+%        AE isNA se -na-e-> Av
+%
+%        AE se -na-se-> [Lat1, Lat2, L]
+%        v = Peek_e(uop se)
+%        Av = [alpha(v), Auop Lat2, L]
+%        -----------------------------  :: UnaryOp
+%        AE uop se -na-e-> Av
+%
+%        AE se1 -na-se-> [Lat11, Lat12, L1]
+%        AE se2 -na-se-> [Lat21, Lat22, L2]
+%        v = Peek_e(se1 bop se2)
+%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+%        ----------------------------------------------  :: BinaryOp
+%        AE se1 bop se2 -na-e-> Av
+%
+%        AE se -na-se-> Av
+%        -----------------  :: SimpleExpression
+%        AE se -na-e-> Av
+%
+%    defn
+%    [ s ] AE = AE' :: :: na_analysis :: 'S_'
+%        {{ com abstract evaluation of statements returns a new abstract environment }}
+%        {{ tex \llbracket [[s]] \rrbracket [[AE]] = [[AE']] }}
+%    by
+%
+%        AE e -na-e-> Av
+%        AE' = AE[x -> Av]
+%        -----------------  :: Assign
+%        [x <- e] AE = AE'
+%
+%        v = Peek_s(x <- l ^ input())
+%        Av = [alpha(v), Top, {l}]
+%        AE' = AE[x -> Av]
+%        ----------------------------  :: Input
+%        [x <- l ^ input()] AE = AE'
+%
+%
+%        %%% TODO: If, For
+%        % formalization is pretty messy and redundant...
+%
+%        Peek_se(v) = true
+%        [s1] AE = AE'
+%        ----------------------------------  :: IfLiteralTrue
+%        [if v then s1 else s2 fi] AE = AE'
+%
+%        Peek_se(v) = false
+%        [s2] AE = AE'
+%        ----------------------------------  :: IfLiteralFalse
+%        [if v then s1 else s2 fi] AE = AE'
+%
+%        % TODO: generate constraint
+%        Peek_se(x) = true
+%        [s1] AE = AE'
+%        ----------------------------------  :: IfVariableTrue
+%        [if x then s1 else s2 fi] AE = AE'
+%
+%        % TODO: generate constraint
+%        Peek_se(x) = false
+%        [s2] AE = AE'
+%        ----------------------------------  :: IfVariableFalse
+%        [if x then s1 else s2 fi] AE = AE'
+%
+%
+%        % For is harder than If, because there are two positions (se1, se2)
+%        % either can be a literal or a variable
+%        % and we can be increasing, decreasing, or finishing the loop
+%        % could be 24 cases!
+%
+%
+%%        E se1 -se-> v1
+%%        E se2 -se-> v2
+%%        v1' = v1 + 1
+%%        E' = E[x -> v1]
+%%        v1 < v2
+%%        ---------------------------------------------------------------------  :: ForIncr
+%%        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+%%
+%%        E se1 -se-> v1
+%%        E se2 -se-> v2
+%%        v1' = v1 - 1
+%%        E' = E[x -> v1]
+%%        v1 > v2
+%%        ---------------------------------------------------------------------  :: ForDecr
+%%        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+%%
+%%        E se1 -se-> v1
+%%        E se2 -se-> v2
+%%        E' = E[x -> v1]
+%%        v1 = v2
+%%        -----------------------------------------  :: ForEnd
+%%        for x in se1 : se2 do s od I E --> s I E'
+%
+%        [s1] AE = AE'
+%        [s2] AE' = AE''
+%        -------------------  :: Seq
+%        [s1 ; s2] AE = AE''
+%
+%        ---------------  :: Expression
+%        [e] AE = AE
