@@ -251,7 +251,7 @@ operational_semantics :: '' ::=
         E isNA se -e-> false
 
         E se -se-> v
-        v' = [[uop]](se)
+        v' = [[uop]](v)
         ----------------  :: UnaryOp
         E uop se -e-> v'
 
