@@ -31,6 +31,7 @@
  $ \mathit{l} $ & \ottcom{labels} \\
  $ \ottmv{num} $ & \ottcom{numbers} \\
  $ \ottmv{chr} $ & \ottcom{character sequences} \\
+ $ \mathit{a} $ & \ottcom{address} \\
  $ \ottmv{n} $ & \ottcom{index variables} \\
 }}
 
@@ -151,12 +152,16 @@
 \ottrulehead{\widehat{E}}{::=}{\ottcom{abstract environment}}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{NA\_AE}}{}{}{}{\ottcom{\na analysis}}}
 
+\newcommand{\ottAH}{
+\ottrulehead{\widehat{H}}{::=}{\ottcom{abstract store}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{NA\_AH}}{}{}{}{\ottcom{\na analysis}}}
+
 \newcommand{\ottAC}{
-\ottrulehead{\widehat{C}}{::=}{\ottcom{analysis state}}\ottprodnewline
+\ottrulehead{\widehat{C}}{::=}{\ottcom{abstract configuration}}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{NA\_AC}}{}{}{}{\ottcom{\na analysis}}}
 
 \newcommand{\ottM}{
-\ottrulehead{\ottnt{M}}{::=}{}\ottprodnewline
+\ottrulehead{\ottnt{M}}{::=}{\ottcom{analysis state}}\ottprodnewline
 \ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty state}}\ottprodnewline
 \ottprodline{|}{\ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto  \ottnt{Lat}  \ottsym{]}}{}{}{}{\ottcom{\na state}}}
 
@@ -174,11 +179,16 @@
 \newcommand{\ottNAXXAE}{
 \ottrulehead{\ottnt{NA\_AE}}{::=}{\ottcom{\na analysis abstract environment}}\ottprodnewline
 \ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty environment}}\ottprodnewline
-\ottprodline{|}{\widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{\ottcom{environment binding}}}
+\ottprodline{|}{\widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \mathit{a}  \ottsym{]}}{}{}{}{\ottcom{environment binding}}}
+
+\newcommand{\ottNAXXAH}{
+\ottrulehead{\ottnt{NA\_AH}}{::=}{\ottcom{\na analysis abstract store}}\ottprodnewline
+\ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty heap}}\ottprodnewline
+\ottprodline{|}{\widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{\ottcom{heap binding}}}
 
 \newcommand{\ottNAXXAC}{
 \ottrulehead{\ottnt{NA\_AC}}{::=}{\ottcom{\na analysis state}}\ottprodnewline
-\ottfirstprodline{|}{ \widehat{E} \, \ottnt{M} }{}{}{}{}}
+\ottfirstprodline{|}{ \widehat{E} \, \widehat{H} \, \ottnt{M} }{}{}{}{}}
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
@@ -232,12 +242,14 @@
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\widehat{v}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathit{a}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \mathit{a}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{v}  \ottsym{=}  \widehat{H}  \ottsym{(}  \mathit{a}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}  \widehat{v}_{{\mathrm{2}}}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{Peek_{se} } \llbracket  \ottnt{se}  \rrbracket =  \ottnt{v} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{v}  = \mathsf{Peek_e} \llbracket  \ottnt{e}  \rrbracket }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{v}  = \mathsf{Peek_s} \llbracket  \ottnt{s}  \rrbracket }{}{}{}{}}
+\ottprodline{|}{ \mathit{a} ~\text{fresh} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto  \ottnt{Lat}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{M}  = \forall  \mathit{l}  \in  \ottnt{L} \,.\, \ottnt{formula} }{}{}{}{}}
 
 \newcommand{\ottoperationalXXsemantics}{
 \ottrulehead{\ottnt{operational\_semantics}}{::=}{}\ottprodnewline
@@ -251,8 +263,8 @@
 
 \newcommand{\ottnaXXanalysis}{
 \ottrulehead{\ottnt{na\_analysis}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}   \widehat{v} }{}{}{}{\ottcom{abstract evaluation of simple expressions}}\ottprodnewline
-\ottprodline{|}{ \widehat{E} \, \ottnt{v} \enspace \ottnt{e}   \rightsquigarrow_{e}   \widehat{v} }{}{}{}{\ottcom{abstract evaluation of expressions}}\ottprodnewline
+\ottfirstprodline{|}{ \widehat{E} \, \widehat{H} \enspace \ottnt{se}   \rightsquigarrow_{se}   \mathit{a} , \widehat{v} }{}{}{}{\ottcom{abstract evaluation of simple expressions}}\ottprodnewline
+\ottprodline{|}{ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace \ottnt{e}   \rightsquigarrow_{e}   \mathit{a} , \widehat{v} }{}{}{}{\ottcom{abstract evaluation of expressions}}\ottprodnewline
 \ottprodline{|}{ \ottnt{T} ,\: \widehat{C}   \rightsquigarrow   \ottnt{T'} ,\: \widehat{C}' }{}{}{}{\ottcom{analysis of execution trace updates the abstract environment and analysis state}}}
 
 \newcommand{\ottjudgement}{
@@ -267,6 +279,7 @@
 \ottprodline{|}{\mathit{l}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{chr}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathit{a}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{n}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\mathsf{true} ~|~ \mathsf{false} ~|~ \bna}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina}{}{}{}{}\ottprodnewline
@@ -287,11 +300,13 @@
 \ottprodline{|}{\ottnt{Lat}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{E}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\widehat{H}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{C}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{M}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{NA\_Lat}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{NA\_Av}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{NA\_AE}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{NA\_AH}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{NA\_AC}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula}}{}{}{}{}}
@@ -316,11 +331,13 @@
 \ottLat\ottinterrule
 \ottAv\ottinterrule
 \ottAE\ottinterrule
+\ottAH\ottinterrule
 \ottAC\ottinterrule
 \ottM\ottinterrule
 \ottNAXXLat\ottinterrule
 \ottNAXXAv\ottinterrule
 \ottNAXXAE\ottinterrule
+\ottNAXXAH\ottinterrule
 \ottNAXXAC\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
@@ -556,20 +573,22 @@
 %% defn na_eval_se
 \newcommand{\ottdruleNAXXSEXXLiteral}[1]{\ottdrule[#1]{%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,   \alpha( \ottnt{v} )   ,  \emptyset  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
 }{
- \widehat{E} \enspace \ottnt{v}   \rightsquigarrow_{se}   \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace \ottnt{v}   \rightsquigarrow_{se}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{NA\_SE\_Literal}}{}%
 }}
 
 
 \newcommand{\ottdruleNAXXSEXXVariable}[1]{\ottdrule[#1]{%
-\ottpremise{\widehat{v}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}%
+\ottpremise{\mathit{a}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}%
+\ottpremise{\widehat{v}  \ottsym{=}  \widehat{H}  \ottsym{(}  \mathit{a}  \ottsym{)}}%
 }{
- \widehat{E} \enspace \mathit{x}   \rightsquigarrow_{se}   \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace \mathit{x}   \rightsquigarrow_{se}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{NA\_SE\_Variable}}{}%
 }}
 
-\newcommand{\ottdefnNAXXnaXXevalXXse}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}   \widehat{v} $}{\ottcom{abstract evaluation of simple expressions}}
+\newcommand{\ottdefnNAXXnaXXevalXXse}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \, \widehat{H} \enspace \ottnt{se}   \rightsquigarrow_{se}   \mathit{a} , \widehat{v} $}{\ottcom{abstract evaluation of simple expressions}}
 \ottusedrule{\ottdruleNAXXSEXXLiteral{}}
 \ottusedrule{\ottdruleNAXXSEXXVariable{}}
 \end{ottdefnblock}}
@@ -577,39 +596,42 @@
 %% defn na_eval_e
 \newcommand{\ottdruleNAXXEXXIsNA}[1]{\ottdrule[#1]{%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \neg \textsc{na}   ,   \neg \textsc{na}   ,  \emptyset  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
 }{
- \widehat{E} \, \ottnt{v} \enspace  \isna ( \ottnt{se} )    \rightsquigarrow_{e}   \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace  \isna ( \ottnt{se} )    \rightsquigarrow_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{NA\_E\_IsNA}}{}%
 }}
 
 
 \newcommand{\ottdruleNAXXEXXUnaryOp}[1]{\ottdrule[#1]{%
-\ottpremise{ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}    \langle  \ottnt{Lat_{{\mathrm{1}}}}  ,  \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle  }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se}   \rightsquigarrow_{se}   \mathit{a} ,  \langle  \ottnt{Lat_{{\mathrm{1}}}}  ,  \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle  }%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,  \widehat{\circ} \, \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle }%
+\ottpremise{ \mathit{a'} ~\text{fresh} }%
 }{
- \widehat{E} \, \ottnt{v} \enspace  \circ \ottnt{se}    \rightsquigarrow_{e}   \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace  \circ \ottnt{se}    \rightsquigarrow_{e}   \mathit{a'} , \widehat{v} }{%
 {\ottdrulename{NA\_E\_UnaryOp}}{}%
 }}
 
 
 \newcommand{\ottdruleNAXXEXXBinaryOp}[1]{\ottdrule[#1]{%
-\ottpremise{ \widehat{E} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightsquigarrow_{se}    \langle  \ottnt{Lat_{{\mathrm{11}}}}  ,  \ottnt{Lat_{{\mathrm{12}}}}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle  }%
-\ottpremise{ \widehat{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightsquigarrow_{se}    \langle  \ottnt{Lat_{{\mathrm{21}}}}  ,  \ottnt{Lat_{{\mathrm{22}}}}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle  }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightsquigarrow_{se}   \mathit{a_{{\mathrm{1}}}} ,  \langle  \ottnt{Lat_{{\mathrm{11}}}}  ,  \ottnt{Lat_{{\mathrm{12}}}}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle  }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightsquigarrow_{se}   \mathit{a_{{\mathrm{2}}}} ,  \langle  \ottnt{Lat_{{\mathrm{21}}}}  ,  \ottnt{Lat_{{\mathrm{22}}}}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle  }%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,  \ottnt{Lat_{{\mathrm{12}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{22}}}}  ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
 }{
- \widehat{E} \, \ottnt{v} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \rightsquigarrow_{e}   \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \rightsquigarrow_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{NA\_E\_BinaryOp}}{}%
 }}
 
 
 \newcommand{\ottdruleNAXXEXXSimpleExpression}[1]{\ottdrule[#1]{%
-\ottpremise{ \widehat{E} \enspace \ottnt{se}   \rightsquigarrow_{se}   \widehat{v} }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se}   \rightsquigarrow_{se}   \mathit{a} , \widehat{v} }%
 }{
- \widehat{E} \, \ottnt{v} \enspace \ottnt{se}   \rightsquigarrow_{e}   \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace \ottnt{se}   \rightsquigarrow_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{NA\_E\_SimpleExpression}}{}%
 }}
 
-\newcommand{\ottdefnNAXXnaXXevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \, \ottnt{v} \enspace \ottnt{e}   \rightsquigarrow_{e}   \widehat{v} $}{\ottcom{abstract evaluation of expressions}}
+\newcommand{\ottdefnNAXXnaXXevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace \ottnt{e}   \rightsquigarrow_{e}   \mathit{a} , \widehat{v} $}{\ottcom{abstract evaluation of expressions}}
 \ottusedrule{\ottdruleNAXXEXXIsNA{}}
 \ottusedrule{\ottdruleNAXXEXXUnaryOp{}}
 \ottusedrule{\ottdruleNAXXEXXBinaryOp{}}
@@ -618,40 +640,74 @@
 
 %% defn na_analysis
 \newcommand{\ottdruleNAXXSXXAssign}[1]{\ottdrule[#1]{%
-\ottpremise{ \widehat{E} \, \ottnt{v} \enspace \ottnt{e}   \rightsquigarrow_{e}   \widehat{v} }%
-\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}%
+\ottpremise{ \widehat{E} \, \widehat{H} \, \ottnt{v} \enspace \ottnt{e}   \rightsquigarrow_{e}   \mathit{a} , \widehat{v} }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \mathit{a}  \ottsym{]}}%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}%
 }{
-   \langle  \mathit{x}  \leftarrow  \ottnt{e} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \ottnt{M}  }{%
+   \langle  \mathit{x}  \leftarrow  \ottnt{e} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \widehat{H}' \, \ottnt{M}  }{%
 {\ottdrulename{NA\_S\_Assign}}{}%
 }}
 
 
 \newcommand{\ottdruleNAXXSXXInput}[1]{\ottdrule[#1]{%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )   ,  \top  ,  \ottsym{\{}  \mathit{l}  \ottsym{\}}  \rangle }%
-\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \widehat{v}  \ottsym{]}}%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \mathit{a}  \ottsym{]}}%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}%
 }{
-   \langle   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \ottnt{M}  }{%
+   \langle   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \widehat{H}' \, \ottnt{M}  }{%
 {\ottdrulename{NA\_S\_Input}}{}%
 }}
 
 
-\newcommand{\ottdruleNAXXSXXSeq}[1]{\ottdrule[#1]{%
-\ottpremise{   \langle  \ottnt{s_{{\mathrm{1}}}} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \ottnt{M'}  }%
+\newcommand{\ottdruleNAXXSXXIf}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se}   \rightsquigarrow_{se}   \mathit{a} , \widehat{v} }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}}  ,  \ottnt{Lat_{{\mathrm{2}}}}  ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{v}'  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}}  ,   \neg \textsc{na}   ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}'  \ottsym{]}}%
+\ottpremise{ \ottnt{M'}  = \forall  \mathit{l}  \in  \ottnt{L} \,.\, \ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto   \neg \textsc{na}   \ottsym{]} }%
 }{
-   \langle  \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \ottnt{M'}  }{%
+   \langle   \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E} \, \widehat{H}' \, \ottnt{M'}  }{%
+{\ottdrulename{NA\_S\_If}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXFor}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se_{{\mathrm{1}}}}   \rightsquigarrow_{se}   \mathit{a_{{\mathrm{1}}}} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightsquigarrow_{se}   \mathit{a_{{\mathrm{2}}}} , \widehat{v}_{{\mathrm{2}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}}  ,  \ottnt{Lat_{{\mathrm{12}}}}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{\widehat{v}_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}}  ,  \ottnt{Lat_{{\mathrm{22}}}}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}}  ,   \neg \textsc{na}   ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}}  ,   \neg \textsc{na}   ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a_{{\mathrm{1}}}}  \mapsto  \widehat{v}'_{{\mathrm{1}}}  \ottsym{]}}%
+\ottpremise{\widehat{H}''  \ottsym{=}  \widehat{H}'  \ottsym{[}  \mathit{a_{{\mathrm{2}}}}  \mapsto  \widehat{v}'_{{\mathrm{2}}}  \ottsym{]}}%
+\ottpremise{ \ottnt{M'}  = \forall  \mathit{l}  \in  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}} \,.\, \ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto   \neg \textsc{na}   \ottsym{]} }%
+}{
+   \langle   \mathsf{for} ~ \mathit{x} ~ \mathsf{in} ~ \ottnt{se_{{\mathrm{1}}}} \negmedspace:\negmedspace \ottnt{se_{{\mathrm{2}}}} ~ \mathsf{do} ~ \ottnt{s} ~ \mathsf{od}  ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E} \, \widehat{H}' \, \ottnt{M'}  }{%
+{\ottdrulename{NA\_S\_For}}{}%
+}}
+
+
+\newcommand{\ottdruleNAXXSXXSeq}[1]{\ottdrule[#1]{%
+\ottpremise{   \langle  \ottnt{s_{{\mathrm{1}}}} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \widehat{H}' \, \ottnt{M'}  }%
+}{
+   \langle  \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E}' \, \widehat{H}' \, \ottnt{M'}  }{%
 {\ottdrulename{NA\_S\_Seq}}{}%
 }}
 
 
 \newcommand{\ottdruleNAXXSXXExpression}[1]{\ottdrule[#1]{%
 }{
-   \langle  \ottnt{e} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E} \, \ottnt{M}  }{%
+   \langle  \ottnt{e} ,  \ottnt{v} ,  \ottnt{E}  \rangle   \cdot  \ottnt{T}  ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}    \rightsquigarrow   \ottnt{T} ,\:  \widehat{E} \, \widehat{H} \, \ottnt{M}  }{%
 {\ottdrulename{NA\_S\_Expression}}{}%
 }}
 
 \newcommand{\ottdefnNAXXnaXXanalysis}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{T} ,\: \widehat{C}   \rightsquigarrow   \ottnt{T'} ,\: \widehat{C}' $}{\ottcom{analysis of execution trace updates the abstract environment and analysis state}}
 \ottusedrule{\ottdruleNAXXSXXAssign{}}
 \ottusedrule{\ottdruleNAXXSXXInput{}}
+\ottusedrule{\ottdruleNAXXSXXIf{}}
+\ottusedrule{\ottdruleNAXXSXXFor{}}
 \ottusedrule{\ottdruleNAXXSXXSeq{}}
 \ottusedrule{\ottdruleNAXXSXXExpression{}}
 \end{ottdefnblock}}
