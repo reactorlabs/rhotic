@@ -200,7 +200,7 @@ terminals :: 'terminals_' ::=
     | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
     | -e->          :: :: EEval     {{ tex \longrightarrow }}
     | -->           :: :: SEval     {{ tex \longmapsto }}
-    | -rec->        :: :: RecEval   {{ tex \overset{\mathrm{T} }{\longmapsto} }}
+    | -rec->        :: :: RecEval   {{ tex \overset{\mathrm{rec} }{\longmapsto} }}
     | !             :: :: Negate    {{ tex \neg }}
     | *             :: :: Times     {{ tex \times }}
     | /             :: :: Divide    {{ tex \div }}
@@ -346,16 +346,16 @@ operational_semantics :: '' ::=
         -----------------------------------------  :: ForEnd
         for x in se1 : se2 do s od I E --> s I E'
 
-% TODO: Seq doesn't necessarily evaluate to a value in one step!
-% Should it evaluate to a "skip/stop" instruction?
-% But then when we're recording, how do we get the value of an assignment?
-        s1 I E --> v I' E'
-        ------------------------  :: Seq
-        s1 ; s2 I E --> s2 I' E'
-
         E e -e-> v
         ---------------  :: Expression
         e I E --> v I E
+
+        s1 I E --> s1' I' E'
+        ------------------------------  :: Seq1
+        s1 ; s2 I E --> s1' ; s2 I' E'
+
+        -----------------------  :: Seq2
+        v ; s2 I E --> s2 I' E'
 
 %%% RECORDING SEMANTICS %%%
 defns
@@ -375,7 +375,11 @@ record :: '' ::=
         ------------------------------------------------------------------  :: Input
         T, x <- l ^ input() I E -rec-> T . [x <- l ^ input() v E], v I' E'
 
-% TODO: Does this work with Sequencing?
+% TODO: Still some issues with recording values from sequences
+        v ; s I E --> s I' E'
+        --------------------------------------------  :: Seq
+        T, v ; s I E -rec-> T . [v ; s v E], s I' E'
+
         s I E --> s' I' E'
         ---------------------------------------  :: Step
         T, s I E -rec-> T . [s empty E], s' I' E'

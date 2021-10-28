@@ -208,7 +208,7 @@
 \ottprodline{|}{ \rightharpoonup }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longrightarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \longmapsto }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \overset{\mathrm{T} }{\longmapsto} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \overset{\mathrm{rec} }{\longmapsto} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \neg }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \times }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
@@ -259,7 +259,7 @@
 
 \newcommand{\ottrecord}{
 \ottrulehead{\ottnt{record}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \ottnt{T} ,\: \ottnt{C}   \overset{\mathrm{T} }{\longmapsto}   \ottnt{T'} ,\: \ottnt{C'} }{}{}{}{\ottcom{recording a program state updates the execution trace}}}
+\ottfirstprodline{|}{ \ottnt{T} ,\: \ottnt{C}   \overset{\mathrm{rec} }{\longmapsto}   \ottnt{T'} ,\: \ottnt{C'} }{}{}{}{\ottcom{recording a program state updates the execution trace}}}
 
 \newcommand{\ottnaXXanalysis}{
 \ottrulehead{\ottnt{na\_analysis}}{::=}{}\ottprodnewline
@@ -495,19 +495,26 @@
 }}
 
 
-\newcommand{\ottdruleSXXSeq}[1]{\ottdrule[#1]{%
-\ottpremise{  \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'}  }%
-}{
-  \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
-{\ottdrulename{S\_Seq}}{}%
-}}
-
-
 \newcommand{\ottdruleSXXExpression}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{e}   \longrightarrow   \ottnt{v} }%
 }{
   \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I} \, \ottnt{E}  }{%
 {\ottdrulename{S\_Expression}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXSeqOne}[1]{\ottdrule[#1]{%
+\ottpremise{  \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s'_{{\mathrm{1}}}} \enspace \ottnt{I'} \, \ottnt{E'}  }%
+}{
+  \ottnt{s_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s'_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
+{\ottdrulename{S\_Seq1}}{}%
+}}
+
+
+\newcommand{\ottdruleSXXSeqTwo}[1]{\ottdrule[#1]{%
+}{
+  \ottnt{v}  \ottsym{;}  \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
+{\ottdrulename{S\_Seq2}}{}%
 }}
 
 \newcommand{\ottdefnevalXXs}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{C}   \longmapsto   \ottnt{C'} $}{\ottcom{evaluation of program states}}
@@ -518,8 +525,9 @@
 \ottusedrule{\ottdruleSXXForIncr{}}
 \ottusedrule{\ottdruleSXXForDecr{}}
 \ottusedrule{\ottdruleSXXForEnd{}}
-\ottusedrule{\ottdruleSXXSeq{}}
 \ottusedrule{\ottdruleSXXExpression{}}
+\ottusedrule{\ottdruleSXXSeqOne{}}
+\ottusedrule{\ottdruleSXXSeqTwo{}}
 \end{ottdefnblock}}
 
 
@@ -531,7 +539,7 @@
 \newcommand{\ottdruleRecXXAssign}[1]{\ottdrule[#1]{%
 \ottpremise{  \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'}  }%
 }{
- \ottnt{T} ,\:  \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{T} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \mathit{x}  \leftarrow  \ottnt{e} ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'}  }{%
+ \ottnt{T} ,\:  \mathit{x}  \leftarrow  \ottnt{e} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{rec} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \mathit{x}  \leftarrow  \ottnt{e} ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \ottnt{v} \enspace \ottnt{I} \, \ottnt{E'}  }{%
 {\ottdrulename{Rec\_Assign}}{}%
 }}
 
@@ -539,28 +547,37 @@
 \newcommand{\ottdruleRecXXInput}[1]{\ottdrule[#1]{%
 \ottpremise{   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'}  }%
 }{
- \ottnt{T} ,\:   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{T} }{\longmapsto}    \ottnt{T}  \cdot   \langle   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
+ \ottnt{T} ,\:   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{rec} }{\longmapsto}    \ottnt{T}  \cdot   \langle   \mathit{x}   \leftarrow \, ^{ \mathit{l} }  \ipt  ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \ottnt{v} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
 {\ottdrulename{Rec\_Input}}{}%
+}}
+
+
+\newcommand{\ottdruleRecXXSeq}[1]{\ottdrule[#1]{%
+\ottpremise{  \ottnt{v}  \ottsym{;}  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s} \enspace \ottnt{I'} \, \ottnt{E'}  }%
+}{
+ \ottnt{T} ,\:  \ottnt{v}  \ottsym{;}  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{rec} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \ottnt{v}  \ottsym{;}  \ottnt{s} ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \ottnt{s} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
+{\ottdrulename{Rec\_Seq}}{}%
 }}
 
 
 \newcommand{\ottdruleRecXXStep}[1]{\ottdrule[#1]{%
 \ottpremise{  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'}  }%
 }{
- \ottnt{T} ,\:  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{T} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \ottnt{s} ,  \emptyset ,  \ottnt{E}  \rangle   ,\:  \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
+ \ottnt{T} ,\:  \ottnt{s} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{rec} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \ottnt{s} ,  \emptyset ,  \ottnt{E}  \rangle   ,\:  \ottnt{s'} \enspace \ottnt{I'} \, \ottnt{E'}  }{%
 {\ottdrulename{Rec\_Step}}{}%
 }}
 
 
 \newcommand{\ottdruleRecXXStop}[1]{\ottdrule[#1]{%
 }{
- \ottnt{T} ,\:  \ottnt{v} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{T} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \ottnt{v} ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \textsf{Stop}  }{%
+ \ottnt{T} ,\:  \ottnt{v} \enspace \ottnt{I} \, \ottnt{E}    \overset{\mathrm{rec} }{\longmapsto}    \ottnt{T}  \cdot   \langle  \ottnt{v} ,  \ottnt{v} ,  \ottnt{E}  \rangle   ,\:  \textsf{Stop}  }{%
 {\ottdrulename{Rec\_Stop}}{}%
 }}
 
-\newcommand{\ottdefnrec}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{T} ,\: \ottnt{C}   \overset{\mathrm{T} }{\longmapsto}   \ottnt{T'} ,\: \ottnt{C'} $}{\ottcom{recording a program state updates the execution trace}}
+\newcommand{\ottdefnrec}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{T} ,\: \ottnt{C}   \overset{\mathrm{rec} }{\longmapsto}   \ottnt{T'} ,\: \ottnt{C'} $}{\ottcom{recording a program state updates the execution trace}}
 \ottusedrule{\ottdruleRecXXAssign{}}
 \ottusedrule{\ottdruleRecXXInput{}}
+\ottusedrule{\ottdruleRecXXSeq{}}
 \ottusedrule{\ottdruleRecXXStep{}}
 \ottusedrule{\ottdruleRecXXStop{}}
 \end{ottdefnblock}}
