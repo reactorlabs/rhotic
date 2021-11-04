@@ -97,6 +97,38 @@ s :: 's_' ::=                                       {{ com statements }}
 P :: 'P_' ::=                                       {{ com program }}
     | s                             :: :: Statement
 
+%%% Recorded simple expressions %%%
+rse {{ tex \overline{se} }} :: 'rse_' ::=           {{ com recorded simple expressions }}
+    | ( se , v )        :: :: SE
+
+%%% Recorded expressions %%%
+re {{ tex \overline{e} }} :: 're_' ::=              {{ com recorded expressions }}
+    | isNA rse          :: :: IsNA                      {{ tex [[isNA]][[rse]] }}
+    | uop rse           :: :: UOp
+        {{ com $[[uop]] \in \{ \neg, +, - \}$ }}
+        {{ tex [[uop]][[rse]] }}
+    | rse1 bop rse2     :: :: BOp
+        {{ com $[[bop]] \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$ }}
+        {{ tex [[rse1]] [[bop]] [[rse2]] }}
+    | rse               :: :: SimpleExp
+
+%%% Recorded statements %%%
+rs {{ tex \overline{s} }} :: 'rs_' ::=              {{ com recorded statements }}
+    | x <- ( re , v )               :: :: Assign
+        {{ com $x \in \vars$ }}
+        {{ tex [[x]] [[<-]] ([[re]], [[v]]) }}
+    | x <- ( l ^ input() , v )      :: :: Input
+        {{ com $[[l]] \in \labels$ }}
+        {{ tex [[x]] [[<-]]\, ( ^{[[l]]} [[input()]], [[v]] ) }}
+    | if rse then . else . fi       :: :: If
+        {{ tex [[if]]~[[rse]]~[[then]] \bullet [[else]] \bullet [[fi]] }}
+        {{ com $\bullet$ is not recorded in this statement }}
+    | for x in rse1 : rse2 do . od  :: :: For
+        {{ tex [[for]]~[[x]]~[[in]]~[[rse1]]\negmedspace:\negmedspace[[rse2]]~[[do]] \bullet [[od]] }}
+        {{ com $\bullet$ is not recorded in this statement }}
+    | rs1 ; rs2                     :: :: Seq
+    | ( re , v )                    :: :: Exp
+
 %%% Environment %%%
 E :: 'Env_' ::=                                     {{ com environment }}
     | empty                         :: :: Empty         {{ com empty environment }}
@@ -120,12 +152,9 @@ L :: 'L_' ::=                                       {{ com label set }}
 
 %%% Recorded state %%%
 r :: 'r_' ::=                                       {{ com recorded state }}
-    | [ s empty E ]                 :: :: NoVal
-        {{ com recorded statement, no value, and environment }}
-        {{ tex \langle [[s]], [[empty]], [[E]] \rangle }}
-    | [ s v E ]                     :: :: Val
-        {{ com recorded statement, value, and environment }}
-        {{ tex \langle [[s]], [[v]], [[E]] \rangle }}
+    | [ rs E ]                      :: :: RecordedState
+        {{ com recorded statement and environment }}
+        {{ tex \langle [[rs]], [[E]] \rangle }}
 
 %%% Execution trace %%%
 T :: 'T_' ::=                                       {{ com execution trace }}
@@ -197,10 +226,12 @@ terminals :: 'terminals_' ::=
     | od            :: :: Od        {{ tex \mathsf{od} }}
     | empty         :: :: Empty     {{ tex \emptyset }}
     | ->            :: :: MapsTo    {{ tex \mapsto }}
-    | -se->         :: :: SEEval    {{ tex \rightharpoonup }}
-    | -e->          :: :: EEval     {{ tex \longrightarrow }}
-    | -->           :: :: SEval     {{ tex \longmapsto }}
-    | -rec->        :: :: RecEval   {{ tex \overset{\mathrm{rec} }{\longmapsto} }}
+    | -se->         :: :: EvalSE    {{ tex \rightharpoonup }}
+    | -e->          :: :: EvalE     {{ tex \longrightarrow }}
+    | -->           :: :: EvalS     {{ tex \longmapsto }}
+    | -rec-se->     :: :: RecSE     {{ tex \overset{\mathrm{rec} }{\rightharpoonup} }}
+    | -rec-e->      :: :: RecE      {{ tex \overset{\mathrm{rec} }{\longrightarrow} }}
+    | -rec->        :: :: RecS      {{ tex \overset{\mathrm{rec} }{\longmapsto} }}
     | !             :: :: Negate    {{ tex \neg }}
     | *             :: :: Times     {{ tex \times }}
     | /             :: :: Divide    {{ tex \div }}
@@ -362,126 +393,187 @@ defns
 record :: '' ::=
 
     defn
-    T , C -rec-> T' , C' :: :: rec :: 'Rec_'
+    E se -rec-se-> rse :: :: rec_se :: 'RecSE_'
+        {{ com recording a simple expression stores the result of that simple expression }}
+        {{ tex [[E]]\enspace[[se]] [[-rec-se->]] [[rse]] }}
+    by
+
+        E se -se-> v
+        ----------------------  :: SE
+        E se -rec-se-> (se, v)
+
+    defn
+    E e -rec-e-> re :: :: rec_e :: 'RecE_'
+        {{ com recording an expresion stores the result of that expression }}
+        {{ tex [[E]]\enspace[[e]] [[-rec-e->]] [[re]] }}
+    by
+
+        E se -rec-se-> (se, v)
+        ------------------------------- :: IsNA
+        E isNA se -rec-e-> isNA (se, v)
+
+        E se -rec-se-> (se, v)
+        -----------------------------  :: UnaryOp
+        E uop se -rec-e-> uop (se, v)
+
+        E se1 -rec-se-> (se1, v1)
+        E se2 -rec-se-> (se2, v2)
+        ----------------------------------------------  :: BinaryOp
+        E se1 bop se2 -rec-e-> (se1, v1) bop (se2, v2)
+
+        E se -rec-se-> (se, v)
+        ----------------------  :: SimpleExpression
+        E se -rec-e-> (se, v)
+
+    defn
+    T , C -rec-> T' , C' :: :: rec_s :: 'RecS_'
         {{ com recording a program state updates the execution trace }}
         {{ tex [[T]],\:[[C]] [[-rec->]] [[T']],\:[[C']] }}
     by
 
+        E e -rec-e-> re
         x <- e I E --> v I E'
-        ---------------------------------------------  :: Assign
-        T, x <- e I E -rec-> T . [x <- e v E], v I E'
+        -------------------------------------------------  :: Assign
+        T, x <- e I E -rec-> T . [x <- (re, v) E], v I E'
 
         x <- l ^ input() I E --> v I' E'
-        ------------------------------------------------------------------  :: Input
-        T, x <- l ^ input() I E -rec-> T . [x <- l ^ input() v E], v I' E'
+        ---------------------------------------------------------------------  :: Input
+        T, x <- l ^ input() I E -rec-> T . [x <- (l ^ input(), v) E], v I' E'
 
-% TODO: Still some issues with recording values from sequences
-        v ; s I E --> s I' E'
-        --------------------------------------------  :: Seq
-        T, v ; s I E -rec-> T . [v ; s v E], s I' E'
+        E se -rec-se-> (se, v)
+        if se then s1 else s2 fi I E --> s I E
+        ---------------------------------------------------------------------------------  :: If
+        T, if se then s1 else s2 fi I E -rec-> T . [if (se, v) then . else . fi E], s I' E'
 
-        s I E --> s' I' E'
-        ---------------------------------------  :: Step
-        T, s I E -rec-> T . [s empty E], s' I' E'
+        E se1 -rec-se-> (se1, v1)
+        E se2 -rec-se-> (se2, v2)
+        for x in se1 : se2 do s od I E --> s' I E'
+        ------------------------------------------------------------------------------------------------  :: For
+        T, for x in se1 : se2 do s od I E -rec-> T . [for x in (se1, v1) : (se2, v2) do . od E], s' I E'
 
-        -------------------------------  :: Stop
-        T, v I E -rec-> T . [v v E], stop
+        E e -rec-e-> re
+        e I E --> v I E
+        --------------------------------------  :: Expression
+        T, e I E -rec-> T . [(re, v) E], v I E
 
+        % TODO Seq, Step/Stop
 
-%% NA ANALYSIS SEMANTICS %%%
-defns
-na_analysis :: 'NA_' ::=
-
-    defn
-    AE AH se -na-se-> a Av :: :: na_eval_se :: 'SE_'
-        {{ com abstract evaluation of simple expressions }}
-        {{ tex [[AE]]\,[[AH]]\enspace[[se]] [[-na-se->]] [[a]],[[Av]] }}
-    by
-
-        Av = [alpha(v), alpha(v), empty]
-        fresh(a)
-        --------------------------------  :: Literal
-        AE AH v -na-se-> a Av
-
-        a = AE(x)
-        Av = AH(a)
-        ---------------------  :: Variable
-        AE AH x -na-se-> a Av
-
-    defn
-    AE AH v e -na-e-> a Av :: :: na_eval_e :: 'E_'
-        {{ com abstract evaluation of expressions }}
-        {{ tex [[AE]]\,[[AH]]\,[[v]]\enspace[[e]] [[-na-e->]] [[a]],[[Av]] }}
-    by
-
-        Av = [!NA, !NA, empty]
-        fresh(a)
-        ----------------------------  :: IsNA
-        AE AH v isNA se -na-e-> a Av
-
-        AE AH se -na-se-> a [Lat1, Lat2, L]
-        Av = [alpha(v), Auop Lat2, L]
-        fresh(a')
-        -----------------------------------  :: UnaryOp
-        AE AH v uop se -na-e-> a' Av
-
-        AE AH se1 -na-se-> a1 [Lat11, Lat12, L1]
-        AE AH se2 -na-se-> a2 [Lat21, Lat22, L2]
-        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
-        fresh(a)
-        ----------------------------------------------  :: BinaryOp
-        AE AH v se1 bop se2 -na-e-> a Av
-
-        AE AH se -na-se-> a Av
-        -----------------------  :: SimpleExpression
-        AE AH v se -na-e-> a Av
-
-    defn
-    T , AC -na-s-> T' , AC' :: :: na_analysis :: 'S_'
-        {{ com analysis of execution trace updates the abstract environment and analysis state }}
-        {{ tex [[T]],\:[[AC]] [[-na-s->]] [[T']],\:[[AC']] }}
-    by
-
-        AE AH v e -na-e-> a Av
-        fresh(a)
-        AE' = AE[x -> a]
-        AH' = AH[a -> Av]
-        ----------------------------------------------  :: Assign
-        [x <- e v E] . T, AE AH M -na-s-> T, AE' AH' M
-
-        Av = [alpha(v), Top, {l}]
-        fresh(a)
-        AE' = AE[x -> a]
-        AH' = AH[a -> Av]
-        --------------------------------------------------------  :: Input
-        [x <- l ^ input() v E] . T, AE AH M -na-s-> T, AE' AH' M
-
-        AE AH se -na-se-> a Av
-        Av = [Lat1, Lat2, L]
-        Av' = [Lat1, !NA, L]
-        AH' = AH[a -> Av']
-% TODO: this notation seems wrong
-        M' = forall-labs (l : L) . M[l -> !NA]
-        ----------------------------------------------------------------  :: If
-        [if se then s1 else s2 fi v E] . T, AE AH M -na-s-> T, AE AH' M'
-
-        AE AH se1 -na-se-> a1 Av1
-        AE AH se2 -na-se-> a2 Av2
-        Av1 = [Lat11, Lat12, L1]
-        Av2 = [Lat21, Lat22, L2]
-        Av1' = [Lat11, !NA, L1]
-        Av2' = [Lat21, !NA, L2]
-        AH' = AH[a1 -> Av1']
-        AH'' = AH'[a2 -> Av2']
-% TODO: this notation seems wrong
-        M' = forall-labs (l : L1 union L2) . M[l -> !NA]
-        ------------------------------------------------------------------  :: For
-        [for x in se1 : se2 do s od v E] . T, AE AH M -na-s-> T, AE AH' M'
+%% TODO: Still some issues with recording values from sequences
+%        v ; s I E --> s I' E'
+%        --------------------------------------------  :: Seq
+%        T, v ; s I E -rec-> T . [v ; s v E], s I' E'
+%
+%        s I E --> s' I' E'
+%        ---------------------------------------  :: Step
+%        T, s I E -rec-> T . [s empty E], s' I' E'
+%
+%        -------------------------------  :: Stop
+%        T, v I E -rec-> T . [v v E], stop
 
 
-        [s1 v E] . T, AE AH M -na-s-> T, AE' AH' M'
-        -----------------------------------------------  :: Seq
-        [s1; s2 v E] . T, AE AH M -na-s-> T, AE' AH' M'
-
-        ---------------------------------------  :: Expression
-        [e v E] . T, AE AH M -na-s-> T, AE AH M
+%
+%        s1 I E --> s1' I' E'
+%        ------------------------------  :: Seq1
+%        s1 ; s2 I E --> s1' ; s2 I' E'
+%
+%        -----------------------  :: Seq2
+%        v ; s2 I E --> s2 I' E'
+%
+%
+%%% NA ANALYSIS SEMANTICS %%%
+%defns
+%na_analysis :: 'NA_' ::=
+%
+%    defn
+%    AE AH se -na-se-> a Av :: :: na_eval_se :: 'SE_'
+%        {{ com abstract evaluation of simple expressions }}
+%        {{ tex [[AE]]\,[[AH]]\enspace[[se]] [[-na-se->]] [[a]],[[Av]] }}
+%    by
+%
+%        Av = [alpha(v), alpha(v), empty]
+%        fresh(a)
+%        --------------------------------  :: Literal
+%        AE AH v -na-se-> a Av
+%
+%        a = AE(x)
+%        Av = AH(a)
+%        ---------------------  :: Variable
+%        AE AH x -na-se-> a Av
+%
+%    defn
+%    AE AH v e -na-e-> a Av :: :: na_eval_e :: 'E_'
+%        {{ com abstract evaluation of expressions }}
+%        {{ tex [[AE]]\,[[AH]]\,[[v]]\enspace[[e]] [[-na-e->]] [[a]],[[Av]] }}
+%    by
+%
+%        Av = [!NA, !NA, empty]
+%        fresh(a)
+%        ----------------------------  :: IsNA
+%        AE AH v isNA se -na-e-> a Av
+%
+%        AE AH se -na-se-> a [Lat1, Lat2, L]
+%        Av = [alpha(v), Auop Lat2, L]
+%        fresh(a')
+%        -----------------------------------  :: UnaryOp
+%        AE AH v uop se -na-e-> a' Av
+%
+%        AE AH se1 -na-se-> a1 [Lat11, Lat12, L1]
+%        AE AH se2 -na-se-> a2 [Lat21, Lat22, L2]
+%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+%        fresh(a)
+%        ----------------------------------------------  :: BinaryOp
+%        AE AH v se1 bop se2 -na-e-> a Av
+%
+%        AE AH se -na-se-> a Av
+%        -----------------------  :: SimpleExpression
+%        AE AH v se -na-e-> a Av
+%
+%    defn
+%    T , AC -na-s-> T' , AC' :: :: na_analysis :: 'S_'
+%        {{ com analysis of execution trace updates the abstract environment and analysis state }}
+%        {{ tex [[T]],\:[[AC]] [[-na-s->]] [[T']],\:[[AC']] }}
+%    by
+%
+%        AE AH v e -na-e-> a Av
+%        fresh(a)
+%        AE' = AE[x -> a]
+%        AH' = AH[a -> Av]
+%        ----------------------------------------------  :: Assign
+%        [x <- e v E] . T, AE AH M -na-s-> T, AE' AH' M
+%
+%        Av = [alpha(v), Top, {l}]
+%        fresh(a)
+%        AE' = AE[x -> a]
+%        AH' = AH[a -> Av]
+%        --------------------------------------------------------  :: Input
+%        [x <- l ^ input() v E] . T, AE AH M -na-s-> T, AE' AH' M
+%
+%        AE AH se -na-se-> a Av
+%        Av = [Lat1, Lat2, L]
+%        Av' = [Lat1, !NA, L]
+%        AH' = AH[a -> Av']
+%% TODO: this notation seems wrong
+%        M' = forall-labs (l : L) . M[l -> !NA]
+%        ----------------------------------------------------------------  :: If
+%        [if se then s1 else s2 fi v E] . T, AE AH M -na-s-> T, AE AH' M'
+%
+%        AE AH se1 -na-se-> a1 Av1
+%        AE AH se2 -na-se-> a2 Av2
+%        Av1 = [Lat11, Lat12, L1]
+%        Av2 = [Lat21, Lat22, L2]
+%        Av1' = [Lat11, !NA, L1]
+%        Av2' = [Lat21, !NA, L2]
+%        AH' = AH[a1 -> Av1']
+%        AH'' = AH'[a2 -> Av2']
+%% TODO: this notation seems wrong
+%        M' = forall-labs (l : L1 union L2) . M[l -> !NA]
+%        ------------------------------------------------------------------  :: For
+%        [for x in se1 : se2 do s od v E] . T, AE AH M -na-s-> T, AE AH' M'
+%
+%
+%        [s1 v E] . T, AE AH M -na-s-> T, AE' AH' M'
+%        -----------------------------------------------  :: Seq
+%        [s1; s2 v E] . T, AE AH M -na-s-> T, AE' AH' M'
+%
+%        ---------------------------------------  :: Expression
+%        [e v E] . T, AE AH M -na-s-> T, AE AH M
