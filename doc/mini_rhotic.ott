@@ -103,30 +103,30 @@ rse {{ tex \overline{se} }} :: 'rse_' ::=           {{ com recorded simple expre
 
 %%% Recorded expressions %%%
 re {{ tex \overline{e} }} :: 're_' ::=              {{ com recorded expressions }}
-    | ( isNA rse , v )          :: :: IsNA              {{ tex ([[isNA]]([[rse]]), [[v]]) }}
-    | ( uop rse , v )           :: :: UOp
+    | isNA rse                  :: :: IsNA              {{ tex [[isNA]]([[rse]]) }}
+    | uop rse                   :: :: UOp
         {{ com $[[uop]] \in \{ \neg, +, - \}$ }}
-        {{ tex ([[uop]][[rse]], [[v]]) }}
-    | ( rse1 bop rse2 , v )     :: :: BOp
+        {{ tex [[uop]][[rse]] }}
+    | rse1 bop rse2             :: :: BOp
         {{ com $[[bop]] \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$ }}
-        {{ tex ([[rse1]] [[bop]] [[rse2]], [[v]]) }}
-    | ( rse , v )               :: :: SimpleExp
+        {{ tex [[rse1]] [[bop]] [[rse2]] }}
+    | rse                       :: :: SimpleExp
 
 %%% Recorded statements %%%
 rs {{ tex \overline{s} }} :: 'rs_' ::=              {{ com recorded statements }}
-    | x <- re                       :: :: Assign
+    | x <- ( re , v )                           :: :: Assign
         {{ com $x \in \vars$ }}
-        {{ tex [[x]] [[<-]] [[re]] }}
-    | x <- ( l ^ input() , v )      :: :: Input
+        {{ tex [[x]] [[<-]] ([[re]],[[v]]) }}
+    | x <- ( l ^ input() , v )                  :: :: Input
         {{ com $[[l]] \in \labels$ }}
         {{ tex [[x]] [[<-]]\, ( ^{[[l]]} [[input()]], [[v]] ) }}
-    | if rse then . else . fi       :: :: If
+    | if rse then . else . fi                   :: :: If
         {{ tex [[if]]~[[rse]]~[[then]] \bullet [[else]] \bullet [[fi]] }}
         {{ com $\bullet$ is not recorded in this statement }}
-    | for x in rse1 : rse2 do . od  :: :: For
-        {{ tex [[for]]~[[x]]~[[in]]~[[rse1]]\negmedspace:\negmedspace[[rse2]]~[[do]] \bullet [[od]] }}
+    | for ( x , v ) in rse1 : rse2 do . od      :: :: For
+        {{ tex [[for]]~([[x]], [[v]])~[[in]]~[[rse1]]\negmedspace:\negmedspace[[rse2]]~[[do]] \bullet [[od]] }}
         {{ com $\bullet$ is not recorded in this statement }}
-    | re                            :: :: Exp
+    | ( re , v )                                :: :: Exp
 
 %%% Environment %%%
 E :: 'Env_' ::=                                     {{ com environment }}
@@ -159,8 +159,12 @@ r :: 'r_' ::=                                       {{ com recorded state }}
 T :: 'T_' ::=                                       {{ com execution trace }}
     | empty                         :: :: Empty         {{ com empty trace }}
     | r                             :: :: Single        {{ com singleton }} {{ tex [[r]] }}
-    | T . r                         :: :: Append        {{ com append }} {{ tex [[T]] \cdot [[r]] }}
-    | r . T                         :: :: Prepend       {{ com prepend }} {{ tex [[r]] \cdot [[T]] }}
+    | T . r                         :: :: Append        {{ com append }} {{ tex [[T]]\!\cdot\![[r]] }}
+    | r . T                         :: :: Prepend       {{ com prepend }} {{ tex [[r]]\!\cdot\![[T]] }}
+
+%%% Recorded machine configuration %%%
+rC {{ tex \overline{C} }} :: 'rC_' ::=
+    | C T                           :: :: CT
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -265,6 +269,8 @@ formula :: 'formula_' ::=
   | v' = v1 - v2                            :: :: minus
   | E' = E [ x -> v ]                       :: :: env_update
   | I = v . I'                              :: :: input_stream  {{ tex [[I]] = [[v]] \cdot [[I']] }}
+  | re1 = re2                               :: :: re_equal
+  | rse1 = rse2                             :: :: rse_equal
   | a = AE ( x )                            :: :: abstract_env_lookup
   | AE' = AE [ x -> a ]                     :: :: abstract_env_update
   | Av = AH ( a )                           :: :: abstract_heap_lookup
@@ -398,77 +404,115 @@ record :: '' ::=
         {{ tex [[E]]\enspace[[se]] [[-rec-se->]] [[rse]] }}
     by
 
-        E se -se-> v
-        ----------------------  :: SE
-        E se -rec-se-> (se, v)
+        --------------------  :: Literal
+        E v -rec-se-> (v, v)
+
+        v = E(x)
+        --------------------  :: Variable
+        E x -rec-se-> (x, v)
 
     defn
-    E e -rec-e-> re :: :: rec_e :: 'RecE_'
+    E e -rec-e-> ( re , v ) :: :: rec_e :: 'RecE_'
         {{ com recording an expresion stores the result of that expression }}
-        {{ tex [[E]]\enspace[[e]] [[-rec-e->]] [[re]] }}
+        {{ tex [[E]]\enspace[[e]] [[-rec-e->]] ([[re]], [[v]]) }}
     by
 
         E se -rec-se-> rse
-        E isNA se -e-> v
-        -------------------------------- :: IsNA
-        E isNA se -rec-e-> (isNA rse, v)
+        rse = (se, v)
+        v = NA_b \/ v = NA_i \/ v = NA_s
+        ----------------------------------- :: IsNA
+        E isNA se -rec-e-> (isNA rse, true)
 
         E se -rec-se-> rse
-        E uop se -e-> v
-        ------------------------------  :: UnaryOp
-        E uop se -rec-e-> (uop rse, v)
+        rse = (se, v)
+        v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
+        -------------------------------------- :: IsNotNA
+        E isNA se -rec-e-> (isNA rse, false)
+
+        E se -rec-se-> rse
+        rse = (se, v)
+        v' = [[uop]](v)
+        -------------------------------  :: UnaryOp
+        E uop se -rec-e-> (uop rse, v')
 
         E se1 -rec-se-> rse1
         E se2 -rec-se-> rse2
-        E se1 bop se2 -e-> v
-        -----------------------------------------  :: BinaryOp
-        E se1 bop se2 -rec-e-> (rse1 bop rse2, v)
+        rse1 = (se1, v1)
+        rse2 = (se2, v2)
+        v' = [[bop]](v1, v2)
+        ------------------------------------------  :: BinaryOp
+        E se1 bop se2 -rec-e-> (rse1 bop rse2, v')
 
         E se -rec-se-> rse
-        E se -e-> v
+        rse = (se, v)
         ----------------------  :: SimpleExpression
         E se -rec-e-> (rse, v)
 
     defn
-    T , C -rec-> T' , C' :: :: rec_s :: 'RecS_'
+    rC -rec-> rC' :: :: rec_s :: 'RecS_'
         {{ com recording a program state updates the execution trace }}
-        {{ tex [[T]],\:[[C]] [[-rec->]] [[T']],\:[[C']] }}
+        {{ tex [[rC]] [[-rec->]] [[rC']] }}
     by
 
-        E e -rec-e-> re
-        x <- e I E --> v I E'
-        --------------------------------------------  :: Assign
-        T, x <- e I E -rec-> T . [x <- re E], v I E'
+        E e -rec-e-> ( re , v )
+        E' = E[x -> v]
+        ------------------------------------------------  :: Assign
+        x <- e I E T -rec-> v I E' T . [x <- (re, v) E']
 
-        x <- l ^ input() I E --> v I' E'
-        ---------------------------------------------------------------------  :: Input
-        T, x <- l ^ input() I E -rec-> T . [x <- (l ^ input(), v) E], v I' E'
+        I = v . I'
+        E' = E[x -> v]
+        --------------------------------------------------------------------  :: Input
+        x <- l ^ input() I E T -rec-> v I' E' T . [x <- (l ^ input(), v) E']
 
         E se -rec-se-> rse
-        if se then s1 else s2 fi I E --> s I E
-        -------------------------------------------------------------------------------  :: If
-        T, if se then s1 else s2 fi I E -rec-> T . [if rse then . else . fi E], s I' E'
+        rse = (se, true)
+        -------------------------------------------------------------------------------  :: IfTrue
+        if se then s1 else s2 fi I E T -rec-> s1 I' E' T . [if rse then . else . fi E']
+
+        E se -rec-se-> rse
+        rse = (se, false)
+        -------------------------------------------------------------------------------  :: IfFalse
+        if se then s1 else s2 fi I E T -rec-> s2 I' E' T . [if rse then . else . fi E']
 
         E se1 -rec-se-> rse1
         E se2 -rec-se-> rse2
-        for x in se1 : se2 do s od I E --> s' I E'
-        --------------------------------------------------------------------------------------  :: For
-        T, for x in se1 : se2 do s od I E -rec-> T . [for x in rse1 : rse2 do . od E], s' I E'
+        rse1 = (se1, v1)
+        rse2 = (se2, v2)
+        v1' = v1 + 1
+        E' = E[x -> v1]
+        v1 < v2
+        ----------------------------------------------------------------------------------------------------------------------  :: ForIncr
+        for x in se1 : se2 do s od I E T -rec-> s ; for x in v1' : v2 do s od I E' T . [for (x, v1) in rse1 : rse2 do . od E']
 
-        E e -rec-e-> re
-        e I E --> v I E
-        ---------------------------------  :: Expression
-        T, e I E -rec-> T . [re E], v I E
+        E se1 -rec-se-> rse1
+        E se2 -rec-se-> rse2
+        rse1 = (se1, v1)
+        rse2 = (se2, v2)
+        v1' = v1 - 1
+        E' = E[x -> v1]
+        v1 > v2
+        ----------------------------------------------------------------------------------------------------------------------  :: ForDecr
+        for x in se1 : se2 do s od I E T -rec-> s ; for x in v1' : v2 do s od I E' T . [for (x, v1) in rse1 : rse2 do . od E']
 
-        empty, s1 I E -rec-> [rs1 E], s1' I' E'
-        -----------------------------------------------------  :: Seq1
-        T, s1 ; s2 I E -rec-> T . [rs1 E], s1' ; s2 I' E'
+        E se1 -rec-se-> rse1
+        E se2 -rec-se-> rse2
+        rse1 = (se1, v1)
+        rse2 = (se2, v2)
+        E' = E[x -> v1]
+        v1 = v2
+        ------------------------------------------------------------------------------------------  :: ForEnd
+        for x in se1 : se2 do s od I E T -rec-> s I E' T . [for (x, v1) in rse1 : rse2 do . od E']
 
-        --------------------------------------  :: Seq2
-        T, v ; s2 I E -rec-> T . [((v, v), v) E], s2 I E
+        E e -rec-e-> (re, v)
+        ------------------------------------  :: Expression
+        e I E T -rec-> v I E T . [(re, v) E]
 
-        -----------------------------------------  :: Stop
-        T, v I E -rec-> T . [((v, v), v) E], stop
+        s1 I E T -rec-> s1' I' E' T'
+        --------------------------------------  :: Seq1
+        s1 ; s2 I E T -rec-> s1' ; s2 I' E' T'
+
+        ----------------------------------------------  :: Seq2
+        v ; s2 I E T -rec-> s2 I E T . [((v, v), v) E]
 
 
 %%% NA ANALYSIS SEMANTICS %%%
