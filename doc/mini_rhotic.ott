@@ -172,85 +172,80 @@ Lat :: 'Lat_' ::=                                   {{ com lattice }}
     | alpha ( v )                   :: :: alpha         {{ com abstraction of concrete value }} {{ tex \alpha([[v]]) }}
     | Auop Lat                      :: :: Auop          {{ com abstract unary operation }}
     | Lat1 Abop Lat2                :: :: Abop          {{ com abstract binary operation }}
-    | NA_Lat                        :: :: NA            {{ com \na analysis }}
+    | Lat1 lub Lat2                 :: :: Lub           {{ com least upper bound }}
+    | Lat1 glb Lat2                 :: :: Glb           {{ com greatest lower bound }}
+    | Top                           :: :: Top           {{ com top }}
+    | Bot                           :: :: Bot           {{ com bot }}
+    % NA lattice
+    | NA                            :: :: NA            {{ com \na lattice }} {{ tex \textsc{na} }}
+    | ! NA                          :: :: NotNA         {{ com \na lattice }} {{ tex \neg \textsc{na} }}
+    % Type lattice
+    | Bool                          :: :: Bool          {{ com type lattice }} {{ tex \textsf{Bool} }}
+    | Int                           :: :: Int           {{ com type lattice }} {{ tex \textsf{Int} }}
+    | Str                           :: :: Str           {{ com type lattice }} {{ tex \textsf{Str} }}
 
 Av {{ tex \widehat{v} }} :: 'Av_' ::=               {{ com abstract value }}
-    | NA_Av                         :: :: NA            {{ com \na analysis }}
+    | [ Lat1 , Lat2 , L ]           :: :: AVal          {{ tex \langle [[Lat1]], [[Lat2]], [[L]] \rangle }}
 
 AE {{ tex \widehat{E} }} :: 'AE_' ::=               {{ com abstract environment }}
-    | NA_AE                         :: :: NA            {{ com \na analysis }}
-
-AH {{ tex \widehat{H} }} :: 'AH_' ::=               {{ com abstract store }}
-    | NA_AH                         :: :: NA            {{ com \na analysis }}
-
-AC {{ tex \widehat{C} }} :: 'AC_' ::=               {{ com abstract configuration }}
-    | NA_AC                         :: :: NA            {{ com \na analysis }}
-
-M :: 'M_' ::=                                       {{ com analysis state }}
-    | empty                         :: :: Empty         {{ com empty state }}
-    | M [ l -> Lat ]                :: :: StateBind     {{ com \na state }}
-
-%%% NA Analysis %%%
-
-NA_Lat :: 'NA_Lat_' ::=                             {{ com \na analysis lattice }}
-    | Top                           :: :: Top
-    | NA                            :: :: NA            {{ tex \textsc{na} }}
-    | ! NA                          :: :: NotNA         {{ tex \neg \textsc{na} }}
-    | Bot                           :: :: Bot
-
-NA_Av :: 'NA_Av_' ::=                               {{ com \na analysis abstract value }}
-    | [ Lat1 , Lat2 , L ]           :: :: AVal          {{ tex \langle [[Lat1]] , [[Lat2]] , [[L]] \rangle }}
-
-NA_AE :: 'NA_AE_' ::=                               {{ com \na analysis abstract environment }}
     | empty                         :: :: Empty         {{ com empty environment }}
     | AE [ x -> a ]                 :: :: EnvBind       {{ com environment binding }}
 
-NA_AH :: 'NA_AH_' ::=                               {{ com \na analysis abstract store }}
+AH {{ tex \widehat{H} }} :: 'AH_' ::=               {{ com abstract store }}
     | empty                         :: :: Empty         {{ com empty heap }}
     | AH [ a -> Av ]                :: :: HeapBind      {{ com heap binding }}
 
-NA_AC :: 'NA_AC_' ::=                               {{ com \na analysis state }}
+AC {{ tex \widehat{C} }} :: 'AC_' ::=               {{ com abstract configuration }}
     | AE AH M                       :: :: EM            {{ tex [[AE]]\,[[AH]]\,[[M]] }}
+
+M :: 'M_' ::=                                       {{ com analysis state }}
+    | empty                         :: :: Empty         {{ com empty state }}
+    | M [ l -> Lat ]                :: :: StateBind     {{ com state binding }}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
-    | isNA          :: :: IsNA      {{ tex \isna }}
-    | input()       :: :: Input     {{ tex \ipt }}
-    | <-            :: :: Assign    {{ tex \leftarrow }}
-    | if            :: :: If        {{ tex \mathsf{if} }}
-    | then          :: :: Then      {{ tex \mathsf{then} }}
-    | else          :: :: Else      {{ tex \mathsf{else} }}
-    | fi            :: :: Fi        {{ tex \mathsf{fi} }}
-    | for           :: :: For       {{ tex \mathsf{for} }}
-    | in            :: :: In        {{ tex \mathsf{in} }}
-    | do            :: :: Do        {{ tex \mathsf{do} }}
-    | od            :: :: Od        {{ tex \mathsf{od} }}
-    | empty         :: :: Empty     {{ tex \emptyset }}
-    | ->            :: :: MapsTo    {{ tex \mapsto }}
-    | -se->         :: :: EvalSE    {{ tex \rightharpoonup }}
-    | -e->          :: :: EvalE     {{ tex \longrightarrow }}
-    | -->           :: :: EvalS     {{ tex \longmapsto }}
-    | -rec-se->     :: :: RecSE     {{ tex \overset{\mathrm{rec} }{\rightharpoonup} }}
-    | -rec-e->      :: :: RecE      {{ tex \overset{\mathrm{rec} }{\longrightarrow} }}
-    | -rec->        :: :: RecS      {{ tex \overset{\mathrm{rec} }{\longmapsto} }}
-    | !             :: :: Negate    {{ tex \neg }}
-    | *             :: :: Times     {{ tex \times }}
-    | /             :: :: Divide    {{ tex \div }}
-    | <=            :: :: LEq       {{ tex \leq }}
-    | >=            :: :: GEq       {{ tex \geq }}
-    | =/=           :: :: NEq       {{ tex \neq }}
-    | /\            :: :: And       {{ tex \land }}
-    | \/            :: :: Or        {{ tex \lor }}
-    | Top           :: :: Top       {{ tex \top }}
-    | Bot           :: :: Bot       {{ tex \bot }}
-    | -na-se->      :: :: NA_SEEval {{ tex \rightsquigarrow_{se} }}
-    | -na-e->       :: :: NA_EEval  {{ tex \rightsquigarrow_{e} }}
-    | -na->       :: :: NA_Eval   {{ tex \rightsquigarrow }}
-    | union         :: :: Union     {{ tex \cup }}
-    | Auop          :: :: Auop      {{ tex \widehat{\circ} }}
-    | Abop          :: :: Abop      {{ tex \widehat{\diamond} }}
+    | isNA          :: :: IsNA          {{ tex \isna }}
+    | input()       :: :: Input         {{ tex \ipt }}
+    | <-            :: :: Assign        {{ tex \leftarrow }}
+    | if            :: :: If            {{ tex \mathsf{if} }}
+    | then          :: :: Then          {{ tex \mathsf{then} }}
+    | else          :: :: Else          {{ tex \mathsf{else} }}
+    | fi            :: :: Fi            {{ tex \mathsf{fi} }}
+    | for           :: :: For           {{ tex \mathsf{for} }}
+    | in            :: :: In            {{ tex \mathsf{in} }}
+    | do            :: :: Do            {{ tex \mathsf{do} }}
+    | od            :: :: Od            {{ tex \mathsf{od} }}
+    | empty         :: :: Empty         {{ tex \emptyset }}
+    | ->            :: :: MapsTo        {{ tex \mapsto }}
+    | -se->         :: :: EvalSE        {{ tex \rightharpoonup }}
+    | -e->          :: :: EvalE         {{ tex \longrightarrow }}
+    | -->           :: :: EvalS         {{ tex \longmapsto }}
+    | -rec-se->     :: :: RecSE         {{ tex \overset{\mathrm{rec} }{\rightharpoonup} }}
+    | -rec-e->      :: :: RecE          {{ tex \overset{\mathrm{rec} }{\longrightarrow} }}
+    | -rec->        :: :: RecS          {{ tex \overset{\mathrm{rec} }{\longmapsto} }}
+    | !             :: :: Negate        {{ tex \neg }}
+    | *             :: :: Times         {{ tex \times }}
+    | /             :: :: Divide        {{ tex \div }}
+    | <=            :: :: LEq           {{ tex \leq }}
+    | >=            :: :: GEq           {{ tex \geq }}
+    | =/=           :: :: NEq           {{ tex \neq }}
+    | /\            :: :: And           {{ tex \land }}
+    | \/            :: :: Or            {{ tex \lor }}
+    | Top           :: :: Top           {{ tex \top }}
+    | Bot           :: :: Bot           {{ tex \bot }}
+    | union         :: :: Union         {{ tex \cup }}
+    | Auop          :: :: Auop          {{ tex \widehat{\circ} }}
+    | Abop          :: :: Abop          {{ tex \widehat{\diamond} }}
+    | lub           :: :: Lub           {{ tex \sqcup }}
+    | glb           :: :: Glb           {{ tex \sqcap }}
+    | -na-se->      :: :: NA_SEEval     {{ tex \overset{\textsf{NA} }{\rightsquigarrow}_{se} }}
+    | -na-e->       :: :: NA_EEval      {{ tex \overset{\textsf{NA} }{\rightsquigarrow}_{e} }}
+    | -na->         :: :: NA_Eval       {{ tex \overset{\textsf{NA} }{\rightsquigarrow} }}
+    | -type-se->    :: :: Type_SEEval   {{ tex \overset{\textsf{Type} }{\rightsquigarrow}_{se} }}
+    | -type-e->     :: :: Type_EEval    {{ tex \overset{\textsf{Type} }{\rightsquigarrow}_{e} }}
+    | -type->       :: :: Type_Eval     {{ tex \overset{\textsf{Type} }{\rightsquigarrow} }}
 
 %%% FORMULAS %%%
 formula :: 'formula_' ::=
@@ -605,3 +600,96 @@ na_analysis :: 'NA_' ::=
 
         ---------------------------------------  :: Expression
         [(re, v) E] . T AE AH M -na-> T AE AH M
+
+
+%%% TYPE ANALYSIS SEMANTICS %%%
+defns
+type_analysis :: 'Type_' ::=
+
+    defn
+    AE AH rse -type-se-> a Av :: :: type_eval_se :: 'SE_'
+        {{ com abstract evaluation of simple expressions returns an address and abstract value }}
+        {{ tex [[AE]]\,[[AH]]\enspace[[rse]] [[-type-se->]] [[a]],[[Av]] }}
+    by
+%
+%        Av = [alpha(v), alpha(v), empty]
+%        fresh(a)
+%        --------------------------------  :: Literal
+%        AE AH (v, v) -na-se-> a Av
+%
+%        a = AE(x)
+%        Av = AH(a)
+%        --------------------------  :: Variable
+%        AE AH (x, v) -na-se-> a Av
+%
+    defn
+    AE AH ( re , v ) -type-e-> a Av :: :: type_eval_e :: 'E_'
+        {{ com abstract evaluation of expressions returns an address and abstract value }}
+        {{ tex [[AE]]\,[[AH]]\enspace([[re]],[[v]]) [[-type-e->]] [[a]],[[Av]] }}
+    by
+%
+%        Av = [!NA, !NA, empty]
+%        fresh(a)
+%        --------------------------------  :: IsNA
+%        AE AH (isNA rse, v) -na-e-> a Av
+%
+%        AE AH rse -na-se-> a [Lat1, Lat2, L]
+%        Av = [alpha(v), Auop Lat2, L]
+%        fresh(a')
+%        -----------------------------------  :: UnaryOp
+%        AE AH (uop rse, v) -na-e-> a' Av
+%
+%        AE AH rse1 -na-se-> a1 [Lat11, Lat12, L1]
+%        AE AH rse2 -na-se-> a2 [Lat21, Lat22, L2]
+%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+%        fresh(a)
+%        ----------------------------------------------  :: BinaryOp
+%        AE AH (rse1 bop rse2, v) -na-e-> a Av
+%
+%        AE AH rse -na-se-> a Av
+%        ---------------------------  :: SimpleExpression
+%        AE AH (rse, v) -na-e-> a Av
+%
+    defn
+    T AC -type-> T' AC' :: :: type_analysis :: 'S_'
+        {{ com analysis of execution trace updates the abstract environment and analysis state }}
+        {{ tex [[T]]~[[AC]] [[-type->]] [[T']]~[[AC']] }}
+    by
+%
+%        AE AH (re, v) -na-e-> a Av
+%        AE' = AE[x -> a]
+%        AH' = AH[a -> Av]
+%        ------------------------------------------------  :: Assign
+%        [x <- (re, v) E] . T AE AH M -na-> T AE' AH' M
+%
+%        Av = [alpha(v), Top, {l}]
+%        fresh(a)
+%        AE' = AE[x -> a]
+%        AH' = AH[a -> Av]
+%        -------------------------------------------------------  :: Input
+%        [x <- (l ^ input(), v) E] . T AE AH M -na-> T AE' AH' M
+%
+%        AE AH rse -na-se-> a Av
+%        Av = [Lat1, Lat2, L]
+%        Av' = [Lat1, !NA, L]
+%        AH' = AH[a -> Av']
+%% TODO: this notation is ugly
+%        M' = forall-labs (l : L) . M[l -> !NA]
+%        ----------------------------------------------------------------  :: If
+%        [if rse then . else . fi E] . T AE AH M -na-> T AE AH' M'
+%
+%        AE AH rse1 -na-se-> a1 Av1
+%        AE AH rse2 -na-se-> a2 Av2
+%        Av1 = [Lat11, Lat12, L1]
+%        Av2 = [Lat21, Lat22, L2]
+%        Av1' = [Lat11, !NA, L1]
+%        Av2' = [Lat21, !NA, L2]
+%        AH' = AH[a1 -> Av1']
+%        AH'' = AH'[a2 -> Av2']
+%% TODO: this notation is ugly
+%        M' = forall-labs (l : L1 union L2) . M[l -> !NA]
+%        -------------------------------------------------------------------  :: For
+%        [for (x, v) in rse1 : rse2 do . od E] . T AE AH M -na-> T AE AH' M'
+%
+%        ---------------------------------------  :: Expression
+%        [(re, v) E] . T AE AH M -na-> T AE AH M
