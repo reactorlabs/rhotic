@@ -140,7 +140,6 @@ I :: 'I_' ::=                                       {{ com input stream }}
 
 %%% Machine configuration %%%
 C :: 'C_' ::=                                       {{ com machine configuration }}
-    | stop                          :: :: Stop          {{ tex \textsf{Stop} }}
     | s I E                         :: :: sIE           {{ tex [[s]]\enspace[[I]]\,[[E]] }}
 
 %%% Label set %%%
@@ -248,7 +247,7 @@ terminals :: 'terminals_' ::=
     | Bot           :: :: Bot       {{ tex \bot }}
     | -na-se->      :: :: NA_SEEval {{ tex \rightsquigarrow_{se} }}
     | -na-e->       :: :: NA_EEval  {{ tex \rightsquigarrow_{e} }}
-    | -na-s->       :: :: NA_Eval   {{ tex \rightsquigarrow }}
+    | -na->       :: :: NA_Eval   {{ tex \rightsquigarrow }}
     | union         :: :: Union     {{ tex \cup }}
     | Auop          :: :: Auop      {{ tex \widehat{\circ} }}
     | Abop          :: :: Abop      {{ tex \widehat{\diamond} }}
@@ -516,99 +515,93 @@ record :: '' ::=
 
 
 %%% NA ANALYSIS SEMANTICS %%%
-%defns
-%na_analysis :: 'NA_' ::=
-%
-%    defn
-%    AE AH se -na-se-> a Av :: :: na_eval_se :: 'SE_'
-%        {{ com abstract evaluation of simple expressions }}
-%        {{ tex [[AE]]\,[[AH]]\enspace[[se]] [[-na-se->]] [[a]],[[Av]] }}
-%    by
-%
-%        Av = [alpha(v), alpha(v), empty]
-%        fresh(a)
-%        --------------------------------  :: Literal
-%        AE AH v -na-se-> a Av
-%
-%        a = AE(x)
-%        Av = AH(a)
-%        ---------------------  :: Variable
-%        AE AH x -na-se-> a Av
-%
-%    defn
-%    AE AH v e -na-e-> a Av :: :: na_eval_e :: 'E_'
-%        {{ com abstract evaluation of expressions }}
-%        {{ tex [[AE]]\,[[AH]]\,[[v]]\enspace[[e]] [[-na-e->]] [[a]],[[Av]] }}
-%    by
-%
-%        Av = [!NA, !NA, empty]
-%        fresh(a)
-%        ----------------------------  :: IsNA
-%        AE AH v isNA se -na-e-> a Av
-%
-%        AE AH se -na-se-> a [Lat1, Lat2, L]
-%        Av = [alpha(v), Auop Lat2, L]
-%        fresh(a')
-%        -----------------------------------  :: UnaryOp
-%        AE AH v uop se -na-e-> a' Av
-%
-%        AE AH se1 -na-se-> a1 [Lat11, Lat12, L1]
-%        AE AH se2 -na-se-> a2 [Lat21, Lat22, L2]
-%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
-%        fresh(a)
-%        ----------------------------------------------  :: BinaryOp
-%        AE AH v se1 bop se2 -na-e-> a Av
-%
-%        AE AH se -na-se-> a Av
-%        -----------------------  :: SimpleExpression
-%        AE AH v se -na-e-> a Av
-%
-%    defn
-%    T , AC -na-s-> T' , AC' :: :: na_analysis :: 'S_'
-%        {{ com analysis of execution trace updates the abstract environment and analysis state }}
-%        {{ tex [[T]],\:[[AC]] [[-na-s->]] [[T']],\:[[AC']] }}
-%    by
-%
-%        AE AH v e -na-e-> a Av
-%        fresh(a)
-%        AE' = AE[x -> a]
-%        AH' = AH[a -> Av]
-%        ----------------------------------------------  :: Assign
-%        [x <- e v E] . T, AE AH M -na-s-> T, AE' AH' M
-%
-%        Av = [alpha(v), Top, {l}]
-%        fresh(a)
-%        AE' = AE[x -> a]
-%        AH' = AH[a -> Av]
-%        --------------------------------------------------------  :: Input
-%        [x <- l ^ input() v E] . T, AE AH M -na-s-> T, AE' AH' M
-%
-%        AE AH se -na-se-> a Av
-%        Av = [Lat1, Lat2, L]
-%        Av' = [Lat1, !NA, L]
-%        AH' = AH[a -> Av']
-%% TODO: this notation seems wrong
-%        M' = forall-labs (l : L) . M[l -> !NA]
-%        ----------------------------------------------------------------  :: If
-%        [if se then s1 else s2 fi v E] . T, AE AH M -na-s-> T, AE AH' M'
-%
-%        AE AH se1 -na-se-> a1 Av1
-%        AE AH se2 -na-se-> a2 Av2
-%        Av1 = [Lat11, Lat12, L1]
-%        Av2 = [Lat21, Lat22, L2]
-%        Av1' = [Lat11, !NA, L1]
-%        Av2' = [Lat21, !NA, L2]
-%        AH' = AH[a1 -> Av1']
-%        AH'' = AH'[a2 -> Av2']
-%% TODO: this notation seems wrong
-%        M' = forall-labs (l : L1 union L2) . M[l -> !NA]
-%        ------------------------------------------------------------------  :: For
-%        [for x in se1 : se2 do s od v E] . T, AE AH M -na-s-> T, AE AH' M'
-%
-%
-%        [s1 v E] . T, AE AH M -na-s-> T, AE' AH' M'
-%        -----------------------------------------------  :: Seq
-%        [s1; s2 v E] . T, AE AH M -na-s-> T, AE' AH' M'
-%
-%        ---------------------------------------  :: Expression
-%        [e v E] . T, AE AH M -na-s-> T, AE AH M
+defns
+na_analysis :: 'NA_' ::=
+
+    defn
+    AE AH rse -na-se-> a Av :: :: na_eval_se :: 'SE_'
+        {{ com abstract evaluation of simple expressions returns an address and abstract value }}
+        {{ tex [[AE]]\,[[AH]]\enspace[[rse]] [[-na-se->]] [[a]],[[Av]] }}
+    by
+
+        Av = [alpha(v), alpha(v), empty]
+        fresh(a)
+        --------------------------------  :: Literal
+        AE AH (v, v) -na-se-> a Av
+
+        a = AE(x)
+        Av = AH(a)
+        --------------------------  :: Variable
+        AE AH (x, v) -na-se-> a Av
+
+    defn
+    AE AH ( re , v ) -na-e-> a Av :: :: na_eval_e :: 'E_'
+        {{ com abstract evaluation of expressions returns an address and abstract value }}
+        {{ tex [[AE]]\,[[AH]]\enspace([[re]],[[v]]) [[-na-e->]] [[a]],[[Av]] }}
+    by
+
+        Av = [!NA, !NA, empty]
+        fresh(a)
+        --------------------------------  :: IsNA
+        AE AH (isNA rse, v) -na-e-> a Av
+
+        AE AH rse -na-se-> a [Lat1, Lat2, L]
+        Av = [alpha(v), Auop Lat2, L]
+        fresh(a')
+        -----------------------------------  :: UnaryOp
+        AE AH (uop rse, v) -na-e-> a' Av
+
+        AE AH rse1 -na-se-> a1 [Lat11, Lat12, L1]
+        AE AH rse2 -na-se-> a2 [Lat21, Lat22, L2]
+        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+        fresh(a)
+        ----------------------------------------------  :: BinaryOp
+        AE AH (rse1 bop rse2, v) -na-e-> a Av
+
+        AE AH rse -na-se-> a Av
+        ---------------------------  :: SimpleExpression
+        AE AH (rse, v) -na-e-> a Av
+
+    defn
+    T AC -na-> T' AC' :: :: na_analysis :: 'S_'
+        {{ com analysis of execution trace updates the abstract environment and analysis state }}
+        {{ tex [[T]]~[[AC]] [[-na->]] [[T']]~[[AC']] }}
+    by
+
+        AE AH (re, v) -na-e-> a Av
+        AE' = AE[x -> a]
+        AH' = AH[a -> Av]
+        ------------------------------------------------  :: Assign
+        [x <- (re, v) E] . T AE AH M -na-> T AE' AH' M
+
+        Av = [alpha(v), Top, {l}]
+        fresh(a)
+        AE' = AE[x -> a]
+        AH' = AH[a -> Av]
+        -------------------------------------------------------  :: Input
+        [x <- (l ^ input(), v) E] . T AE AH M -na-> T AE' AH' M
+
+        AE AH rse -na-se-> a Av
+        Av = [Lat1, Lat2, L]
+        Av' = [Lat1, !NA, L]
+        AH' = AH[a -> Av']
+% TODO: this notation is ugly
+        M' = forall-labs (l : L) . M[l -> !NA]
+        ----------------------------------------------------------------  :: If
+        [if rse then . else . fi E] . T AE AH M -na-> T AE AH' M'
+
+        AE AH rse1 -na-se-> a1 Av1
+        AE AH rse2 -na-se-> a2 Av2
+        Av1 = [Lat11, Lat12, L1]
+        Av2 = [Lat21, Lat22, L2]
+        Av1' = [Lat11, !NA, L1]
+        Av2' = [Lat21, !NA, L2]
+        AH' = AH[a1 -> Av1']
+        AH'' = AH'[a2 -> Av2']
+% TODO: this notation is ugly
+        M' = forall-labs (l : L1 union L2) . M[l -> !NA]
+        -------------------------------------------------------------------  :: For
+        [for (x, v) in rse1 : rse2 do . od E] . T AE AH M -na-> T AE AH' M'
+
+        ---------------------------------------  :: Expression
+        [(re, v) E] . T AE AH M -na-> T AE AH M
