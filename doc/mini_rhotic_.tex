@@ -243,6 +243,7 @@
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  \ottnt{formula}  \ottsym{)}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula_{{\mathrm{1}}}}  \land  \ottnt{formula_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula_{{\mathrm{1}}}}  \lor  \ottnt{formula_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v}  \ottsym{=}  \ottnt{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}{}{}{}{}\ottprodnewline
@@ -254,6 +255,8 @@
 \ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\circ  \ottsym{=}  \circ}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\diamond  \ottsym{=}  \diamond}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\overline{e}_{{\mathrm{1}}}  \ottsym{=}  \overline{e}_{{\mathrm{2}}}}{}{}{}{}\ottprodnewline
@@ -397,7 +400,7 @@
 %% defn eval_e
 \newcommand{\ottdruleEXXIsNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \ottsym{=}   \bna   \lor  \ottnt{v}  \ottsym{=}   \ina   \lor  \ottnt{v}  \ottsym{=}   \sna }%
+\ottpremise{\ottsym{(}  \ottnt{v}  \ottsym{=}   \bna   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \ina   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \sna   \ottsym{)}}%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
 {\ottdrulename{E\_IsNA}}{}%
@@ -406,7 +409,7 @@
 
 \newcommand{\ottdruleEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \neq   \bna   \land  \ottnt{v}  \neq   \ina   \land  \ottnt{v}  \neq   \sna }%
+\ottpremise{\ottsym{(}  \ottnt{v}  \neq   \bna   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \ina   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \sna   \ottsym{)}}%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{false}  }{%
 {\ottdrulename{E\_IsNotNA}}{}%
@@ -583,7 +586,7 @@
 \newcommand{\ottdruleRecEXXIsNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \overset{\mathrm{rec} }{\rightharpoonup}   \overline{se} }%
 \ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \ottnt{v}  \ottsym{)}}%
-\ottpremise{\ottnt{v}  \ottsym{=}   \bna   \lor  \ottnt{v}  \ottsym{=}   \ina   \lor  \ottnt{v}  \ottsym{=}   \sna }%
+\ottpremise{\ottsym{(}  \ottnt{v}  \ottsym{=}   \bna   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \ina   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \sna   \ottsym{)}}%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \isna ( \overline{se} )  ,   \mathsf{true}  ) }{%
 {\ottdrulename{RecE\_IsNA}}{}%
@@ -593,7 +596,7 @@
 \newcommand{\ottdruleRecEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \overset{\mathrm{rec} }{\rightharpoonup}   \overline{se} }%
 \ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \ottnt{v}  \ottsym{)}}%
-\ottpremise{\ottnt{v}  \neq   \bna   \land  \ottnt{v}  \neq   \ina   \land  \ottnt{v}  \neq   \sna }%
+\ottpremise{\ottsym{(}  \ottnt{v}  \neq   \bna   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \ina   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \sna   \ottsym{)}}%
 }{
  \ottnt{E} \enspace  \isna ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \isna ( \overline{se} )  ,   \mathsf{false}  ) }{%
 {\ottdrulename{RecE\_IsNotNA}}{}%
@@ -894,18 +897,188 @@
 
 % defns type_analysis
 %% defn type_eval_se
+\newcommand{\ottdruleTypeXXSEXXLiteral}[1]{\ottdrule[#1]{%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \alpha( \ottnt{v} )  ,  \emptyset  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+}{
+ \widehat{E} \, \widehat{H} \enspace \ottsym{(}  \ottnt{v}  \ottsym{,}  \ottnt{v}  \ottsym{)}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_SE\_Literal}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXSEXXVariable}[1]{\ottdrule[#1]{%
+\ottpremise{\mathit{a}  \ottsym{=}  \widehat{E}  \ottsym{(}  \mathit{x}  \ottsym{)}}%
+\ottpremise{\widehat{v}  \ottsym{=}  \widehat{H}  \ottsym{(}  \mathit{a}  \ottsym{)}}%
+}{
+ \widehat{E} \, \widehat{H} \enspace \ottsym{(}  \mathit{x}  \ottsym{,}  \ottnt{v}  \ottsym{)}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_SE\_Variable}}{}%
+}}
 
 \newcommand{\ottdefnTypeXXtypeXXevalXXse}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \, \widehat{H} \enspace \overline{se}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v} $}{\ottcom{abstract evaluation of simple expressions returns an address and abstract value}}
+\ottusedrule{\ottdruleTypeXXSEXXLiteral{}}
+\ottusedrule{\ottdruleTypeXXSEXXVariable{}}
 \end{ottdefnblock}}
 
 %% defn type_eval_e
+\newcommand{\ottdruleTypeXXEXXIsNA}[1]{\ottdrule[#1]{%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \textsf{Bool}  ,   \textsf{Bool}  ,  \emptyset  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+}{
+ \widehat{E} \, \widehat{H} \enspace(  \isna ( \overline{se} )  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_E\_IsNA}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXEXXUnaryOpBool}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,  \ottnt{Lat_{{\mathrm{2}}}} ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,   \textsf{Bool}  ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{v}'  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Bool}  ,  \ottnt{L}  \rangle }%
+\ottpremise{ \mathit{a'} ~\text{fresh} }%
+\ottpremise{\circ  \ottsym{=}  \neg}%
+}{
+ \widehat{E} \, \widehat{H} \enspace(  \circ \overline{se}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v}' }{%
+{\ottdrulename{Type\_E\_UnaryOpBool}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXEXXUnaryOpInt}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,  \ottnt{Lat_{{\mathrm{2}}}} ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,   \textsf{Int}  ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{v}'  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Int}  ,  \ottnt{L}  \rangle }%
+\ottpremise{ \mathit{a'} ~\text{fresh} }%
+\ottpremise{\ottsym{(}  \circ  \ottsym{=}  \ottsym{+}  \ottsym{)}  \lor  \ottsym{(}  \circ  \ottsym{=}  \ottsym{-}  \ottsym{)}}%
+}{
+ \widehat{E} \, \widehat{H} \enspace(  \circ \overline{se}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v}' }{%
+{\ottdrulename{Type\_E\_UnaryOpInt}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXEXXBinaryOpBool}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{1}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{1}}}} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,  \ottnt{Lat_{{\mathrm{12}}}} ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,   \textsf{Bool}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{2}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{2}}}} , \widehat{v}_{{\mathrm{2}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,  \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,   \textsf{Bool}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Bool}  ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+\ottpremise{\ottsym{(}  \diamond  \ottsym{=}  \land  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \lor  \ottsym{)}}%
+}{
+ \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_E\_BinaryOpBool}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXEXXBinaryOpInt}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{1}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{1}}}} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,  \ottnt{Lat_{{\mathrm{12}}}} ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{2}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{2}}}} , \widehat{v}_{{\mathrm{2}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,  \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+\ottpremise{\ottsym{(}  \diamond  \ottsym{=}  \ottsym{+}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{-}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \times  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \div  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{\%}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{<}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \leq  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{>}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \geq  \ottsym{)}}%
+}{
+ \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_E\_BinaryOpInt}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXEXXBinaryOp}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{1}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{1}}}} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,  \ottnt{Lat_{{\mathrm{12}}}} ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{2}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{2}}}} , \widehat{v}_{{\mathrm{2}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,  \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,  \ottnt{Lat_{{\mathrm{12}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+}{
+ \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_E\_BinaryOp}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXEXXSimpleExpression}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v} }%
+}{
+ \widehat{E} \, \widehat{H} \enspace( \overline{se} , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+{\ottdrulename{Type\_E\_SimpleExpression}}{}%
+}}
 
 \newcommand{\ottdefnTypeXXtypeXXevalXXe}[1]{\begin{ottdefnblock}[#1]{$ \widehat{E} \, \widehat{H} \enspace( \overline{e} , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} $}{\ottcom{abstract evaluation of expressions returns an address and abstract value}}
+\ottusedrule{\ottdruleTypeXXEXXIsNA{}}
+\ottusedrule{\ottdruleTypeXXEXXUnaryOpBool{}}
+\ottusedrule{\ottdruleTypeXXEXXUnaryOpInt{}}
+\ottusedrule{\ottdruleTypeXXEXXBinaryOpBool{}}
+\ottusedrule{\ottdruleTypeXXEXXBinaryOpInt{}}
+\ottusedrule{\ottdruleTypeXXEXXBinaryOp{}}
+\ottusedrule{\ottdruleTypeXXEXXSimpleExpression{}}
 \end{ottdefnblock}}
 
 %% defn type_analysis
+\newcommand{\ottdruleTypeXXSXXAssign}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace( \overline{e} , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }%
+\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \mathit{a}  \ottsym{]}}%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}%
+}{
+   \langle   \mathit{x}   \leftarrow  ( \overline{e} , \ottnt{v} )  ,  \ottnt{E}  \rangle  \!\cdot\! \ottnt{T}  ~  \widehat{E} \, \widehat{H} \, \ottnt{M}    \overset{\textsf{Type} }{\rightsquigarrow}   \ottnt{T} ~  \widehat{E}' \, \widehat{H}' \, \ottnt{M}  }{%
+{\ottdrulename{Type\_S\_Assign}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXSXXInput}[1]{\ottdrule[#1]{%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,  \top ,  \ottsym{\{}  \mathit{l}  \ottsym{\}}  \rangle }%
+\ottpremise{ \mathit{a} ~\text{fresh} }%
+\ottpremise{\widehat{E}'  \ottsym{=}  \widehat{E}  \ottsym{[}  \mathit{x}  \mapsto  \mathit{a}  \ottsym{]}}%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}%
+}{
+   \langle   \mathit{x}   \leftarrow \, ( ^{ \mathit{l} }  \ipt ,  \ottnt{v}  )  ,  \ottnt{E}  \rangle  \!\cdot\! \ottnt{T}  ~  \widehat{E} \, \widehat{H} \, \ottnt{M}    \overset{\textsf{Type} }{\rightsquigarrow}   \ottnt{T} ~  \widehat{E}' \, \widehat{H}' \, \ottnt{M}  }{%
+{\ottdrulename{Type\_S\_Input}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXSXXIf}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a} , \widehat{v} }%
+\ottpremise{\widehat{v}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,  \ottnt{Lat_{{\mathrm{2}}}} ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{v}'  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,   \textsf{Bool}  ,  \ottnt{L}  \rangle }%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}'  \ottsym{]}}%
+\ottpremise{ \ottnt{M'}  = \forall  \mathit{l}  \in  \ottnt{L} \,.\, \ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto   \textsf{Bool}   \ottsym{]} }%
+}{
+   \langle   \mathsf{if} ~ \overline{se} ~ \mathsf{then}  \bullet  \mathsf{else}  \bullet  \mathsf{fi}  ,  \ottnt{E}  \rangle  \!\cdot\! \ottnt{T}  ~  \widehat{E} \, \widehat{H} \, \ottnt{M}    \overset{\textsf{Type} }{\rightsquigarrow}   \ottnt{T} ~  \widehat{E} \, \widehat{H}' \, \ottnt{M'}  }{%
+{\ottdrulename{Type\_S\_If}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXSXXFor}[1]{\ottdrule[#1]{%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{1}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{1}}}} , \widehat{v}_{{\mathrm{1}}} }%
+\ottpremise{ \widehat{E} \, \widehat{H} \enspace \overline{se}_{{\mathrm{2}}}   \overset{\textsf{Type} }{\rightsquigarrow}_{se}   \mathit{a_{{\mathrm{2}}}} , \widehat{v}_{{\mathrm{2}}} }%
+\ottpremise{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,  \ottnt{Lat_{{\mathrm{12}}}} ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{\widehat{v}_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,  \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{11}}}} ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{1}}}}  \rangle }%
+\ottpremise{\widehat{v}'_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
+\ottpremise{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a_{{\mathrm{1}}}}  \mapsto  \widehat{v}'_{{\mathrm{1}}}  \ottsym{]}}%
+\ottpremise{\widehat{H}''  \ottsym{=}  \widehat{H}'  \ottsym{[}  \mathit{a_{{\mathrm{2}}}}  \mapsto  \widehat{v}'_{{\mathrm{2}}}  \ottsym{]}}%
+\ottpremise{ \ottnt{M'}  = \forall  \mathit{l}  \in  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}} \,.\, \ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto   \textsf{Int}   \ottsym{]} }%
+}{
+   \langle   \mathsf{for} ~( \mathit{x} ,  \ottnt{v} )~ \mathsf{in} ~ \overline{se}_{{\mathrm{1}}} \negmedspace:\negmedspace \overline{se}_{{\mathrm{2}}} ~ \mathsf{do}  \bullet  \mathsf{od}  ,  \ottnt{E}  \rangle  \!\cdot\! \ottnt{T}  ~  \widehat{E} \, \widehat{H} \, \ottnt{M}    \overset{\textsf{Type} }{\rightsquigarrow}   \ottnt{T} ~  \widehat{E} \, \widehat{H}' \, \ottnt{M'}  }{%
+{\ottdrulename{Type\_S\_For}}{}%
+}}
+
+
+\newcommand{\ottdruleTypeXXSXXExpression}[1]{\ottdrule[#1]{%
+}{
+   \langle  \ottsym{(}  \overline{e}  \ottsym{,}  \ottnt{v}  \ottsym{)} ,  \ottnt{E}  \rangle  \!\cdot\! \ottnt{T}  ~  \widehat{E} \, \widehat{H} \, \ottnt{M}    \overset{\textsf{Type} }{\rightsquigarrow}   \ottnt{T} ~  \widehat{E} \, \widehat{H} \, \ottnt{M}  }{%
+{\ottdrulename{Type\_S\_Expression}}{}%
+}}
 
 \newcommand{\ottdefnTypeXXtypeXXanalysis}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{T} ~ \widehat{C}   \overset{\textsf{Type} }{\rightsquigarrow}   \ottnt{T'} ~ \widehat{C}' $}{\ottcom{analysis of execution trace updates the abstract environment and analysis state}}
+\ottusedrule{\ottdruleTypeXXSXXAssign{}}
+\ottusedrule{\ottdruleTypeXXSXXInput{}}
+\ottusedrule{\ottdruleTypeXXSXXIf{}}
+\ottusedrule{\ottdruleTypeXXSXXFor{}}
+\ottusedrule{\ottdruleTypeXXSXXExpression{}}
 \end{ottdefnblock}}
 
 

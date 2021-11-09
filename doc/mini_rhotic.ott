@@ -250,6 +250,7 @@ terminals :: 'terminals_' ::=
 %%% FORMULAS %%%
 formula :: 'formula_' ::=
   | judgement                               :: :: judgement
+  | ( formula )                             :: :: parens
   | formula1 /\ formula2                    :: :: and
   | formula1 \/ formula2                    :: :: or
   | v = E ( x )                             :: :: lookup
@@ -261,6 +262,8 @@ formula :: 'formula_' ::=
   | v1 > v2                                 :: :: greater_than
   | v' = v1 + v2                            :: :: plus
   | v' = v1 - v2                            :: :: minus
+  | uop1 = uop2                             :: :: unary_op
+  | bop1 = bop2                             :: :: binary_op
   | E' = E [ x -> v ]                       :: :: env_update
   | I = v . I'                              :: :: input_stream  {{ tex [[I]] = [[v]] \cdot [[I']] }}
   | re1 = re2                               :: :: re_equal
@@ -303,13 +306,13 @@ operational_semantics :: '' ::=
     by
 
         E se -se-> v
-        v = NA_b \/ v = NA_i \/ v = NA_s
-        -------------------------------- :: IsNA
+        (v = NA_b) \/ (v = NA_i) \/ (v = NA_s)
+        -------------------------------------- :: IsNA
         E isNA se -e-> true
 
         E se -se-> v
-        v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
-        -------------------------------------- :: IsNotNA
+        (v =/= NA_b) /\ (v =/= NA_i) /\ (v =/= NA_s)
+        -------------------------------------------- :: IsNotNA
         E isNA se -e-> false
 
         E se -se-> v
@@ -413,14 +416,14 @@ record :: '' ::=
 
         E se -rec-se-> rse
         rse = (se, v)
-        v = NA_b \/ v = NA_i \/ v = NA_s
-        ----------------------------------- :: IsNA
+        (v = NA_b) \/ (v = NA_i) \/ (v = NA_s)
+        -------------------------------------- :: IsNA
         E isNA se -rec-e-> (isNA rse, true)
 
         E se -rec-se-> rse
         rse = (se, v)
-        v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
-        -------------------------------------- :: IsNotNA
+        (v =/= NA_b) /\ (v =/= NA_i) /\ (v =/= NA_s)
+        -------------------------------------------- :: IsNotNA
         E isNA se -rec-e-> (isNA rse, false)
 
         E se -rec-se-> rse
@@ -566,7 +569,7 @@ na_analysis :: 'NA_' ::=
         AE AH (re, v) -na-e-> a Av
         AE' = AE[x -> a]
         AH' = AH[a -> Av]
-        ------------------------------------------------  :: Assign
+        ----------------------------------------------  :: Assign
         [x <- (re, v) E] . T AE AH M -na-> T AE' AH' M
 
         Av = [alpha(v), Top, {l}]
@@ -582,7 +585,7 @@ na_analysis :: 'NA_' ::=
         AH' = AH[a -> Av']
 % TODO: this notation is ugly
         M' = forall-labs (l : L) . M[l -> !NA]
-        ----------------------------------------------------------------  :: If
+        ---------------------------------------------------------  :: If
         [if rse then . else . fi E] . T AE AH M -na-> T AE AH' M'
 
         AE AH rse1 -na-se-> a1 Av1
@@ -611,85 +614,129 @@ type_analysis :: 'Type_' ::=
         {{ com abstract evaluation of simple expressions returns an address and abstract value }}
         {{ tex [[AE]]\,[[AH]]\enspace[[rse]] [[-type-se->]] [[a]],[[Av]] }}
     by
-%
-%        Av = [alpha(v), alpha(v), empty]
-%        fresh(a)
-%        --------------------------------  :: Literal
-%        AE AH (v, v) -na-se-> a Av
-%
-%        a = AE(x)
-%        Av = AH(a)
-%        --------------------------  :: Variable
-%        AE AH (x, v) -na-se-> a Av
-%
+
+        Av = [alpha(v), alpha(v), empty]
+        fresh(a)
+        --------------------------------  :: Literal
+        AE AH (v, v) -type-se-> a Av
+
+        a = AE(x)
+        Av = AH(a)
+        --------------------------  :: Variable
+        AE AH (x, v) -type-se-> a Av
+
     defn
     AE AH ( re , v ) -type-e-> a Av :: :: type_eval_e :: 'E_'
         {{ com abstract evaluation of expressions returns an address and abstract value }}
         {{ tex [[AE]]\,[[AH]]\enspace([[re]],[[v]]) [[-type-e->]] [[a]],[[Av]] }}
     by
-%
-%        Av = [!NA, !NA, empty]
-%        fresh(a)
-%        --------------------------------  :: IsNA
-%        AE AH (isNA rse, v) -na-e-> a Av
-%
-%        AE AH rse -na-se-> a [Lat1, Lat2, L]
-%        Av = [alpha(v), Auop Lat2, L]
-%        fresh(a')
-%        -----------------------------------  :: UnaryOp
-%        AE AH (uop rse, v) -na-e-> a' Av
-%
-%        AE AH rse1 -na-se-> a1 [Lat11, Lat12, L1]
-%        AE AH rse2 -na-se-> a2 [Lat21, Lat22, L2]
-%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
-%        fresh(a)
-%        ----------------------------------------------  :: BinaryOp
-%        AE AH (rse1 bop rse2, v) -na-e-> a Av
-%
-%        AE AH rse -na-se-> a Av
-%        ---------------------------  :: SimpleExpression
-%        AE AH (rse, v) -na-e-> a Av
-%
+
+        Av = [Bool, Bool, empty]
+        fresh(a)
+        --------------------------------  :: IsNA
+        AE AH (isNA rse, v) -type-e-> a Av
+
+        AE AH rse -type-se-> a Av1
+        Av1 = [Lat1, Lat2, L]
+        Av1' = [Lat1, Bool, L]
+% TODO: need to propagate Av1' constraint and update M
+        Av' = [alpha(v), Bool, L]
+        fresh(a')
+        uop = !
+        -----------------------------------  :: UnaryOpBool
+        AE AH (uop rse, v) -type-e-> a' Av'
+
+        AE AH rse -type-se-> a Av1
+        Av1 = [Lat1, Lat2, L]
+        Av1' = [Lat1, Int, L]
+% TODO: need to propagate Av1' constraint and update M
+        Av' = [alpha(v), Int, L]
+        fresh(a')
+        (uop = +) \/ (uop = -)
+        -----------------------------------  :: UnaryOpInt
+        AE AH (uop rse, v) -type-e-> a' Av'
+
+        AE AH rse1 -type-se-> a1 Av1
+        Av1 = [Lat11, Lat12, L1]
+        Av1' = [Lat11, Bool, L1]
+% TODO: need to propagate Av1' constraint and update M
+        AE AH rse2 -type-se-> a2 Av2
+        Av2 = [Lat21, Lat22, L2]
+        Av2' = [Lat21, Bool, L2]
+% TODO: need to propagate Av2' constraint and update M
+        Av = [alpha(v), Bool, L1 union L2]
+        fresh(a)
+        (bop = /\) \/ (bop = \/)
+        ---------------------------------------  :: BinaryOpBool
+        AE AH (rse1 bop rse2, v) -type-e-> a Av
+
+        AE AH rse1 -type-se-> a1 Av1
+        Av1 = [Lat11, Lat12, L1]
+        Av1' = [Lat11, Int, L1]
+% TODO: need to propagate Av1' constraint and update M
+        AE AH rse2 -type-se-> a2 Av2
+        Av2 = [Lat21, Lat22, L2]
+        Av2' = [Lat21, Int, L2]
+% TODO: need to propagate Av2' constraint and update M
+        Av = [alpha(v), Int, L1 union L2]
+        fresh(a)
+        (bop = +) \/ (bop = -) \/ (bop = *) \/ (bop = /) \/ (bop = %) \/ (bop = <) \/ (bop = <=) \/ (bop = >) \/ (bop = >=)
+        ----------------------------------------------  :: BinaryOpInt
+        AE AH (rse1 bop rse2, v) -type-e-> a Av
+
+        AE AH rse1 -type-se-> a1 Av1
+        Av1 = [Lat11, Lat12, L1]
+        AE AH rse2 -type-se-> a2 Av2
+        Av2 = [Lat21, Lat22, L2]
+        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+        fresh(a)
+        ----------------------------------------------  :: BinaryOp
+        AE AH (rse1 bop rse2, v) -type-e-> a Av
+
+        AE AH rse -type-se-> a Av
+        -----------------------------  :: SimpleExpression
+        AE AH (rse, v) -type-e-> a Av
+
     defn
     T AC -type-> T' AC' :: :: type_analysis :: 'S_'
         {{ com analysis of execution trace updates the abstract environment and analysis state }}
         {{ tex [[T]]~[[AC]] [[-type->]] [[T']]~[[AC']] }}
     by
-%
-%        AE AH (re, v) -na-e-> a Av
-%        AE' = AE[x -> a]
-%        AH' = AH[a -> Av]
-%        ------------------------------------------------  :: Assign
-%        [x <- (re, v) E] . T AE AH M -na-> T AE' AH' M
-%
-%        Av = [alpha(v), Top, {l}]
-%        fresh(a)
-%        AE' = AE[x -> a]
-%        AH' = AH[a -> Av]
-%        -------------------------------------------------------  :: Input
-%        [x <- (l ^ input(), v) E] . T AE AH M -na-> T AE' AH' M
-%
-%        AE AH rse -na-se-> a Av
-%        Av = [Lat1, Lat2, L]
-%        Av' = [Lat1, !NA, L]
-%        AH' = AH[a -> Av']
-%% TODO: this notation is ugly
-%        M' = forall-labs (l : L) . M[l -> !NA]
-%        ----------------------------------------------------------------  :: If
-%        [if rse then . else . fi E] . T AE AH M -na-> T AE AH' M'
-%
-%        AE AH rse1 -na-se-> a1 Av1
-%        AE AH rse2 -na-se-> a2 Av2
-%        Av1 = [Lat11, Lat12, L1]
-%        Av2 = [Lat21, Lat22, L2]
-%        Av1' = [Lat11, !NA, L1]
-%        Av2' = [Lat21, !NA, L2]
-%        AH' = AH[a1 -> Av1']
-%        AH'' = AH'[a2 -> Av2']
-%% TODO: this notation is ugly
-%        M' = forall-labs (l : L1 union L2) . M[l -> !NA]
-%        -------------------------------------------------------------------  :: For
-%        [for (x, v) in rse1 : rse2 do . od E] . T AE AH M -na-> T AE AH' M'
-%
-%        ---------------------------------------  :: Expression
-%        [(re, v) E] . T AE AH M -na-> T AE AH M
+
+        AE AH (re, v) -type-e-> a Av
+        AE' = AE[x -> a]
+        AH' = AH[a -> Av]
+        ------------------------------------------------  :: Assign
+        [x <- (re, v) E] . T AE AH M -type-> T AE' AH' M
+
+        Av = [alpha(v), Top, {l}]
+        fresh(a)
+        AE' = AE[x -> a]
+        AH' = AH[a -> Av]
+        ---------------------------------------------------------  :: Input
+        [x <- (l ^ input(), v) E] . T AE AH M -type-> T AE' AH' M
+
+        AE AH rse -type-se-> a Av
+        Av = [Lat1, Lat2, L]
+        Av' = [Lat1, Bool, L]
+        AH' = AH[a -> Av']
+% TODO: this notation is ugly
+        M' = forall-labs (l : L) . M[l -> Bool]
+        -----------------------------------------------------------  :: If
+        [if rse then . else . fi E] . T AE AH M -type-> T AE AH' M'
+
+        AE AH rse1 -type-se-> a1 Av1
+        AE AH rse2 -type-se-> a2 Av2
+        Av1 = [Lat11, Lat12, L1]
+        Av2 = [Lat21, Lat22, L2]
+        Av1' = [Lat11, Int, L1]
+        Av2' = [Lat21, Int, L2]
+        AH' = AH[a1 -> Av1']
+        AH'' = AH'[a2 -> Av2']
+% TODO: this notation is ugly
+        M' = forall-labs (l : L1 union L2) . M[l -> Int]
+        -------------------------------------------------------------------  :: For
+        [for (x, v) in rse1 : rse2 do . od E] . T AE AH M -type-> T AE AH' M'
+
+        ---------------------------------------  :: Expression
+        [(re, v) E] . T AE AH M -type-> T AE AH M
