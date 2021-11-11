@@ -136,13 +136,13 @@
 \ottprodline{|}{\ottsym{\{}  \mathit{l_{{\mathrm{1}}}}  \ottsym{,} \, ... \, \ottsym{,}  \mathit{l_{\ottmv{n}}}  \ottsym{\}}}{}{}{}{\ottcom{labels}}\ottprodnewline
 \ottprodline{|}{\ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}}{}{}{}{\ottcom{union}}}
 
-\newcommand{\ottLat}{
-\ottrulehead{\ottnt{Lat}}{::=}{\ottcom{lattice}}\ottprodnewline
+\newcommand{\ottk}{
+\ottrulehead{\ottnt{k}}{::=}{\ottcom{lattice element}}\ottprodnewline
 \ottfirstprodline{|}{ \alpha( \ottnt{v} ) }{}{}{}{\ottcom{abstraction of concrete value}}\ottprodnewline
-\ottprodline{|}{\widehat{\circ} \, \ottnt{Lat}}{}{}{}{\ottcom{abstract unary operation}}\ottprodnewline
-\ottprodline{|}{\ottnt{Lat_{{\mathrm{1}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{2}}}}}{}{}{}{\ottcom{abstract binary operation}}\ottprodnewline
-\ottprodline{|}{\ottnt{Lat_{{\mathrm{1}}}} \, \sqcup \, \ottnt{Lat_{{\mathrm{2}}}}}{}{}{}{\ottcom{least upper bound}}\ottprodnewline
-\ottprodline{|}{\ottnt{Lat_{{\mathrm{1}}}} \, \sqcap \, \ottnt{Lat_{{\mathrm{2}}}}}{}{}{}{\ottcom{greatest lower bound}}\ottprodnewline
+\ottprodline{|}{\widehat{\circ} \, \ottnt{k}}{}{}{}{\ottcom{abstract unary operation}}\ottprodnewline
+\ottprodline{|}{\ottnt{k_{{\mathrm{1}}}} \, \widehat{\diamond} \, \ottnt{k_{{\mathrm{2}}}}}{}{}{}{\ottcom{abstract binary operation}}\ottprodnewline
+\ottprodline{|}{\ottnt{k_{{\mathrm{1}}}} \, \sqcup \, \ottnt{k_{{\mathrm{2}}}}}{}{}{}{\ottcom{least upper bound}}\ottprodnewline
+\ottprodline{|}{\ottnt{k_{{\mathrm{1}}}} \, \sqcap \, \ottnt{k_{{\mathrm{2}}}}}{}{}{}{\ottcom{greatest lower bound}}\ottprodnewline
 \ottprodline{|}{\top}{}{}{}{\ottcom{top}}\ottprodnewline
 \ottprodline{|}{\bot}{}{}{}{\ottcom{bot}}\ottprodnewline
 \ottprodline{|}{ \textsc{na} }{}{}{}{\ottcom{\na lattice}}\ottprodnewline
@@ -153,7 +153,7 @@
 
 \newcommand{\ottAv}{
 \ottrulehead{\widehat{v}}{::=}{\ottcom{abstract value}}\ottprodnewline
-\ottfirstprodline{|}{ \langle  \ottnt{Lat_{{\mathrm{1}}}} ,  \ottnt{Lat_{{\mathrm{2}}}} ,  \ottnt{L}  \rangle }{}{}{}{}}
+\ottfirstprodline{|}{ \langle  \ottnt{k_{{\mathrm{1}}}} ,  \ottnt{k_{{\mathrm{2}}}} ,  \ottnt{L}  \rangle }{}{}{}{}}
 
 \newcommand{\ottAE}{
 \ottrulehead{\widehat{E}}{::=}{\ottcom{abstract environment}}\ottprodnewline
@@ -172,7 +172,7 @@
 \newcommand{\ottM}{
 \ottrulehead{\ottnt{M}}{::=}{\ottcom{analysis state}}\ottprodnewline
 \ottfirstprodline{|}{\emptyset}{}{}{}{\ottcom{empty state}}\ottprodnewline
-\ottprodline{|}{\ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto  \ottnt{Lat}  \ottsym{]}}{}{}{}{\ottcom{state binding}}}
+\ottprodline{|}{\ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto  \ottnt{k}  \ottsym{]}}{}{}{}{\ottcom{state binding}}}
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
@@ -246,7 +246,7 @@
 \ottprodline{|}{\widehat{H}'  \ottsym{=}  \widehat{H}  \ottsym{[}  \mathit{a}  \mapsto  \widehat{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{v}_{{\mathrm{1}}}  \ottsym{=}  \widehat{v}_{{\mathrm{2}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathit{a} ~\text{fresh} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto  \ottnt{Lat}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{M}  \ottsym{[}  \mathit{l}  \mapsto  \ottnt{k}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{M}  = \forall  \mathit{l}  \in  \ottnt{L} \,.\, \ottnt{formula} }{}{}{}{}}
 
 \newcommand{\ottoperationalXXsemantics}{
@@ -289,7 +289,7 @@
 \ottprodline{|}{\ottnt{T}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\overline{C}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{L}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{Lat}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{k}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{v}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{E}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\widehat{H}}{}{}{}{}\ottprodnewline
@@ -316,7 +316,7 @@
 \ottT\ottinterrule
 \ottrC\ottinterrule
 \ottL\ottinterrule
-\ottLat\ottinterrule
+\ottk\ottinterrule
 \ottAv\ottinterrule
 \ottAE\ottinterrule
 \ottAH\ottinterrule

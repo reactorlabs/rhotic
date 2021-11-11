@@ -145,12 +145,12 @@ L :: 'L_' ::=                                       {{ com label set }}
     | { l1 , ... , ln }             :: :: Set           {{ com labels }}
     | L1 union L2                   :: :: Intersection  {{ com union }}
 
-Lat :: 'Lat_' ::=                                   {{ com lattice }}
+k :: 'k_' ::=                                      {{ com lattice element }}
     | alpha ( v )                   :: :: alpha         {{ com abstraction of concrete value }} {{ tex \alpha([[v]]) }}
-    | Auop Lat                      :: :: Auop          {{ com abstract unary operation }}
-    | Lat1 Abop Lat2                :: :: Abop          {{ com abstract binary operation }}
-    | Lat1 lub Lat2                 :: :: Lub           {{ com least upper bound }}
-    | Lat1 glb Lat2                 :: :: Glb           {{ com greatest lower bound }}
+    | Auop k                        :: :: Auop          {{ com abstract unary operation }}
+    | k1 Abop k2                    :: :: Abop          {{ com abstract binary operation }}
+    | k1 lub k2                     :: :: Lub           {{ com least upper bound }}
+    | k1 glb k2                     :: :: Glb           {{ com greatest lower bound }}
     | Top                           :: :: Top           {{ com top }}
     | Bot                           :: :: Bot           {{ com bot }}
     % NA lattice
@@ -162,7 +162,7 @@ Lat :: 'Lat_' ::=                                   {{ com lattice }}
     | Str                           :: :: Str           {{ com type lattice }} {{ tex \textsf{Str} }}
 
 Av {{ tex \widehat{v} }} :: 'Av_' ::=               {{ com abstract value }}
-    | [ Lat1 , Lat2 , L ]           :: :: AVal          {{ tex \langle [[Lat1]], [[Lat2]], [[L]] \rangle }}
+    | [ k1 , k2 , L ]               :: :: AVal          {{ tex \langle [[k1]], [[k2]], [[L]] \rangle }}
 
 AE {{ tex \widehat{E} }} :: 'AE_' ::=               {{ com abstract environment }}
     | empty                         :: :: Empty         {{ com empty environment }}
@@ -177,7 +177,7 @@ AC {{ tex \widehat{C} }} :: 'AC_' ::=               {{ com abstract configuratio
 
 M :: 'M_' ::=                                       {{ com analysis state }}
     | empty                         :: :: Empty         {{ com empty state }}
-    | M [ l -> Lat ]                :: :: StateBind     {{ com state binding }}
+    | M [ l -> k ]                  :: :: StateBind     {{ com state binding }}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -253,7 +253,7 @@ formula :: 'formula_' ::=
   | AH' = AH [ a -> Av ]                    :: :: abstract_heap_update
   | Av1 = Av2                               :: :: abstract_val_equal
   | fresh ( a )                             :: :: fresh_addr    {{ tex [[a]]~\text{fresh} }}
-  | M [ l -> Lat ]                          :: :: update_state
+  | M [ l -> k ]                            :: :: update_state
   | M = forall-labs ( l : L ) . formula     :: :: forall_labs   {{ tex [[M]] = \forall [[l]] \in [[L]]\,.\,[[formula]] }}
 
 
@@ -514,15 +514,15 @@ record :: '' ::=
 %        --------------------------------  :: IsNA
 %        AE AH (isNA rse, v) -na-e-> a Av
 %
-%        AE AH rse -na-se-> a [Lat1, Lat2, L]
-%        Av = [alpha(v), Auop Lat2, L]
+%        AE AH rse -na-se-> a [k1, k2, L]
+%        Av = [alpha(v), Auop k2, L]
 %        fresh(a')
 %        ------------------------------------  :: UnaryOp
 %        AE AH (uop(rse), v) -na-e-> a' Av
 %
-%        AE AH rse1 -na-se-> a1 [Lat11, Lat12, L1]
-%        AE AH rse2 -na-se-> a2 [Lat21, Lat22, L2]
-%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+%        AE AH rse1 -na-se-> a1 [k11, k12, L1]
+%        AE AH rse2 -na-se-> a2 [k21, k22, L2]
+%        Av = [alpha(v), k12 Abop k22, L1 union L2]
 %        fresh(a)
 %        ----------------------------------------------  :: BinaryOp
 %        AE AH (bop(rse1, rse2), v) -na-e-> a Av
@@ -554,8 +554,8 @@ record :: '' ::=
 %        [x <- (l ^ input(), v) E] . T AE AH M -na-> T AE' AH' M
 %
 %        AE AH rse -na-se-> a Av
-%        Av = [Lat1, Lat2, L]
-%        Av' = [Lat1, !NA, L]
+%        Av = [k1, k2, L]
+%        Av' = [k1, !NA, L]
 %        AH' = AH[a -> Av']
 %% TODO: this notation is ugly
 %        M' = forall-labs (l : L) . M[l -> !NA]
@@ -564,10 +564,10 @@ record :: '' ::=
 %
 %        AE AH rse1 -na-se-> a1 Av1
 %        AE AH rse2 -na-se-> a2 Av2
-%        Av1 = [Lat11, Lat12, L1]
-%        Av2 = [Lat21, Lat22, L2]
-%        Av1' = [Lat11, !NA, L1]
-%        Av2' = [Lat21, !NA, L2]
+%        Av1 = [k11, k12, L1]
+%        Av2 = [k21, k22, L2]
+%        Av1' = [k11, !NA, L1]
+%        Av2' = [k21, !NA, L2]
 %        AH' = AH[a1 -> Av1']
 %        AH'' = AH'[a2 -> Av2']
 %% TODO: this notation is ugly
@@ -608,8 +608,8 @@ record :: '' ::=
 %        AE AH (isNA rse, v) -type-e-> a Av
 %
 %        AE AH rse -type-se-> a Av1
-%        Av1 = [Lat1, Lat2, L]
-%        Av1' = [Lat1, Bool, L]
+%        Av1 = [k1, k2, L]
+%        Av1' = [k1, Bool, L]
 %% TODO: need to propagate Av1' constraint and update M
 %        Av' = [alpha(v), Bool, L]
 %        fresh(a')
@@ -617,8 +617,8 @@ record :: '' ::=
 %        AE AH (uop_l(rse), v) -type-e-> a' Av'
 %
 %        AE AH rse -type-se-> a Av1
-%        Av1 = [Lat1, Lat2, L]
-%        Av1' = [Lat1, Int, L]
+%        Av1 = [k1, k2, L]
+%        Av1' = [k1, Int, L]
 %% TODO: need to propagate Av1' constraint and update M
 %        Av' = [alpha(v), Int, L]
 %        fresh(a')
@@ -626,12 +626,12 @@ record :: '' ::=
 %        AE AH (uop_a(rse), v) -type-e-> a' Av'
 %
 %        AE AH rse1 -type-se-> a1 Av1
-%        Av1 = [Lat11, Lat12, L1]
-%        Av1' = [Lat11, Bool, L1]
+%        Av1 = [k11, k12, L1]
+%        Av1' = [k11, Bool, L1]
 %% TODO: need to propagate Av1' constraint and update M
 %        AE AH rse2 -type-se-> a2 Av2
-%        Av2 = [Lat21, Lat22, L2]
-%        Av2' = [Lat21, Bool, L2]
+%        Av2 = [k21, k22, L2]
+%        Av2' = [k21, Bool, L2]
 %% TODO: need to propagate Av2' constraint and update M
 %        Av = [alpha(v), Bool, L1 union L2]
 %        fresh(a)
@@ -639,12 +639,12 @@ record :: '' ::=
 %        AE AH (bop_l(rse1, rse2), v) -type-e-> a Av
 %
 %        AE AH rse1 -type-se-> a1 Av1
-%        Av1 = [Lat11, Lat12, L1]
-%        Av1' = [Lat11, Int, L1]
+%        Av1 = [k11, k12, L1]
+%        Av1' = [k11, Int, L1]
 %% TODO: need to propagate Av1' constraint and update M
 %        AE AH rse2 -type-se-> a2 Av2
-%        Av2 = [Lat21, Lat22, L2]
-%        Av2' = [Lat21, Int, L2]
+%        Av2 = [k21, k22, L2]
+%        Av2' = [k21, Int, L2]
 %% TODO: need to propagate Av2' constraint and update M
 %        Av = [alpha(v), Int, L1 union L2]
 %        fresh(a)
@@ -652,10 +652,10 @@ record :: '' ::=
 %        AE AH (bop_a(rse1, rse2), v) -type-e-> a Av
 %
 %        AE AH rse1 -type-se-> a1 Av1
-%        Av1 = [Lat11, Lat12, L1]
+%        Av1 = [k11, k12, L1]
 %        AE AH rse2 -type-se-> a2 Av2
-%        Av2 = [Lat21, Lat22, L2]
-%        Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
+%        Av2 = [k21, k22, L2]
+%        Av = [alpha(v), k12 Abop k22, L1 union L2]
 %        fresh(a)
 %        ----------------------------------------------  :: BinaryOp
 %        AE AH (bop(rse1, rse2), v) -type-e-> a Av
@@ -687,8 +687,8 @@ record :: '' ::=
 %        [x <- (l ^ input(), v) E] . T AE AH M -type-> T AE' AH' M
 %
 %        AE AH rse -type-se-> a Av
-%        Av = [Lat1, Lat2, L]
-%        Av' = [Lat1, Bool, L]
+%        Av = [k1, k2, L]
+%        Av' = [k1, Bool, L]
 %        AH' = AH[a -> Av']
 %% TODO: this notation is ugly
 %        M' = forall-labs (l : L) . M[l -> Bool]
@@ -697,10 +697,10 @@ record :: '' ::=
 %
 %        AE AH rse1 -type-se-> a1 Av1
 %        AE AH rse2 -type-se-> a2 Av2
-%        Av1 = [Lat11, Lat12, L1]
-%        Av2 = [Lat21, Lat22, L2]
-%        Av1' = [Lat11, Int, L1]
-%        Av2' = [Lat21, Int, L2]
+%        Av1 = [k11, k12, L1]
+%        Av2 = [k21, k22, L2]
+%        Av1' = [k11, Int, L1]
+%        Av2' = [k21, Int, L2]
 %        AH' = AH[a1 -> Av1']
 %        AH'' = AH'[a2 -> Av2']
 %% TODO: this notation is ugly
