@@ -37,20 +37,20 @@
 
 \newcommand{\ottbool}{
 \ottrulehead{\mathsf{true} ~|~ \mathsf{false} ~|~ \bna}{::=}{\ottcom{boolean literals}}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{true} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{false} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \bna }{}{}{}{\ottcom{boolean \na}}}
+\ottfirstprodline{|}{\mathsf{true}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\mathsf{false}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\bna}{}{}{}{}}
 
 \newcommand{\ottint}{
 \ottrulehead{\cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina}{::=}{\ottcom{integer literals}}\ottprodnewline
 \ottfirstprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ -  \ottmv{num} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ina }{}{}{}{\ottcom{integer \na}}}
+\ottprodline{|}{\ina}{}{}{}{\ottcom{integer \na}}}
 
 \newcommand{\ottstr}{
 \ottrulehead{\cdots ~|~ \sna}{::=}{\ottcom{string literals}}\ottprodnewline
 \ottfirstprodline{|}{ `` \ottmv{chr} " }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \sna }{}{}{}{\ottcom{string \na}}}
+\ottprodline{|}{\sna}{}{}{}{\ottcom{string \na}}}
 
 \newcommand{\ottv}{
 \ottrulehead{\ottnt{v}}{::=}{\ottcom{values $\vals$}}\ottprodnewline
@@ -65,31 +65,20 @@
 
 \newcommand{\ottuop}{
 \ottrulehead{\circ}{::=}{\ottcom{unary operators}}\ottprodnewline
-\ottfirstprodline{|}{\neg}{}{}{}{\ottcom{logical negation}}\ottprodnewline
-\ottprodline{|}{\ottsym{+}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{-}}{}{}{}{}}
+\ottfirstprodline{|}{\circ_\textsf{lgl}}{}{}{}{\ottcom{logical: $\{ \neg \}$}}\ottprodnewline
+\ottprodline{|}{\circ_\textsf{arth}}{}{}{}{\ottcom{arithmetic: $\{ +, - \}$}}}
 
 \newcommand{\ottbop}{
 \ottrulehead{\diamond}{::=}{\ottcom{binary operators}}\ottprodnewline
-\ottfirstprodline{|}{\ottsym{+}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{-}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\times}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\div}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{\%}}{}{}{}{\ottcom{modulo}}\ottprodnewline
-\ottprodline{|}{\ottsym{<}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\leq}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\geq}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{>}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{=}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\neq}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\land}{}{}{}{\ottcom{logical and}}\ottprodnewline
-\ottprodline{|}{\lor}{}{}{}{\ottcom{logical or}}}
+\ottfirstprodline{|}{\diamond_\textsf{arth}}{}{}{}{\ottcom{arithmetic: $\{ +, -, \times, \div, \mathsf{mod} \}$}}\ottprodnewline
+\ottprodline{|}{\diamond_\textsf{rel}}{}{}{}{\ottcom{relational: $\{ <, \leq, \geq, >, =, \neq \}$}}\ottprodnewline
+\ottprodline{|}{\diamond_\textsf{lgl}}{}{}{}{\ottcom{logical: $\{ \land, \lor \}$}}}
 
 \newcommand{\otte}{
 \ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
 \ottfirstprodline{|}{ \isna ( \ottnt{se} ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \circ \ottnt{se} }{}{}{}{\ottcom{$\circ \in \{ \neg, +, - \}$}}\ottprodnewline
-\ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}} }{}{}{}{\ottcom{$\diamond \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$}}\ottprodnewline
+\ottprodline{|}{ \circ ( \ottnt{se} ) }{}{}{}{\ottcom{$\circ = (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$}}\ottprodnewline
+\ottprodline{|}{ \diamond ( \ottnt{se_{{\mathrm{1}}}} , \ottnt{se_{{\mathrm{2}}}} ) }{}{}{}{\ottcom{$\diamond = (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$}}\ottprodnewline
 \ottprodline{|}{\ottnt{se}}{}{}{}{}}
 
 \newcommand{\otts}{
@@ -112,8 +101,8 @@
 \newcommand{\ottre}{
 \ottrulehead{\overline{e}}{::=}{\ottcom{recorded expressions}}\ottprodnewline
 \ottfirstprodline{|}{ \isna ( \overline{se} ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \circ \overline{se} }{}{}{}{\ottcom{$\circ \in \{ \neg, +, - \}$}}\ottprodnewline
-\ottprodline{|}{ \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}} }{}{}{}{\ottcom{$\diamond \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$}}\ottprodnewline
+\ottprodline{|}{ \circ ( \overline{se} ) }{}{}{}{\ottcom{$\circ = (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$}}\ottprodnewline
+\ottprodline{|}{ \diamond ( \overline{se}_{{\mathrm{1}}} , \overline{se}_{{\mathrm{2}}} ) }{}{}{}{\ottcom{$\diamond = (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$}}\ottprodnewline
 \ottprodline{|}{\overline{se}}{}{}{}{}}
 
 \newcommand{\ottrs}{
@@ -199,7 +188,17 @@
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \isna }{}{}{}{}\ottprodnewline
+\ottfirstprodline{|}{ \mathsf{true} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{false} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \bna }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ina }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \sna }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \circ_\textsf{lgl} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \circ_\textsf{arth} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \diamond_\textsf{arth} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \diamond_\textsf{rel} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \diamond_\textsf{lgl} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \isna }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ipt }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \leftarrow }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{if} }{}{}{}{}\ottprodnewline
@@ -218,11 +217,6 @@
 \ottprodline{|}{ \overset{\mathrm{rec} }{\rightharpoonup} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \overset{\mathrm{rec} }{\longrightarrow} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \overset{\mathrm{rec} }{\longmapsto} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \neg }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \times }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \div }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \leq }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \geq }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \neq }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \land }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \lor }{}{}{}{}\ottprodnewline
@@ -255,8 +249,6 @@
 \ottprodline{|}{\ottnt{v_{{\mathrm{1}}}}  \ottsym{>}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{+}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v'}  \ottsym{=}  \ottnt{v_{{\mathrm{1}}}}  \ottsym{-}  \ottnt{v_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\circ  \ottsym{=}  \circ}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\diamond  \ottsym{=}  \diamond}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{E'}  \ottsym{=}  \ottnt{E}  \ottsym{[}  \mathit{x}  \mapsto  \ottnt{v}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{I}  =  \ottnt{v}  \cdot  \ottnt{I'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\overline{e}_{{\mathrm{1}}}  \ottsym{=}  \overline{e}_{{\mathrm{2}}}}{}{}{}{}\ottprodnewline
@@ -400,18 +392,18 @@
 %% defn eval_e
 \newcommand{\ottdruleEXXIsNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottsym{(}  \ottnt{v}  \ottsym{=}   \bna   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \ina   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \sna   \ottsym{)}}%
+\ottpremise{\ottsym{(}  \ottnt{v}  \ottsym{=}  \bna  \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}  \ina  \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}  \sna  \ottsym{)}}%
 }{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{true}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow   \mathsf{true} }{%
 {\ottdrulename{E\_IsNA}}{}%
 }}
 
 
 \newcommand{\ottdruleEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottsym{(}  \ottnt{v}  \neq   \bna   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \ina   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \sna   \ottsym{)}}%
+\ottpremise{\ottsym{(}  \ottnt{v}  \neq  \bna  \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq  \ina  \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq  \sna  \ottsym{)}}%
 }{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow    \mathsf{false}  }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \longrightarrow   \mathsf{false} }{%
 {\ottdrulename{E\_IsNotNA}}{}%
 }}
 
@@ -420,7 +412,7 @@
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
 \ottpremise{ \ottnt{v'}  = \llbracket  \circ  \rrbracket_1 ( \ottnt{v} ) }%
 }{
- \ottnt{E} \enspace  \circ \ottnt{se}    \longrightarrow   \ottnt{v'} }{%
+ \ottnt{E} \enspace  \circ ( \ottnt{se} )    \longrightarrow   \ottnt{v'} }{%
 {\ottdrulename{E\_UnaryOp}}{}%
 }}
 
@@ -430,7 +422,7 @@
 \ottpremise{ \ottnt{E} \enspace \ottnt{se_{{\mathrm{2}}}}   \rightharpoonup   \ottnt{v_{{\mathrm{2}}}} }%
 \ottpremise{ \ottnt{v'}  = \llbracket  \diamond  \rrbracket_2 ( \ottnt{v_{{\mathrm{1}}}} ,  \ottnt{v_{{\mathrm{2}}}} ) }%
 }{
- \ottnt{E} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \longrightarrow   \ottnt{v'} }{%
+ \ottnt{E} \enspace  \diamond ( \ottnt{se_{{\mathrm{1}}}} , \ottnt{se_{{\mathrm{2}}}} )    \longrightarrow   \ottnt{v'} }{%
 {\ottdrulename{E\_BinaryOp}}{}%
 }}
 
@@ -471,7 +463,7 @@
 
 \newcommand{\ottdruleSXXIfTrue}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{true} }%
+\ottpremise{\ottnt{v}  \ottsym{=}  \mathsf{true}}%
 }{
    \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I} \, \ottnt{E}  }{%
 {\ottdrulename{S\_IfTrue}}{}%
@@ -480,7 +472,7 @@
 
 \newcommand{\ottdruleSXXIfFalse}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \rightharpoonup   \ottnt{v} }%
-\ottpremise{\ottnt{v}  \ottsym{=}   \mathsf{false} }%
+\ottpremise{\ottnt{v}  \ottsym{=}  \mathsf{false}}%
 }{
    \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}    \longmapsto    \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I} \, \ottnt{E}  }{%
 {\ottdrulename{S\_IfFalse}}{}%
@@ -586,9 +578,9 @@
 \newcommand{\ottdruleRecEXXIsNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \overset{\mathrm{rec} }{\rightharpoonup}   \overline{se} }%
 \ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \ottnt{v}  \ottsym{)}}%
-\ottpremise{\ottsym{(}  \ottnt{v}  \ottsym{=}   \bna   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \ina   \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}   \sna   \ottsym{)}}%
+\ottpremise{\ottsym{(}  \ottnt{v}  \ottsym{=}  \bna  \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}  \ina  \ottsym{)}  \lor  \ottsym{(}  \ottnt{v}  \ottsym{=}  \sna  \ottsym{)}}%
 }{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \isna ( \overline{se} )  ,   \mathsf{true}  ) }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \isna ( \overline{se} )  ,  \mathsf{true} ) }{%
 {\ottdrulename{RecE\_IsNA}}{}%
 }}
 
@@ -596,9 +588,9 @@
 \newcommand{\ottdruleRecEXXIsNotNA}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \overset{\mathrm{rec} }{\rightharpoonup}   \overline{se} }%
 \ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \ottnt{v}  \ottsym{)}}%
-\ottpremise{\ottsym{(}  \ottnt{v}  \neq   \bna   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \ina   \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq   \sna   \ottsym{)}}%
+\ottpremise{\ottsym{(}  \ottnt{v}  \neq  \bna  \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq  \ina  \ottsym{)}  \land  \ottsym{(}  \ottnt{v}  \neq  \sna  \ottsym{)}}%
 }{
- \ottnt{E} \enspace  \isna ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \isna ( \overline{se} )  ,   \mathsf{false}  ) }{%
+ \ottnt{E} \enspace  \isna ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \isna ( \overline{se} )  ,  \mathsf{false} ) }{%
 {\ottdrulename{RecE\_IsNotNA}}{}%
 }}
 
@@ -608,7 +600,7 @@
 \ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \ottnt{v}  \ottsym{)}}%
 \ottpremise{ \ottnt{v'}  = \llbracket  \circ  \rrbracket_1 ( \ottnt{v} ) }%
 }{
- \ottnt{E} \enspace  \circ \ottnt{se}    \overset{\mathrm{rec} }{\longrightarrow}  (  \circ \overline{se}  ,  \ottnt{v'} ) }{%
+ \ottnt{E} \enspace  \circ ( \ottnt{se} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \circ ( \overline{se} )  ,  \ottnt{v'} ) }{%
 {\ottdrulename{RecE\_UnaryOp}}{}%
 }}
 
@@ -620,7 +612,7 @@
 \ottpremise{\overline{se}_{{\mathrm{2}}}  \ottsym{=}  \ottsym{(}  \ottnt{se_{{\mathrm{2}}}}  \ottsym{,}  \ottnt{v_{{\mathrm{2}}}}  \ottsym{)}}%
 \ottpremise{ \ottnt{v'}  = \llbracket  \diamond  \rrbracket_2 ( \ottnt{v_{{\mathrm{1}}}} ,  \ottnt{v_{{\mathrm{2}}}} ) }%
 }{
- \ottnt{E} \enspace  \ottnt{se_{{\mathrm{1}}}}   \diamond   \ottnt{se_{{\mathrm{2}}}}    \overset{\mathrm{rec} }{\longrightarrow}  (  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  ,  \ottnt{v'} ) }{%
+ \ottnt{E} \enspace  \diamond ( \ottnt{se_{{\mathrm{1}}}} , \ottnt{se_{{\mathrm{2}}}} )    \overset{\mathrm{rec} }{\longrightarrow}  (  \diamond ( \overline{se}_{{\mathrm{1}}} , \overline{se}_{{\mathrm{2}}} )  ,  \ottnt{v'} ) }{%
 {\ottdrulename{RecE\_BinaryOp}}{}%
 }}
 
@@ -662,7 +654,7 @@
 
 \newcommand{\ottdruleRecSXXIfTrue}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \overset{\mathrm{rec} }{\rightharpoonup}   \overline{se} }%
-\ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}   \mathsf{true}   \ottsym{)}}%
+\ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \mathsf{true}  \ottsym{)}}%
 }{
    \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}  \, \ottnt{T}   \overset{\mathrm{rec} }{\longmapsto}    \ottnt{s_{{\mathrm{1}}}} \enspace \ottnt{I'} \, \ottnt{E'}  \,  \ottnt{T} \!\cdot\!  \langle   \mathsf{if} ~ \overline{se} ~ \mathsf{then}  \bullet  \mathsf{else}  \bullet  \mathsf{fi}  ,  \ottnt{E'}  \rangle   }{%
 {\ottdrulename{RecS\_IfTrue}}{}%
@@ -671,7 +663,7 @@
 
 \newcommand{\ottdruleRecSXXIfFalse}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{E} \enspace \ottnt{se}   \overset{\mathrm{rec} }{\rightharpoonup}   \overline{se} }%
-\ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}   \mathsf{false}   \ottsym{)}}%
+\ottpremise{\overline{se}  \ottsym{=}  \ottsym{(}  \ottnt{se}  \ottsym{,}  \mathsf{false}  \ottsym{)}}%
 }{
    \mathsf{if} ~ \ottnt{se} ~ \mathsf{then} ~ \ottnt{s_{{\mathrm{1}}}} ~ \mathsf{else} ~ \ottnt{s_{{\mathrm{2}}}} ~ \mathsf{fi}  \enspace \ottnt{I} \, \ottnt{E}  \, \ottnt{T}   \overset{\mathrm{rec} }{\longmapsto}    \ottnt{s_{{\mathrm{2}}}} \enspace \ottnt{I'} \, \ottnt{E'}  \,  \ottnt{T} \!\cdot\!  \langle   \mathsf{if} ~ \overline{se} ~ \mathsf{then}  \bullet  \mathsf{else}  \bullet  \mathsf{fi}  ,  \ottnt{E'}  \rangle   }{%
 {\ottdrulename{RecS\_IfFalse}}{}%
@@ -797,7 +789,7 @@
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,  \widehat{\circ} \, \ottnt{Lat_{{\mathrm{2}}}} ,  \ottnt{L}  \rangle }%
 \ottpremise{ \mathit{a'} ~\text{fresh} }%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \circ \overline{se}  , \ottnt{v} )  \overset{\textsf{NA} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace(  \circ ( \overline{se} )  , \ottnt{v} )  \overset{\textsf{NA} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v} }{%
 {\ottdrulename{NA\_E\_UnaryOp}}{}%
 }}
 
@@ -808,7 +800,7 @@
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,  \ottnt{Lat_{{\mathrm{12}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
 \ottpremise{ \mathit{a} ~\text{fresh} }%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{NA} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace(  \diamond ( \overline{se}_{{\mathrm{1}}} , \overline{se}_{{\mathrm{2}}} )  , \ottnt{v} )  \overset{\textsf{NA} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{NA\_E\_BinaryOp}}{}%
 }}
 
@@ -935,9 +927,8 @@
 \ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,   \textsf{Bool}  ,  \ottnt{L}  \rangle }%
 \ottpremise{\widehat{v}'  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Bool}  ,  \ottnt{L}  \rangle }%
 \ottpremise{ \mathit{a'} ~\text{fresh} }%
-\ottpremise{\circ  \ottsym{=}  \neg}%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \circ \overline{se}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v}' }{%
+ \widehat{E} \, \widehat{H} \enspace(  \circ_\textsf{lgl} ( \overline{se} )  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v}' }{%
 {\ottdrulename{Type\_E\_UnaryOpBool}}{}%
 }}
 
@@ -948,9 +939,8 @@
 \ottpremise{\widehat{v}'_{{\mathrm{1}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{1}}}} ,   \textsf{Int}  ,  \ottnt{L}  \rangle }%
 \ottpremise{\widehat{v}'  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Int}  ,  \ottnt{L}  \rangle }%
 \ottpremise{ \mathit{a'} ~\text{fresh} }%
-\ottpremise{\ottsym{(}  \circ  \ottsym{=}  \ottsym{+}  \ottsym{)}  \lor  \ottsym{(}  \circ  \ottsym{=}  \ottsym{-}  \ottsym{)}}%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \circ \overline{se}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v}' }{%
+ \widehat{E} \, \widehat{H} \enspace(  \circ_\textsf{arth} ( \overline{se} )  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a'} , \widehat{v}' }{%
 {\ottdrulename{Type\_E\_UnaryOpInt}}{}%
 }}
 
@@ -964,9 +954,8 @@
 \ottpremise{\widehat{v}'_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,   \textsf{Bool}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Bool}  ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
 \ottpremise{ \mathit{a} ~\text{fresh} }%
-\ottpremise{\ottsym{(}  \diamond  \ottsym{=}  \land  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \lor  \ottsym{)}}%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace(  \diamond_\textsf{lgl} ( \overline{se}_{{\mathrm{1}}} , \overline{se}_{{\mathrm{2}}} )  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{Type\_E\_BinaryOpBool}}{}%
 }}
 
@@ -980,9 +969,8 @@
 \ottpremise{\widehat{v}'_{{\mathrm{2}}}  \ottsym{=}   \langle  \ottnt{Lat_{{\mathrm{21}}}} ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{2}}}}  \rangle }%
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,   \textsf{Int}  ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
 \ottpremise{ \mathit{a} ~\text{fresh} }%
-\ottpremise{\ottsym{(}  \diamond  \ottsym{=}  \ottsym{+}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{-}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \times  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \div  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{\%}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{<}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \leq  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \ottsym{>}  \ottsym{)}  \lor  \ottsym{(}  \diamond  \ottsym{=}  \geq  \ottsym{)}}%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace(  \diamond_\textsf{arth} ( \overline{se}_{{\mathrm{1}}} , \overline{se}_{{\mathrm{2}}} )  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{Type\_E\_BinaryOpInt}}{}%
 }}
 
@@ -995,7 +983,7 @@
 \ottpremise{\widehat{v}  \ottsym{=}   \langle   \alpha( \ottnt{v} )  ,  \ottnt{Lat_{{\mathrm{12}}}} \, \widehat{\diamond} \, \ottnt{Lat_{{\mathrm{22}}}} ,  \ottnt{L_{{\mathrm{1}}}} \, \cup \, \ottnt{L_{{\mathrm{2}}}}  \rangle }%
 \ottpremise{ \mathit{a} ~\text{fresh} }%
 }{
- \widehat{E} \, \widehat{H} \enspace(  \overline{se}_{{\mathrm{1}}}   \diamond   \overline{se}_{{\mathrm{2}}}  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
+ \widehat{E} \, \widehat{H} \enspace(  \diamond ( \overline{se}_{{\mathrm{1}}} , \overline{se}_{{\mathrm{2}}} )  , \ottnt{v} )  \overset{\textsf{Type} }{\rightsquigarrow}_{e}   \mathit{a} , \widehat{v} }{%
 {\ottdrulename{Type\_E\_BinaryOp}}{}%
 }}
 

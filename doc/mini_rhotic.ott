@@ -21,20 +21,20 @@ grammar
 %%% Values %%%
 bool {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }} :: 'bool_' ::=
                                     {{ com boolean literals }}
-    | true          :: :: True          {{ tex \mathsf{true} }}
-    | false         :: :: False         {{ tex \mathsf{false} }}
-    | NA_b          :: :: NA            {{ com boolean \na }} {{ tex \bna }}
+    | true          :: :: True
+    | false         :: :: False
+    | NA_b          :: :: NA
 
 int {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }} :: 'int_' ::=
                                     {{ com integer literals }}
     | num           :: :: Int
     | ~ num         :: :: NegInt        {{ tex - [[num]] }}
-    | NA_i          :: :: NA            {{ com integer \na }} {{ tex \ina }}
+    | NA_i          :: :: NA            {{ com integer \na }}
 
 str {{ tex \cdots ~|~ \sna }} :: 'str_' ::=
                                     {{ com string literals }}
     | " chr "       :: :: Str           {{ tex ``[[chr]]" }}
-    | NA_s          :: :: NA            {{ com string \na }} {{ tex \sna }}
+    | NA_s          :: :: NA            {{ com string \na }}
 
 v :: 'v_' ::=                       {{ com values $\vals$ }}
     | bool          :: :: Bool          {{ com \bvals }}
@@ -48,35 +48,24 @@ se :: 'se_' ::=                     {{ com simple expressions }}
 
 %%% Unary operators %%%
 uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
-    | !             :: :: Negate        {{ com logical negation }}
-    | +             :: :: Plus
-    | -             :: :: Minus
+    | uop_l         :: :: Logical       {{ com logical: $\{ \neg \}$ }}
+    | uop_a         :: :: Arithmetic    {{ com arithmetic: $\{ +, - \}$ }}
 
 %%% Binary operators %%%a
 bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }}
-    | +             :: :: Plus
-    | -             :: :: Minus
-    | *             :: :: Times
-    | /             :: :: Divide
-    | %             :: :: Modulo        {{ com modulo }}
-    | <             :: :: Less
-    | <=            :: :: LessEqual
-    | >=            :: :: GreaterEqual
-    | >             :: :: Greater
-    | =             :: :: Equal
-    | =/=           :: :: NotEqual
-    | /\            :: :: And           {{ com logical and }}
-    | \/            :: :: Or            {{ com logical or }}
+    | bop_a         :: :: Arithmetic    {{ com arithmetic: $\{ +, -, \times, \div, \mathsf{mod} \}$ }}
+    | bop_r         :: :: Relational    {{ com relational: $\{ <, \leq, \geq, >, =, \neq \}$ }}
+    | bop_l         :: :: Logical       {{ com logical: $\{ \land, \lor \}$ }}
 
 %%% Expressions %%%
 e :: 'e_' ::=                           {{ com expressions }}
     | isNA se           :: :: IsNA          {{ tex [[isNA]]([[se]]) }}
-    | uop se            :: :: UOp
-        {{ com $[[uop]] \in \{ \neg, +, - \}$ }}
-        {{ tex [[uop]][[se]] }}
-    | se1 bop se2       :: :: BOp
-        {{ com $[[bop]] \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$ }}
-        {{ tex [[se1]] [[bop]] [[se2]] }}
+    | uop ( se )        :: :: UOp
+        {{ com $[[uop]] = (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$ }}
+        {{ tex [[uop]]([[se]]) }}
+    | bop ( se1 , se2 ) :: :: BOp
+        {{ com $[[bop]] = (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$ }}
+        {{ tex [[bop]]([[se1]],[[se2]]) }}
     | se                :: :: SimpleExp
 
 %%% Statements %%%
@@ -104,12 +93,12 @@ rse {{ tex \overline{se} }} :: 'rse_' ::=           {{ com recorded simple expre
 %%% Recorded expressions %%%
 re {{ tex \overline{e} }} :: 're_' ::=              {{ com recorded expressions }}
     | isNA rse                  :: :: IsNA              {{ tex [[isNA]]([[rse]]) }}
-    | uop rse                   :: :: UOp
-        {{ com $[[uop]] \in \{ \neg, +, - \}$ }}
-        {{ tex [[uop]][[rse]] }}
-    | rse1 bop rse2             :: :: BOp
-        {{ com $[[bop]] \in \{ +, -, \times, \div, \%, <, \leq, =, \neq, >, \geq, \lor, \land \}$ }}
-        {{ tex [[rse1]] [[bop]] [[rse2]] }}
+    | uop ( rse )               :: :: UOp
+        {{ com $[[uop]] = (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$ }}
+        {{ tex [[uop]]([[rse]]) }}
+    | bop ( rse1 , rse2 )       :: :: BOp
+        {{ com $[[bop]] = (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$ }}
+        {{ tex [[bop]]([[rse1]],[[rse2]]) }}
     | rse                       :: :: SimpleExp
 
 %%% Recorded statements %%%
@@ -206,6 +195,16 @@ M :: 'M_' ::=                                       {{ com analysis state }}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% TERMINALS %%%
 terminals :: 'terminals_' ::=
+    | true          :: :: True          {{ tex \mathsf{true} }}
+    | false         :: :: False         {{ tex \mathsf{false} }}
+    | NA_b          :: :: NA_b          {{ tex \bna }}
+    | NA_i          :: :: NA_i          {{ tex \ina }}
+    | NA_s          :: :: NA_s          {{ tex \sna }}
+    | uop_l         :: :: Unary_lgl     {{ tex \circ_\textsf{lgl} }}
+    | uop_a         :: :: Unary_arith   {{ tex \circ_\textsf{arth} }}
+    | bop_a         :: :: Binary_arith  {{ tex \diamond_\textsf{arth} }}
+    | bop_r         :: :: Binary_rel    {{ tex \diamond_\textsf{rel} }}
+    | bop_l         :: :: Binary_lgl    {{ tex \diamond_\textsf{lgl} }}
     | isNA          :: :: IsNA          {{ tex \isna }}
     | input()       :: :: Input         {{ tex \ipt }}
     | <-            :: :: Assign        {{ tex \leftarrow }}
@@ -225,11 +224,6 @@ terminals :: 'terminals_' ::=
     | -rec-se->     :: :: RecSE         {{ tex \overset{\mathrm{rec} }{\rightharpoonup} }}
     | -rec-e->      :: :: RecE          {{ tex \overset{\mathrm{rec} }{\longrightarrow} }}
     | -rec->        :: :: RecS          {{ tex \overset{\mathrm{rec} }{\longmapsto} }}
-    | !             :: :: Negate        {{ tex \neg }}
-    | *             :: :: Times         {{ tex \times }}
-    | /             :: :: Divide        {{ tex \div }}
-    | <=            :: :: LEq           {{ tex \leq }}
-    | >=            :: :: GEq           {{ tex \geq }}
     | =/=           :: :: NEq           {{ tex \neq }}
     | /\            :: :: And           {{ tex \land }}
     | \/            :: :: Or            {{ tex \lor }}
@@ -262,8 +256,6 @@ formula :: 'formula_' ::=
   | v1 > v2                                 :: :: greater_than
   | v' = v1 + v2                            :: :: plus
   | v' = v1 - v2                            :: :: minus
-  | uop1 = uop2                             :: :: unary_op
-  | bop1 = bop2                             :: :: binary_op
   | E' = E [ x -> v ]                       :: :: env_update
   | I = v . I'                              :: :: input_stream  {{ tex [[I]] = [[v]] \cdot [[I']] }}
   | re1 = re2                               :: :: re_equal
@@ -317,14 +309,14 @@ operational_semantics :: '' ::=
 
         E se -se-> v
         v' = [[uop]](v)
-        ----------------  :: UnaryOp
-        E uop se -e-> v'
+        -----------------  :: UnaryOp
+        E uop(se) -e-> v'
 
         E se1 -se-> v1
         E se2 -se-> v2
         v' = [[bop]](v1, v2)
-        ---------------------  :: BinaryOp
-        E se1 bop se2 -e-> v'
+        -----------------------  :: BinaryOp
+        E bop(se1, se2) -e-> v'
 
         E se -se-> v
         ------------  :: SimpleExpression
@@ -429,16 +421,16 @@ record :: '' ::=
         E se -rec-se-> rse
         rse = (se, v)
         v' = [[uop]](v)
-        -------------------------------  :: UnaryOp
-        E uop se -rec-e-> (uop rse, v')
+        ---------------------------------  :: UnaryOp
+        E uop(se) -rec-e-> (uop(rse), v')
 
         E se1 -rec-se-> rse1
         E se2 -rec-se-> rse2
         rse1 = (se1, v1)
         rse2 = (se2, v2)
         v' = [[bop]](v1, v2)
-        ------------------------------------------  :: BinaryOp
-        E se1 bop se2 -rec-e-> (rse1 bop rse2, v')
+        ----------------------------------------------  :: BinaryOp
+        E bop(se1, se2) -rec-e-> (bop(rse1, rse2), v')
 
         E se -rec-se-> rse
         rse = (se, v)
@@ -546,15 +538,15 @@ na_analysis :: 'NA_' ::=
         AE AH rse -na-se-> a [Lat1, Lat2, L]
         Av = [alpha(v), Auop Lat2, L]
         fresh(a')
-        -----------------------------------  :: UnaryOp
-        AE AH (uop rse, v) -na-e-> a' Av
+        ------------------------------------  :: UnaryOp
+        AE AH (uop(rse), v) -na-e-> a' Av
 
         AE AH rse1 -na-se-> a1 [Lat11, Lat12, L1]
         AE AH rse2 -na-se-> a2 [Lat21, Lat22, L2]
         Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
         fresh(a)
         ----------------------------------------------  :: BinaryOp
-        AE AH (rse1 bop rse2, v) -na-e-> a Av
+        AE AH (bop(rse1, rse2), v) -na-e-> a Av
 
         AE AH rse -na-se-> a Av
         ---------------------------  :: SimpleExpression
@@ -642,9 +634,8 @@ type_analysis :: 'Type_' ::=
 % TODO: need to propagate Av1' constraint and update M
         Av' = [alpha(v), Bool, L]
         fresh(a')
-        uop = !
-        -----------------------------------  :: UnaryOpBool
-        AE AH (uop rse, v) -type-e-> a' Av'
+        --------------------------------------  :: UnaryOpBool
+        AE AH (uop_l(rse), v) -type-e-> a' Av'
 
         AE AH rse -type-se-> a Av1
         Av1 = [Lat1, Lat2, L]
@@ -652,9 +643,8 @@ type_analysis :: 'Type_' ::=
 % TODO: need to propagate Av1' constraint and update M
         Av' = [alpha(v), Int, L]
         fresh(a')
-        (uop = +) \/ (uop = -)
-        -----------------------------------  :: UnaryOpInt
-        AE AH (uop rse, v) -type-e-> a' Av'
+        --------------------------------------  :: UnaryOpInt
+        AE AH (uop_a(rse), v) -type-e-> a' Av'
 
         AE AH rse1 -type-se-> a1 Av1
         Av1 = [Lat11, Lat12, L1]
@@ -666,9 +656,8 @@ type_analysis :: 'Type_' ::=
 % TODO: need to propagate Av2' constraint and update M
         Av = [alpha(v), Bool, L1 union L2]
         fresh(a)
-        (bop = /\) \/ (bop = \/)
-        ---------------------------------------  :: BinaryOpBool
-        AE AH (rse1 bop rse2, v) -type-e-> a Av
+        -------------------------------------------  :: BinaryOpBool
+        AE AH (bop_l(rse1, rse2), v) -type-e-> a Av
 
         AE AH rse1 -type-se-> a1 Av1
         Av1 = [Lat11, Lat12, L1]
@@ -680,9 +669,8 @@ type_analysis :: 'Type_' ::=
 % TODO: need to propagate Av2' constraint and update M
         Av = [alpha(v), Int, L1 union L2]
         fresh(a)
-        (bop = +) \/ (bop = -) \/ (bop = *) \/ (bop = /) \/ (bop = %) \/ (bop = <) \/ (bop = <=) \/ (bop = >) \/ (bop = >=)
         ----------------------------------------------  :: BinaryOpInt
-        AE AH (rse1 bop rse2, v) -type-e-> a Av
+        AE AH (bop_a(rse1, rse2), v) -type-e-> a Av
 
         AE AH rse1 -type-se-> a1 Av1
         Av1 = [Lat11, Lat12, L1]
@@ -691,7 +679,7 @@ type_analysis :: 'Type_' ::=
         Av = [alpha(v), Lat12 Abop Lat22, L1 union L2]
         fresh(a)
         ----------------------------------------------  :: BinaryOp
-        AE AH (rse1 bop rse2, v) -type-e-> a Av
+        AE AH (bop(rse1, rse2), v) -type-e-> a Av
 
         AE AH rse -type-se-> a Av
         -----------------------------  :: SimpleExpression
