@@ -23,7 +23,7 @@ bool {{ tex \mathsf{true} ~|~ \mathsf{false} ~|~ \bna }} :: 'bool_' ::=
                                     {{ com boolean literals }}
     | true          :: :: True
     | false         :: :: False
-    | NA_b          :: :: NA
+    | NA_b          :: :: NA            {{ com boolean \na }}
 
 int {{ tex \cdots ~|~ -1 ~|~ 0 ~|~ 1 ~|~ \cdots ~|~ \ina }} :: 'int_' ::=
                                     {{ com integer literals }}
@@ -43,12 +43,15 @@ v :: 'v_' ::=                       {{ com values $\vals$ }}
 
 %%% Simple expressions %%%
 se :: 'se_' ::=                     {{ com simple expressions }}
-    | v             :: :: Val           {{ com $[[v]] \in \vals$ }}
-    | x             :: :: Var           {{ com $[[x]] \in \vars $ }}
+    | v             :: :: Val           {{ com values $[[v]] \in \vals$ }}
+    | x             :: :: Var           {{ com variables $[[x]] \in \vars $ }}
 
 %%% Recorded simple expressions %%%
-rse {{ tex \overline{se} }} :: 'rse_' ::=           {{ com recorded simple expressions }}
-    | ( se , v )    :: :: SE            {{ tex \langle [[se]], [[v]] \rangle }}
+rse {{ tex \overline{se} }} :: 'rse_' ::=
+                                    {{ com recorded simple expressions }}
+    | ( se , v )    :: :: SE
+        {{ com simple expression and its evaluated value }}
+        {{ tex \langle [[se]], [[v]] \rangle }}
 
 %%% Unary operators %%%
 uop :: 'uop_' ::=                   {{ com unary operators }} {{ tex \circ }}
@@ -66,30 +69,32 @@ bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }
 
 %%% Statements %%%
 s :: 's_' ::=                                       {{ com statements }}
-    | se                            :: :: Simple        {{ com non-assignment simple expression }}
-    | x <- se                       :: :: SimpleExp
-    | x <- isNA ( se )              :: :: IsNA
+    | x <- se                           :: :: SimpleExp
+    | x <- isNA ( se )                  :: :: IsNA
         {{ tex [[x]] [[<-]] [[isNA]]([[se]]) }}
-    | x <- uop ( se )               :: :: UOp
+    | x <- uop ( se )                   :: :: UOp
         {{ com $[[uop]] = (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$ }}
         {{ tex [[x]] [[<-]] [[uop]]([[se]]) }}
-    | x <- bop ( se1 , se2 )        :: :: BOp
+    | x <- bop ( se1 , se2 )            :: :: BOp
         {{ com $[[bop]] = (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$ }}
         {{ tex [[x]] [[<-]] [[bop]]([[se1]],[[se2]]) }}
-    | x <- l ^ input()              :: :: Input
+    | x <- l ^ input()                  :: :: Input
         {{ com input }}
         {{ tex [[x]] [[<-]]\, ^{[[l]]} [[input()]] }}
-    | if se then s1 else s2 fi      :: :: If
-        {{ com [[if]] statement }}
+    | if se then s1 else s2 fi          :: :: If
         {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
-    | for x in se1 : se2 do s od    :: :: For
-        {{ com [[for]] loop }}
-        {{ tex [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
-    | s1 ; s2                       :: :: Seq           {{ com sequencing }}
+    | end if                            :: :: EndIf
+        {{ com used for recording; not in surface language }}
+    | l ^ for x in se1 : se2 do s od    :: :: For
+        {{ tex ^{[[l]]} [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
+    | l ^ end for                       :: :: EndFor
+        {{ com used for recording; not in surface language }}
+        {{ tex ^{[[l]]} [[end]]~[[for]] }}
+    | s1 ; s2                           :: :: Seq           {{ com sequencing }}
+    | skip                              :: :: Skip
 
 %%% Recorded statements %%%
 rs {{ tex \overline{s} }} :: 'rs_' ::=              {{ com recorded statements }}
-    | rse                                       :: :: Simple
     | x <- rse                                  :: :: SimpleExp
     | x <- ( isNA ( rse ) , v )                 :: :: IsNA
         {{ tex [[x]] [[<-]] \langle [[isNA]]([[rse]]), [[v]] \rangle }}
@@ -99,12 +104,13 @@ rs {{ tex \overline{s} }} :: 'rs_' ::=              {{ com recorded statements }
         {{ tex [[x]] [[<-]] \langle [[bop]]([[rse1]], [[rse2]]), [[v]] \rangle }}
     | x <- ( l ^ input() , v )                  :: :: Input
         {{ tex [[x]] [[<-]]\, \langle ^{[[l]]} [[input()]], [[v]] \rangle }}
-    | if rse then . else . fi                   :: :: If
-        {{ tex [[if]]~[[rse]]~[[then]] \bullet [[else]] \bullet [[fi]] }}
-        {{ com $\bullet$ is not recorded in this statement }}
-    | for ( x , v ) in rse1 : rse2 do . od      :: :: For
-        {{ tex [[for]]~\langle [[x]], [[v]] \rangle~[[in]]~[[rse1]]\negmedspace:\negmedspace[[rse2]]~[[do]] \bullet [[od]] }}
-        {{ com $\bullet$ is not recorded in this statement }}
+    | if rse begin                              :: :: If
+        {{ tex [[if]]~[[rse]]~[[begin]] }}
+    | end if                                    :: :: EndIf
+    | l ^ for ( x , v ) in rse1 : rse2 begin        :: :: For
+        {{ tex ^{[[l]]} [[for]]~\langle [[x]], [[v]] \rangle~[[in]]~[[rse1]]\negmedspace:\negmedspace[[rse2]]~[[begin]] }}
+    | l ^ end for                                   :: :: EndFor
+        {{ tex ^{[[l]]} [[end]]~[[for]] }}
 
 %%% Environment %%%
 E :: 'Env_' ::=                                     {{ com environment }}
@@ -118,13 +124,13 @@ I :: 'I_' ::=                                       {{ com input stream }}
 
 %%% Machine configuration %%%
 C :: 'C_' ::=                                       {{ com machine configuration }}
-    | s I E                         :: :: sIE           {{ tex [[s]]\enspace[[I]]\,[[E]] }}
+    | s E I                         :: :: sEI           {{ tex [[s]]\enspace[[E]]\,[[I]] }}
 
 %%% Recorded state %%%
 r :: 'r_' ::=                                       {{ com recorded state }}
-    | [ rs E ]                      :: :: RecordedState
+    | [ rs , E ]                    :: :: RecordedState
         {{ com recorded statement and environment }}
-        {{ tex \langle [[rs]], [[E]] \rangle }}
+        {{ tex \langle [[rs]],[[E]] \rangle }}
 
 %%% Execution trace %%%
 T :: 'T_' ::=                                       {{ com execution trace }}
@@ -134,7 +140,7 @@ T :: 'T_' ::=                                       {{ com execution trace }}
     | r . T                         :: :: Prepend       {{ com prepend }} {{ tex [[r]]\!\cdot\![[T]] }}
 
 %%% Recorded machine configuration %%%
-rC {{ tex \overline{C} }} :: 'rC_' ::=
+rC {{ tex \overline{C} }} :: 'rC_' ::=              {{ com recorded machine configuration }}
     | C T                           :: :: CT
 
 
@@ -204,6 +210,9 @@ terminals :: 'terminals_' ::=
     | in            :: :: In            {{ tex \textsf{in} }}
     | do            :: :: Do            {{ tex \textsf{do} }}
     | od            :: :: Od            {{ tex \textsf{od} }}
+    | begin         :: :: Begin         {{ tex \textsf{begin} }}
+    | end           :: :: End           {{ tex \textsf{end} }}
+    | skip          :: :: Skip          {{ tex \textsf{skip} }}
     | empty         :: :: Empty         {{ tex \emptyset }}
     | ->            :: :: MapsTo        {{ tex \mapsto }}
     | -se->         :: :: EvalSE        {{ tex \rightharpoonup }}
@@ -245,6 +254,7 @@ formula :: 'formula_' ::=
   | v' = v1 - v2                            :: :: minus
   | E1 = E2                                 :: :: environment
   | I1 = I2                                 :: :: input_stream
+  | T1 = T2                                 :: :: trace
   | rse1 = rse2                             :: :: rse_equal
   | r1 = r2                                 :: :: recorded_state
   | a = AE ( x )                            :: :: abstract_env_lookup
@@ -285,81 +295,77 @@ operational_semantics :: '' ::=
     by
 
         E se -se-> v
-        ----------------  :: Simple
-        se I E --> v I E
-
-        E se -se-> v
         E' = E[x -> v]
-        ----------------------  :: SimpleExp
-        x <- se I E --> v I E'
+        -------------------------  :: SimpleExp
+        x <- se E I --> skip E' I
 
         E se -se-> v
         v = NA_b \/ v = NA_i \/ v = NA_s
         E' = E[x -> true]
         -------------------------------- :: IsNA
-        x <- isNA(se) I E --> true I E'
+        x <- isNA(se) E I --> skip E' I
 
         E se -se-> v
         v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
         E' = E[x -> false]
         -------------------------------------- :: IsNotNA
-        x <- isNA(se) I E --> false I E'
+        x <- isNA(se) E I --> skip E' I
 
         E se -se-> v
         v' = [[uop]](v)
         E' = E[x -> v']
-        ----------------------------  :: UnaryOp
-        x <- uop(se) I E --> v' I E'
+        ------------------------------  :: UnaryOp
+        x <- uop(se) E I --> skip E' I
 
         E se1 -se-> v1
         E se2 -se-> v2
         v' = [[bop]](v1, v2)
         E' = E[x -> v']
-        ----------------------------------  :: BinaryOp
-        x <- bop(se1, se2) I E --> v' I E'
+        ------------------------------------  :: BinaryOp
+        x <- bop(se1, se2) E I --> skip E' I
 
         I = v . I'
         E' = E[x -> v]
-        --------------------------------  :: Input
-        x <- l ^ input() I E --> v I' E'
+        -----------------------------------  :: Input
+        x <- l ^ input() E I --> skip E' I'
 
         E se -se-> true
         ---------------------------------------  :: IfTrue
-        if se then s1 else s2 fi I E --> s1 I E
+        if se then s1 else s2 fi E I --> s1 E I
 
         E se -se-> false
         ---------------------------------------  :: IfFalse
-        if se then s1 else s2 fi I E --> s2 I E
+        if se then s1 else s2 fi E I --> s2 E I
 
         E se1 -se-> v1
         E se2 -se-> v2
         v1' = v1 + 1
         E' = E[x -> v1]
         v1 < v2
-        ---------------------------------------------------------------------  :: ForIncr
-        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+        ----------------------------------------------------------------------------  :: ForIncr
+        l ^ for x in se1 : se2 do s od E I --> s; l ^ for x in v1' : v2 do s od E' I
 
         E se1 -se-> v1
         E se2 -se-> v2
         v1' = v1 - 1
         E' = E[x -> v1]
         v1 > v2
-        ---------------------------------------------------------------------  :: ForDecr
-        for x in se1 : se2 do s od I E --> s ; for x in v1' : v2 do s od I E'
+        ----------------------------------------------------------------------------  :: ForDecr
+        l ^ for x in se1 : se2 do s od E I --> s; l ^ for x in v1' : v2 do s od E' I
 
         E se1 -se-> v1
         E se2 -se-> v2
         E' = E[x -> v1]
         v1 = v2
-        -----------------------------------------  :: ForEnd
-        for x in se1 : se2 do s od I E --> s I E'
+        ---------------------------------------------  :: ForEqual
+        l ^ for x in se1 : se2 do s od E I --> s E' I
 
-        s1 I E --> s1' I' E'
-        ------------------------------  :: Seq1
-        s1 ; s2 I E --> s1' ; s2 I' E'
+        s1 E I --> s1' E' I'
+        ----------------------------  :: Seq
+        s1; s2 E I --> s1'; s2 E' I'
 
-        ---------------------  :: Seq2
-        v ; s2 I E --> s2 I E
+        -----------------------  :: Skip
+        skip; s2 E I --> s2 E I
 
 %%% RECORDING SEMANTICS %%%
 defns
@@ -379,11 +385,7 @@ record :: '' ::=
         --------------------  :: Variable
         E x -rec-se-> (x, v)
 
-%        E se -rec-se-> rse
-%        rse = (se, v)
-%        ----------------------  :: SimpleExpression
-%        E se -rec-e-> (rse, v)
-%
+
     %%% Recording statements %%%
     defn
     rC -rec-> rC' :: :: rec_s :: 'RecS_'
@@ -392,95 +394,110 @@ record :: '' ::=
     by
 
         E se -rec-se-> rse
-        ---------------------------------  :: Simple
-        se I E T -rec-> v I E T . [rse E]
-
-        E se -rec-se-> rse
         rse = (se, v)
         E' = E[x -> v]
-        ----------------------------------------  :: SimpleExp
-        x <- se I E T -rec-> v I E' T . [rse E']
+        T' = T . [x <- rse, E']
+        ---------------------------------  :: SimpleExp
+        x <- se E I T -rec-> skip E' I T'
 
         E se -rec-se-> rse
         rse = (se, v)
         v = NA_b \/ v = NA_i \/ v = NA_s
         E' = E[x -> v]
-        -------------------------------------------------------------------- :: IsNA
-        x <- isNA(se) I E T -rec-> true I E' T . [x <- (isNA(rse), true) E']
+        T' = T . [x <- (isNA(rse), true), E']
+        ---------------------------------------  :: IsNA
+        x <- isNA(se) E I T -rec-> skip E' I T'
 
         E se -rec-se-> rse
         rse = (se, v)
         v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
         E' = E[x -> v]
-        ---------------------------------------------------------------------- :: IsNotNA
-        x <- isNA(se) I E T -rec-> false I E' T . [x <- (isNA(rse), false) E']
+        T' = T . [x <- (isNA(rse), false), E']
+        ---------------------------------------  :: IsNotNA
+        x <- isNA(se) E I T -rec-> skip E' I T'
 
         E se -rec-se-> rse
         rse = (se, v)
         v' = [[uop]](v)
         E' = E[x -> v']
-        --------------------------------------------------------------  :: UnaryOp
-        x <- uop(se) I E T -rec-> v' I E' T . [x <- (uop(rse), v') E']
+        T' = T . [x <- (uop(rse), v'), E']
+        --------------------------------------  :: UnaryOp
+        x <- uop(se) E I T -rec-> skip E' I T'
 
         E se1 -rec-se-> rse1
-        E se2 -rec-se-> rse2
         rse1 = (se1, v1)
+        E se2 -rec-se-> rse2
         rse2 = (se2, v2)
         v' = [[bop]](v1, v2)
         E' = E[x -> v']
-        ---------------------------------------------------------------------------  :: BinaryOp
-        x <- bop(se1, se2) I E T -rec-> v' I E' T . [x <- (bop(rse1, rse2), v') E']
+        T' = T . [x <- (bop(rse1, rse2), v'), E']
+        --------------------------------------------  :: BinaryOp
+        x <- bop(se1, se2) E I T -rec-> skip E' I T'
 
         I = v . I'
         E' = E[x -> v]
-        --------------------------------------------------------------------  :: Input
-        x <- l ^ input() I E T -rec-> v I' E' T . [x <- (l ^ input(), v) E']
+        T' = T . [x <- (l ^ input(), v), E']
+        -------------------------------------------  :: Input
+        x <- l ^ input() E I T -rec-> skip E' I' T'
 
         E se -rec-se-> rse
         rse = (se, true)
-        -------------------------------------------------------------------------------  :: IfTrue
-        if se then s1 else s2 fi I E T -rec-> s1 I' E' T . [if rse then . else . fi E']
+        T' = T . [if rse begin, E']
+        ---------------------------------------------------------  :: IfTrue
+        if se then s1 else s2 fi E I T -rec-> s1; end if E' I' T'
 
         E se -rec-se-> rse
         rse = (se, false)
-        -------------------------------------------------------------------------------  :: IfFalse
-        if se then s1 else s2 fi I E T -rec-> s2 I' E' T . [if rse then . else . fi E']
+        T' = T . [if rse begin, E']
+        ---------------------------------------------------------  :: IfFalse
+        if se then s1 else s2 fi E I T -rec-> s2; end if E' I' T'
+
+        T' = T . [end if, E]
+        -------------------------------  :: IfEnd
+        end if E I T -rec-> skip E I T'
 
         E se1 -rec-se-> rse1
-        E se2 -rec-se-> rse2
         rse1 = (se1, v1)
+        E se2 -rec-se-> rse2
         rse2 = (se2, v2)
         v1' = v1 + 1
         E' = E[x -> v1]
+        T' = T . [l ^ for (x, v1) in rse1 : rse2 begin, E']
         v1 < v2
-        ----------------------------------------------------------------------------------------------------------------------  :: ForIncr
-        for x in se1 : se2 do s od I E T -rec-> s ; for x in v1' : v2 do s od I E' T . [for (x, v1) in rse1 : rse2 do . od E']
+        ------------------------------------------------------------------------------------  :: ForIncr
+        l ^ for x in se1 : se2 do s od E I T -rec-> s; l ^ for x in v1' : v2 do s od E' I T'
 
         E se1 -rec-se-> rse1
-        E se2 -rec-se-> rse2
         rse1 = (se1, v1)
+        E se2 -rec-se-> rse2
         rse2 = (se2, v2)
         v1' = v1 - 1
         E' = E[x -> v1]
+        T' = T . [l ^ for (x, v1) in rse1 : rse2 begin, E']
         v1 > v2
-        ----------------------------------------------------------------------------------------------------------------------  :: ForDecr
-        for x in se1 : se2 do s od I E T -rec-> s ; for x in v1' : v2 do s od I E' T . [for (x, v1) in rse1 : rse2 do . od E']
+        ------------------------------------------------------------------------------------  :: ForDecr
+        l ^ for x in se1 : se2 do s od E I T -rec-> s; l ^ for x in v1' : v2 do s od E' I T'
 
         E se1 -rec-se-> rse1
-        E se2 -rec-se-> rse2
         rse1 = (se1, v1)
+        E se2 -rec-se-> rse2
         rse2 = (se2, v2)
         E' = E[x -> v1]
+        T' = T . [l ^ for (x, v1) in rse1 : rse2 begin, E']
         v1 = v2
-        ------------------------------------------------------------------------------------------  :: ForEnd
-        for x in se1 : se2 do s od I E T -rec-> s I E' T . [for (x, v1) in rse1 : rse2 do . od E']
+        ------------------------------------------------------------------  :: ForEqual
+        l ^ for x in se1 : se2 do s od E I T -rec-> s; l ^ end for E' I T'
 
-        s1 I E T -rec-> s1' I' E' T'
-        --------------------------------------  :: Seq1
-        s1 ; s2 I E T -rec-> s1' ; s2 I' E' T'
+        T' = T . [l ^ end for, E]
+        ------------------------------------  :: ForEnd
+        l ^ end for E I T -rec-> skip E I T'
 
-        -----------------------------------------  :: Seq2
-        v ; s2 I E T -rec-> s2 I E T . [(v, v) E]
+        s1 E I T -rec-> s1' E' I' T'
+        ------------------------------------  :: Seq
+        s1; s2 E I T -rec-> s1'; s2 E' I' T'
+
+        ------------------------------  :: Skip
+        skip; s2 E I T -rec-> s2 E I T
 
 
 %%%% NA ANALYSIS SEMANTICS %%%
