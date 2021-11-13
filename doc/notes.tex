@@ -80,58 +80,62 @@
       \grammartabularSTY{%
         \ottv\ottinterrule%
         \ottse\ottinterrule%
-%        \otte\ottinterrule%
         \otts\ottinterrule%
-%        \ottP\ottinterrule%
         \ottE\ottinterrule%
         \ottI\ottinterrule%
         \ottC\ottafterlastrule%
       }
     \end{small}
   \end{center}
-  \vspace{-1em}
   \caption{Syntax}\label{fig:syntax}
 \end{figure}
 
 Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. Each value type admits a special value $\bna$, $\ina$, or $\sna$ representing missing values.
 The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
-Expressions contain simple expressions, but not subexpressions. Statements may
-only contain expressions in two cases: the right-hand side of an assignment
-statement, or as a bare expression. In all other cases, statements may only
-contain simple expressions.
 
-Each input expression is given a syntactic label, so the input can be
-identified. A program is a sequence of statements. An instruction stream is a
-stream of values that can only be read one at a time. A machine configuration
-is a triple consisting of a statement, an instruction stream, and an environment.
+Simple expressions are either literals or variables. Each input statement is
+given a syntactic label, so the input can be identified.
+Unary operators include logical and arithmetic operations, while binary
+operators include arithmetic, relational, and logical operations.
+For loops are also labelled, to distinguish nested loops.
+The ``end if'' and ``end for'' statements do not occur in the
+surface language and are only used when recording statements.
 
-\todo{Currently, the language does not contain coercions, vectors, functions, or
-eval. Some of these features may be interesting to study.}
+An environment is either empty, or it maps variables to values. An instruction
+stream is a stream of values that can only be read one at a time. A machine
+configuration is a triple consisting of a statement, an environment, and an
+instruction stream.
 
+\todo{Currently, the language does not contain coercions (implicit or explicit),
+vectors, data frames, functions, or eval.}
+
+\todo{Should the unary/binary operations be written out more explicitly? E.g. do
+strings support comparisons? (Answer: yes)}
+
+\todo{With inputs and for loops labelled, does it make sense to label all
+statements? Or implicitly label all statements by using a program counter? A
+program counter could eliminate some of the awkwardness of ``skip'' statements
+and labels.}
+
+\pagebreak
 \section*{Concrete Input-Aware Semantics}
 
 \begin{figure}[th!]
   \begin{center}
     \begin{small}
       \ottdefnevalXXse{}\ottinterrule
-      %\ottdefnevalXXe{}\ottinterrule
       \ottdefnevalXXs{}
     \end{small}
   \end{center}
-  \vspace{-1em}
   \caption{Semantics}\label{fig:semantics}
-  \vspace{-1em}
 \end{figure}
 
-An environment $\rho\colon \vars \rightarrow \vals$ maps each program variable $X \in \vars$ to its value $\rho(X) \in \vals$. Let \envs denote the set of all environments. 
-Figure~\ref{fig:semantics} shows the reduction semantics of simple expressions, expressions, and statements.
-A simple expression can always be evaluated in a single step. Expressions
-require evaluating one or more simple expressions. Statements require evaluating
-simple expressions, or in the case of an assignment or bare expression, a single
-expression.
-
-\note{The assignment, input, and expression statements return a value as its result.
-However, the value is ignored and can be treated as a \textsc{skip} instruction.}
+An environment $E\colon \vars \rightarrow \vals$ maps each program variable $X
+\in \vars$ to its value $E(X) \in \vals$. Let \envs denote the set of all environments.
+Figure~\ref{fig:semantics} shows the operational semantics.
+A simple expression can always be evaluated in a single step.
+Evaluating a statement involves evaluating zero or more simple expressions, and
+possibly updating the environment and input stream.
 
 \todo{Patrick Cousot - Abstract Semantic Dependency (SAS 2019)}
 
@@ -140,23 +144,34 @@ However, the value is ignored and can be treated as a \textsc{skip} instruction.
 \begin{figure}[th!]
   \begin{center}
     \begin{small}
-%      \ottdefnrec{}
+      \grammartabularSTY{%
+        \ottrse\ottinterrule%
+        \ottrs\ottinterrule%
+        \ottT\ottinterrule%
+        \ottrC\ottafterlastrule%
+      }
     \end{small}
   \end{center}
-  \vspace{-1em}
-  \caption{Recording semantics}\label{fig:rec-semantics}
-  \vspace{-1em}
+  \caption{Recording syntax}\label{fig:rec-syntax}
 \end{figure}
 
 To support dynamic analysis, we instrument the interpreter with a mechanism that
-records execution traces. The semantics are described in
-Figure~\ref{fig:rec-semantics}.
+records execution traces. The language of execution traces is an augmented
+version of the base language, and defined in Figure~\ref{fig:rec-syntax}.
 
-An execution trace is a sequence of tuples, each tuple
-containing the statement that was executed and the environment at that point.
-Thus, the execution trace removes all branching and dynamic behavior, and
-records all run-time values in the environments. This allows a dynamic analysis
-to be implemented as a static analysis over execution traces.
+A recorded simple expression is a pair, containing the original, unevaluated
+simple expression, and also its result after evaluation. A recorded statement
+contains the syntax of the original statement, recorded simple expressions, and
+the result of any computation occurring in the statement.
+
+An execution trace is a sequence of tuples, where each tuple contains a recorded
+statement and the environment after evaluating that statement. The machine
+configuration for the instrumented interpreter includes the execution trace.
+
+The purpose of the execution trace is to remove all branching and dynamic
+behavior, and record the run-time values computed in statements, as well as the
+dynamic program state (e.g. the environment). This allows a dynamic analysis to
+be implemented as a static analysis over execution traces.
 
 \note{The execution trace may record partial environments, i.e. only the
 bindings for variables that occur in the statement, instead of full
@@ -167,6 +182,36 @@ consumes the execution trace as it is produced on each interpreter step.
 Alternatively, the dynamic analysis can be implemented offline, by analyzing an
 execution trace after it has been recorded. This is an implementation detail.}
 
+The execution trace is produced by an instrumented interpreter, whose semantics
+are described in Figure~\ref{fig:rec-semantics-se} and
+Figure~\ref{fig:rec-semantics-s}. The instrumented interpreter is
+a modified copy of the original interpreter, but it is separate and does not
+depend on the original interpreter.
+
+One difference from the original interpreter is that the instrumented
+interpreter also records when \textsf{if} statements and \textsf{for} loops end.
+Otherwise, the shape of the rules is the same, but the instrumented interpreter
+rules have an extra premise that updates the execution trace.
+
+\begin{figure}[th]
+  \begin{center}
+    \begin{small}
+      \ottdefnrecXXse{}%
+    \end{small}
+  \end{center}
+  \caption{Recording semantics of simple expressions}\label{fig:rec-semantics-se}
+\end{figure}
+
+\begin{figure}[thp!]
+  \begin{center}
+    \begin{small}
+      \ottdefnrecXXs{}%
+    \end{small}
+  \end{center}
+  \caption{Recording semantics of statements}\label{fig:rec-semantics-s}
+\end{figure}
+
+\pagebreak
 \section*{Syntactic Dependencies}
 
 \subsection*{Static Syntactic Dependencies Analysis}

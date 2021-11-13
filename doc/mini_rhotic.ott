@@ -70,46 +70,47 @@ bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }
 %%% Statements %%%
 s :: 's_' ::=                                       {{ com statements }}
     | x <- se                           :: :: SimpleExp
+    | x <- l ^ input()                  :: :: Input
+        {{ com labelled input }}
+        {{ tex [[x]] [[<-]]\, ^{[[l]]} [[input()]] }}
     | x <- isNA ( se )                  :: :: IsNA
         {{ tex [[x]] [[<-]] [[isNA]]([[se]]) }}
     | x <- uop ( se )                   :: :: UOp
-        {{ com $[[uop]] = (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$ }}
+        {{ com $[[uop]] \in (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$ }}
         {{ tex [[x]] [[<-]] [[uop]]([[se]]) }}
     | x <- bop ( se1 , se2 )            :: :: BOp
-        {{ com $[[bop]] = (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$ }}
+        {{ com $[[bop]] \in (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$ }}
         {{ tex [[x]] [[<-]] [[bop]]([[se1]],[[se2]]) }}
-    | x <- l ^ input()                  :: :: Input
-        {{ com input }}
-        {{ tex [[x]] [[<-]]\, ^{[[l]]} [[input()]] }}
     | if se then s1 else s2 fi          :: :: If
         {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
+    | l ^ for x in se1 : se2 do s od    :: :: For
+        {{ com labelled for loop }}
+        {{ tex ^{[[l]]} [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
+    | s1 ; s2                           :: :: Seq           {{ com sequencing }}
+    | skip                              :: :: Skip
     | end if                            :: :: EndIf
         {{ com used for recording; not in surface language }}
-    | l ^ for x in se1 : se2 do s od    :: :: For
-        {{ tex ^{[[l]]} [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
     | l ^ end for                       :: :: EndFor
         {{ com used for recording; not in surface language }}
         {{ tex ^{[[l]]} [[end]]~[[for]] }}
-    | s1 ; s2                           :: :: Seq           {{ com sequencing }}
-    | skip                              :: :: Skip
 
 %%% Recorded statements %%%
 rs {{ tex \overline{s} }} :: 'rs_' ::=              {{ com recorded statements }}
     | x <- rse                                  :: :: SimpleExp
+    | x <- ( l ^ input() , v )                  :: :: Input
+        {{ tex [[x]] [[<-]]\, \langle ^{[[l]]} [[input()]], [[v]] \rangle }}
     | x <- ( isNA ( rse ) , v )                 :: :: IsNA
         {{ tex [[x]] [[<-]] \langle [[isNA]]([[rse]]), [[v]] \rangle }}
     | x <- ( uop ( rse ) , v )                  :: :: UOp
         {{ tex [[x]] [[<-]] \langle [[uop]]([[rse]]), [[v]] \rangle }}
     | x <- ( bop ( rse1 , rse2 ) , v )          :: :: BOp
         {{ tex [[x]] [[<-]] \langle [[bop]]([[rse1]], [[rse2]]), [[v]] \rangle }}
-    | x <- ( l ^ input() , v )                  :: :: Input
-        {{ tex [[x]] [[<-]]\, \langle ^{[[l]]} [[input()]], [[v]] \rangle }}
     | if rse begin                              :: :: If
         {{ tex [[if]]~[[rse]]~[[begin]] }}
-    | end if                                    :: :: EndIf
-    | l ^ for ( x , v ) in rse1 : rse2 begin        :: :: For
+    | l ^ for ( x , v ) in rse1 : rse2 begin    :: :: For
         {{ tex ^{[[l]]} [[for]]~\langle [[x]], [[v]] \rangle~[[in]]~[[rse1]]\negmedspace:\negmedspace[[rse2]]~[[begin]] }}
-    | l ^ end for                                   :: :: EndFor
+    | end if                                    :: :: EndIf
+    | l ^ end for                               :: :: EndFor
         {{ tex ^{[[l]]} [[end]]~[[for]] }}
 
 %%% Environment %%%
@@ -126,18 +127,11 @@ I :: 'I_' ::=                                       {{ com input stream }}
 C :: 'C_' ::=                                       {{ com machine configuration }}
     | s E I                         :: :: sEI           {{ tex [[s]]\enspace[[E]]\,[[I]] }}
 
-%%% Recorded state %%%
-r :: 'r_' ::=                                       {{ com recorded state }}
-    | [ rs , E ]                    :: :: RecordedState
-        {{ com recorded statement and environment }}
-        {{ tex \langle [[rs]],[[E]] \rangle }}
-
 %%% Execution trace %%%
 T :: 'T_' ::=                                       {{ com execution trace }}
     | empty                         :: :: Empty         {{ com empty trace }}
-    | r                             :: :: Single        {{ com singleton }} {{ tex [[r]] }}
-    | T . r                         :: :: Append        {{ com append }} {{ tex [[T]]\!\cdot\![[r]] }}
-    | r . T                         :: :: Prepend       {{ com prepend }} {{ tex [[r]]\!\cdot\![[T]] }}
+    | T . [ rs , E ]                :: :: Append
+        {{ tex [[T]]\!\cdot\!\langle [[rs]],[[E]] \rangle }}
 
 %%% Recorded machine configuration %%%
 rC {{ tex \overline{C} }} :: 'rC_' ::=              {{ com recorded machine configuration }}
@@ -299,6 +293,11 @@ operational_semantics :: '' ::=
         -------------------------  :: SimpleExp
         x <- se E I --> skip E' I
 
+        I = v . I'
+        E' = E[x -> v]
+        -----------------------------------  :: Input
+        x <- l ^ input() E I --> skip E' I'
+
         E se -se-> v
         v = NA_b \/ v = NA_i \/ v = NA_s
         E' = E[x -> true]
@@ -323,11 +322,6 @@ operational_semantics :: '' ::=
         E' = E[x -> v']
         ------------------------------------  :: BinaryOp
         x <- bop(se1, se2) E I --> skip E' I
-
-        I = v . I'
-        E' = E[x -> v]
-        -----------------------------------  :: Input
-        x <- l ^ input() E I --> skip E' I'
 
         E se -se-> true
         ---------------------------------------  :: IfTrue
@@ -400,6 +394,12 @@ record :: '' ::=
         ---------------------------------  :: SimpleExp
         x <- se E I T -rec-> skip E' I T'
 
+        I = v . I'
+        E' = E[x -> v]
+        T' = T . [x <- (l ^ input(), v), E']
+        -------------------------------------------  :: Input
+        x <- l ^ input() E I T -rec-> skip E' I' T'
+
         E se -rec-se-> rse
         rse = (se, v)
         v = NA_b \/ v = NA_i \/ v = NA_s
@@ -433,12 +433,6 @@ record :: '' ::=
         T' = T . [x <- (bop(rse1, rse2), v'), E']
         --------------------------------------------  :: BinaryOp
         x <- bop(se1, se2) E I T -rec-> skip E' I T'
-
-        I = v . I'
-        E' = E[x -> v]
-        T' = T . [x <- (l ^ input(), v), E']
-        -------------------------------------------  :: Input
-        x <- l ^ input() E I T -rec-> skip E' I' T'
 
         E se -rec-se-> rse
         rse = (se, true)
