@@ -93,11 +93,12 @@
 Let \vars be a finite set of program variables, and let $\vals\defined\bvals \cup \ivals \cup \svals$ be a set of values partitioned  in sets of boolean ($\bvals \defined \bools \cup \{\bna\} $), integer ($\ivals \defined \ints \cup \{\ina\} $), and string ($\svals \defined \strings \cup \{\sna\} $) values. Each value type admits a special value $\bna$, $\ina$, or $\sna$ representing missing values.
 The syntax of programs is defined inductively in Figure~\ref{fig:syntax}.
 
-Simple expressions are either literals or variables. Each input statement is
-given a syntactic label, so the input can be identified.
+Simple expressions are either literals or variables.
+The input function reads from a monomorphic input stream.
 Unary operators include logical and arithmetic operations, while binary
 operators include arithmetic, relational, and logical operations.
-For loops are also labelled, to distinguish nested loops.
+Each statement is given a syntactic label, to identify its position in the
+program.
 The ``end if'' and ``end for'' statements do not occur in the
 surface language and are only used when recording statements.
 
@@ -112,8 +113,7 @@ vectors, data frames, functions, or eval.}
 \todo{Should the unary/binary operations be written out more explicitly? E.g. do
 strings support comparisons? (Answer: yes)}
 
-\todo{With inputs and for loops labelled, does it make sense to label all
-statements? Or implicitly label all statements by using a program counter? A
+\todo{Does it help to switch to using program counters? A
 program counter could eliminate some of the awkwardness of ``skip'' statements
 and labels.}
 

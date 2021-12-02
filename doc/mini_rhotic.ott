@@ -69,23 +69,24 @@ bop :: 'bop_' ::=                   {{ com binary operators }} {{ tex \diamond }
 
 %%% Statements %%%
 s :: 's_' ::=                                       {{ com statements }}
-    | x <- se                           :: :: SimpleExp
-    | x <- l ^ input()                  :: :: Input
+    | l ^ x <- se                       :: :: SimpleExp
+        {{ tex ^{[[l]]}\,[[x]] [[<-]]\, [[se]] }}
+    | l ^ x <- input()                  :: :: Input
         {{ com labelled input }}
-        {{ tex [[x]] [[<-]]\, ^{[[l]]} [[input()]] }}
-    | x <- isNA ( se )                  :: :: IsNA
-        {{ tex [[x]] [[<-]] [[isNA]]([[se]]) }}
-    | x <- uop ( se )                   :: :: UOp
+        {{ tex ^{[[l]]}\,[[x]] [[<-]]\, [[input()]] }}
+    | l ^ x <- isNA ( se )              :: :: IsNA
+        {{ tex ^{[[l]]}\,[[x]] [[<-]] [[isNA]]([[se]]) }}
+    | l ^ x <- uop ( se )               :: :: UOp
         {{ com $[[uop]] \in (\circ_\mathsf{lgl} \cup \circ_\mathsf{arth})$ }}
-        {{ tex [[x]] [[<-]] [[uop]]([[se]]) }}
-    | x <- bop ( se1 , se2 )            :: :: BOp
+        {{ tex ^{[[l]]}\,[[x]] [[<-]] [[uop]]([[se]]) }}
+    | l ^ x <- bop ( se1 , se2 )        :: :: BOp
         {{ com $[[bop]] \in (\diamond_\mathsf{arith} \cup \diamond_\mathsf{rel} \cup \diamond_\mathsf{lgl})$ }}
-        {{ tex [[x]] [[<-]] [[bop]]([[se1]],[[se2]]) }}
-    | if se then s1 else s2 fi          :: :: If
-        {{ tex [[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
+        {{ tex ^{[[l]]}\,[[x]] [[<-]] [[bop]]([[se1]],[[se2]]) }}
+    | l ^ if se then s1 else s2 fi      :: :: If
+        {{ tex ^{[[l]]}\,[[if]]~[[se]]~[[then]]~[[s1]]~[[else]]~[[s2]]~[[fi]] }}
     | l ^ for x in se1 : se2 do s od    :: :: For
         {{ com labelled for loop }}
-        {{ tex ^{[[l]]} [[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
+        {{ tex ^{[[l]]}\,[[for]]~[[x]]~[[in]]~[[se1]]\negmedspace:\negmedspace[[se2]]~[[do]]~[[s]]~[[od]] }}
     | s1 ; s2                           :: :: Seq           {{ com sequencing }}
     | skip                              :: :: Skip
     | end if                            :: :: EndIf
@@ -290,46 +291,46 @@ operational_semantics :: '' ::=
 
         E se -se-> v
         E' = E[x -> v]
-        -------------------------  :: SimpleExp
-        x <- se E I --> skip E' I
+        -----------------------------  :: SimpleExp
+        l ^ x <- se E I --> skip E' I
 
         I = v . I'
         E' = E[x -> v]
         -----------------------------------  :: Input
-        x <- l ^ input() E I --> skip E' I'
+        l ^ x <- input() E I --> skip E' I'
 
         E se -se-> v
         v = NA_b \/ v = NA_i \/ v = NA_s
         E' = E[x -> true]
-        -------------------------------- :: IsNA
-        x <- isNA(se) E I --> skip E' I
+        ----------------------------------- :: IsNA
+        l ^ x <- isNA(se) E I --> skip E' I
 
         E se -se-> v
         v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
         E' = E[x -> false]
         -------------------------------------- :: IsNotNA
-        x <- isNA(se) E I --> skip E' I
+        l ^ x <- isNA(se) E I --> skip E' I
 
         E se -se-> v
         v' = [[uop]](v)
         E' = E[x -> v']
-        ------------------------------  :: UnaryOp
-        x <- uop(se) E I --> skip E' I
+        ----------------------------------  :: UnaryOp
+        l ^ x <- uop(se) E I --> skip E' I
 
         E se1 -se-> v1
         E se2 -se-> v2
         v' = [[bop]](v1, v2)
         E' = E[x -> v']
-        ------------------------------------  :: BinaryOp
-        x <- bop(se1, se2) E I --> skip E' I
+        ----------------------------------------  :: BinaryOp
+        l ^ x <- bop(se1, se2) E I --> skip E' I
 
         E se -se-> true
-        ---------------------------------------  :: IfTrue
-        if se then s1 else s2 fi E I --> s1 E I
+        -------------------------------------------  :: IfTrue
+        l ^ if se then s1 else s2 fi E I --> s1 E I
 
         E se -se-> false
-        ---------------------------------------  :: IfFalse
-        if se then s1 else s2 fi E I --> s2 E I
+        -------------------------------------------  :: IfFalse
+        l ^ if se then s1 else s2 fi E I --> s2 E I
 
         E se1 -se-> v1
         E se2 -se-> v2
@@ -391,38 +392,38 @@ record :: '' ::=
         rse = (se, v)
         E' = E[x -> v]
         T' = T . [x <- rse, E']
-        ---------------------------------  :: SimpleExp
-        x <- se E I T -rec-> skip E' I T'
+        -------------------------------------  :: SimpleExp
+        l ^ x <- se E I T -rec-> skip E' I T'
 
         I = v . I'
         E' = E[x -> v]
         T' = T . [x <- (l ^ input(), v), E']
         -------------------------------------------  :: Input
-        x <- l ^ input() E I T -rec-> skip E' I' T'
+        l ^ x <- input() E I T -rec-> skip E' I' T'
 
         E se -rec-se-> rse
         rse = (se, v)
         v = NA_b \/ v = NA_i \/ v = NA_s
         E' = E[x -> v]
         T' = T . [x <- (isNA(rse), true), E']
-        ---------------------------------------  :: IsNA
-        x <- isNA(se) E I T -rec-> skip E' I T'
+        -------------------------------------------  :: IsNA
+        l ^ x <- isNA(se) E I T -rec-> skip E' I T'
 
         E se -rec-se-> rse
         rse = (se, v)
         v =/= NA_b /\ v =/= NA_i /\ v =/= NA_s
         E' = E[x -> v]
         T' = T . [x <- (isNA(rse), false), E']
-        ---------------------------------------  :: IsNotNA
-        x <- isNA(se) E I T -rec-> skip E' I T'
+        -------------------------------------------  :: IsNotNA
+        l ^ x <- isNA(se) E I T -rec-> skip E' I T'
 
         E se -rec-se-> rse
         rse = (se, v)
         v' = [[uop]](v)
         E' = E[x -> v']
         T' = T . [x <- (uop(rse), v'), E']
-        --------------------------------------  :: UnaryOp
-        x <- uop(se) E I T -rec-> skip E' I T'
+        ------------------------------------------  :: UnaryOp
+        l ^ x <- uop(se) E I T -rec-> skip E' I T'
 
         E se1 -rec-se-> rse1
         rse1 = (se1, v1)
@@ -431,20 +432,20 @@ record :: '' ::=
         v' = [[bop]](v1, v2)
         E' = E[x -> v']
         T' = T . [x <- (bop(rse1, rse2), v'), E']
-        --------------------------------------------  :: BinaryOp
-        x <- bop(se1, se2) E I T -rec-> skip E' I T'
+        ------------------------------------------------  :: BinaryOp
+        l ^ x <- bop(se1, se2) E I T -rec-> skip E' I T'
 
         E se -rec-se-> rse
         rse = (se, true)
         T' = T . [if rse begin, E']
-        ---------------------------------------------------------  :: IfTrue
-        if se then s1 else s2 fi E I T -rec-> s1; end if E' I' T'
+        -------------------------------------------------------------  :: IfTrue
+        l ^ if se then s1 else s2 fi E I T -rec-> s1; end if E' I' T'
 
         E se -rec-se-> rse
         rse = (se, false)
         T' = T . [if rse begin, E']
-        ---------------------------------------------------------  :: IfFalse
-        if se then s1 else s2 fi E I T -rec-> s2; end if E' I' T'
+        -------------------------------------------------------------  :: IfFalse
+        l ^ if se then s1 else s2 fi E I T -rec-> s2; end if E' I' T'
 
         T' = T . [end if, E]
         -------------------------------  :: IfEnd
