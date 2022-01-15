@@ -39,45 +39,23 @@ let expr_to_r = function
       let binding_to_r (b, se) = Printf.sprintf "%s = %s" b (simple_expr_to_r se) in
       let inner = bs |> List.map binding_to_r |> String.concat ", " in
       Printf.sprintf "data.frame(%s)" inner
-  | Unary_Op (op, se) -> (
-      let unary op = Printf.sprintf "%s%s" op (simple_expr_to_r se) in
-      let func op = Printf.sprintf "%s(%s)" op (simple_expr_to_r se) in
-      match op with
-      | Logical_Not -> unary "!"
-      | Unary_Plus -> unary "+"
-      | Unary_Minus -> unary "-"
-      | As_Logical -> func "as.logical"
-      | As_Integer -> func "as.integer"
-      | As_Character -> func "as.character"
-      | Is_Logical -> func "is.logical"
-      | Is_Integer -> func "is.integer"
-      | Is_Character -> func "is.character"
-      | Is_NA -> func "is.na")
-  | Binary_Op (op, se1, se2) -> (
-      let binary op = Printf.sprintf "%s%s%s" (simple_expr_to_r se1) op (simple_expr_to_r se2) in
-      match op with
-      | Arithmetic o -> (
-          match o with
-          | Plus -> binary " + "
-          | Minus -> binary " - "
-          | Times -> binary " * "
-          | Int_Divide -> binary " %/% "
-          | Modulo -> binary " %% ")
-      | Relational o -> (
-          match o with
-          | Less -> binary " < "
-          | Less_Equal -> binary " <= "
-          | Greater -> binary " > "
-          | Greater_Equal -> binary " >= "
-          | Equal -> binary " == "
-          | Not_Equal -> binary " != ")
-      | Logical o -> (
-          match o with
-          | And -> binary " && "
-          | Or -> binary " || "
-          | Elementwise_And -> binary " & "
-          | Elementwise_Or -> binary " | ")
-      | Seq -> binary ":")
+  | Unary_Op (op, se) ->
+      let fmt =
+        match op with
+        | Logical_Not | Unary_Plus | Unary_Minus -> Stdlib.format_of_string "%s%s"
+        | As_Logical | As_Integer | As_Character | Is_Logical | Is_Integer | Is_Character | Is_NA
+        | Length ->
+            Stdlib.format_of_string "%s(%s)" in
+      Printf.sprintf fmt (show_unary_op op) (simple_expr_to_r se)
+  | Binary_Op (op, se1, se2) ->
+      let op_s =
+        match op with
+        | Seq -> ":"
+        | Arithmetic Int_Divide -> " %/% "
+        | Arithmetic Modulo -> " %% "
+        | Arithmetic (Plus | Minus | Times) | Relational _ | Logical _ ->
+            " " ^ show_binary_op op ^ " " in
+      Printf.sprintf "%s%s%s" (simple_expr_to_r se1) op_s (simple_expr_to_r se2)
   | Subset1 (se1, None) -> Printf.sprintf "%s[]" (simple_expr_to_r se1)
   | Subset1 (se1, Some se2) -> Printf.sprintf "%s[%s]" (simple_expr_to_r se1) (simple_expr_to_r se2)
   | Subset2 (se1, se2) -> Printf.sprintf "%s[[%s]]" (simple_expr_to_r se1) (simple_expr_to_r se2)

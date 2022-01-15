@@ -151,7 +151,8 @@ let rec eval_expr monitors conf expr =
         | Is_Logical -> check_type T_Bool v
         | Is_Integer -> check_type T_Int v
         | Is_Character -> check_type T_Str v
-        | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool)
+        | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool
+        | Length -> a |> Array.length |> Option.some |> put_int |> vector_of_lit)
     | Dataframe _ -> raise Not_supported in
 
   let eval_binary op v1 v2 =

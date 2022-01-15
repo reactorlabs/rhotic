@@ -5,6 +5,12 @@ let parse_and_run
     monitors ?(conf = Eval.start) ?(print_result = true) ?(exit_on_error = false) input =
   try
     let stmts = Parser.parse input in
+    (* TODO: compile and print opcodes *)
+    Stdlib.print_endline "Compiling opcodes" ;
+    let opcodes = Compile.compile_program stmts in
+    Opcode.print_opcodes opcodes ;
+    Stdlib.print_endline "Done printing opcodes" ;
+    (* TODO: compile and print opcodes *)
     let conf', result = Eval.run ~monitors ~conf stmts in
     (* don't print result if we already printed it *)
     (match[@warning "-4"] stmts with

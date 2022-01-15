@@ -3,19 +3,13 @@ open Containers
 exception Not_supported
 
 type literal =
-  | NA_bool
-  | Bool    of bool
-  | NA_int
-  | Int     of int
-  | NA_str
-  | Str     of string
-[@@deriving eq]
-
-let show_lit = function
-  | Bool b -> if b then "T" else "F"
-  | Int i -> Int.to_string i
-  | Str s -> "\"" ^ s ^ "\""
-  | NA_bool | NA_int | NA_str -> "NA"
+  | NA_bool [@printer fun fmt _ -> fprintf fmt "NA"]
+  | Bool    of bool [@printer fun fmt b -> fprintf fmt (if b then "T" else "F")]
+  | NA_int [@printer fun fmt _ -> fprintf fmt "NA"]
+  | Int     of int [@printer fun fmt -> fprintf fmt "%d"]
+  | NA_str [@printer fun fmt _ -> fprintf fmt "NA"]
+  | Str     of string [@printer fun fmt -> fprintf fmt "\"%s\""]
+[@@deriving eq, show { with_path = false }]
 
 type type_tag =
   | T_Bool [@printer fun fmt _ -> fprintf fmt "Bool"]
@@ -33,47 +27,48 @@ end
 type identifier = Identifier.t [@@deriving eq, show]
 
 type unary_op =
-  | Logical_Not
-  | Unary_Plus
-  | Unary_Minus
-  | As_Logical
-  | As_Integer
-  | As_Character
-  | Is_Logical
-  | Is_Integer
-  | Is_Character
-  | Is_NA
+  | Logical_Not [@printer fun fmt _ -> fprintf fmt "!"]
+  | Unary_Plus [@printer fun fmt _ -> fprintf fmt "+"]
+  | Unary_Minus [@printer fun fmt _ -> fprintf fmt "-"]
+  | As_Logical [@printer fun fmt _ -> fprintf fmt "as.logical"]
+  | As_Integer [@printer fun fmt _ -> fprintf fmt "as.integer"]
+  | As_Character [@printer fun fmt _ -> fprintf fmt "as.character"]
+  | Is_Logical [@printer fun fmt _ -> fprintf fmt "is.logical"]
+  | Is_Integer [@printer fun fmt _ -> fprintf fmt "is.integer"]
+  | Is_Character [@printer fun fmt _ -> fprintf fmt "is.character"]
+  | Is_NA [@printer fun fmt _ -> fprintf fmt "is.na"]
+  | Length [@printer fun fmt _ -> fprintf fmt "length"]
 
 and arithmetic_op =
-  | Plus
-  | Minus
-  | Times
-  | Int_Divide
-  | Modulo
+  | Plus [@printer fun fmt _ -> fprintf fmt "+"]
+  | Minus [@printer fun fmt _ -> fprintf fmt "-"]
+  | Times [@printer fun fmt _ -> fprintf fmt "*"]
+  | Int_Divide [@printer fun fmt _ -> fprintf fmt "/"]
+  | Modulo [@printer fun fmt _ -> fprintf fmt "%%"]
 
 and relational_op =
-  | Less
-  | Less_Equal
-  | Greater
-  | Greater_Equal
-  | Equal
-  | Not_Equal
+  | Less [@printer fun fmt _ -> fprintf fmt "<"]
+  | Less_Equal [@printer fun fmt _ -> fprintf fmt "<="]
+  | Greater [@printer fun fmt _ -> fprintf fmt ">"]
+  | Greater_Equal [@printer fun fmt _ -> fprintf fmt ">="]
+  | Equal [@printer fun fmt _ -> fprintf fmt "=="]
+  | Not_Equal [@printer fun fmt _ -> fprintf fmt "!="]
 
 and logical_op =
-  | And
-  | Or
-  | Elementwise_And
-  | Elementwise_Or
+  | And [@printer fun fmt _ -> fprintf fmt "&&"]
+  | Or [@printer fun fmt _ -> fprintf fmt "||"]
+  | Elementwise_And [@printer fun fmt _ -> fprintf fmt "&"]
+  | Elementwise_Or [@printer fun fmt _ -> fprintf fmt "|"]
 
 and binary_op =
-  | Arithmetic of arithmetic_op
-  | Relational of relational_op
-  | Logical    of logical_op
-  | Seq
+  | Arithmetic of arithmetic_op [@printer fun fmt o -> fprintf fmt "%s" (show_arithmetic_op o)]
+  | Relational of relational_op [@printer fun fmt o -> fprintf fmt "%s" (show_relational_op o)]
+  | Logical    of logical_op [@printer fun fmt o -> fprintf fmt "%s" (show_logical_op o)]
+  | Seq [@printer fun fmt _ -> fprintf fmt ":"]
 [@@deriving eq, show { with_path = false }]
 
 type simple_expression =
-  | Lit of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
+  | Lit of literal [@printer fun fmt l -> fprintf fmt "%s" (show_literal l)]
   | Var of identifier [@printer fun fmt -> fprintf fmt "%s"]
 
 and expression =
@@ -104,7 +99,7 @@ type value =
 
 let rec show_val = function
   | Vector (a, _) ->
-      let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
+      let inner = a |> Array.map show_literal |> Array.to_list |> String.concat " " in
       "[" ^ inner ^ "]"
   | Dataframe (cols, names) ->
       let inner =
