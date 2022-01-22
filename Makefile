@@ -11,6 +11,17 @@ all: exe
 run: exe
 	./$(EXEC)
 
+test: test-eval
+
+test-eval:
+	dune build test/eval_suite.exe
+	cd $(TESTDIR) && ./eval_suite.exe --compact
+
+test-oracle:
+	dune build test/eval_suite.exe
+	cd $(TESTDIR) && DUMP=suite.R ./eval_suite.exe test --compact "dummy"
+	R -f $(TESTDIR)/suite.R
+
 utop:
 	dune utop lib
 
@@ -31,6 +42,13 @@ fmt:
 	@# output a linebreak
 	@echo
 
+coverage: clean
+	dune runtest --instrument-with bisect_ppx --force
+	@# Run the deparser
+	cd $(TESTDIR) && DUMP=suite.R ./eval_suite.exe test --compact "dummy"
+	bisect-ppx-report html
+	bisect-ppx-report summary
+
 deps:
 	opam install . --deps-only --locked
 
@@ -39,4 +57,4 @@ clean:
 	rm -rf _coverage
 	rm -f $(EXEC)
 
-.PHONY: all run utop debug exe bc fmt deps clean
+.PHONY: all run test test-eval test-oracle utop debug exe bc fmt coverage deps clean

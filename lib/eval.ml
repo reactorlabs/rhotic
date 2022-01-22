@@ -41,7 +41,11 @@ let coerce_data from_ty to_ty data =
       | _ -> None) in
 
   (* Coerce string to int, result is NA if the coercion fails *)
-  let str_to_int s = Option.bind s Stdlib.int_of_string_opt in
+  let str_to_int s =
+    Option.bind s (fun s ->
+        match Stdlib.int_of_string_opt s with
+        | Some i -> Some i
+        | None -> raise Common.Coercion_introduces_NA) in
 
   let coerce unwrap convert wrap = Array.map (unwrap %> convert %> wrap) data in
   match (from_ty, to_ty) with
@@ -55,13 +59,13 @@ let coerce_data from_ty to_ty data =
 
 let coerce_value to_ty = function
   | Vector (data, from_ty) -> coerce_data from_ty to_ty data |> vector to_ty
-  | Dataframe _ -> raise Not_supported
+  | Dataframe _ -> raise Not_supported [@coverage off]
 
 let check_type ty = function
-  | Vector (data, vector_ty) ->
-      assert (Array.for_all (fun x -> equal_type_tag (get_tag x) vector_ty) data) ;
+  | Vector (_, vector_ty) as vec ->
+      assert (Common.vector_consistent_type vec) ;
       Some (equal_type_tag ty vector_ty) |> put_bool |> vector_of_lit
-  | Dataframe _ -> raise Not_supported
+  | Dataframe _ -> raise Not_supported [@coverage off]
 
 (* Checks that all elements are non-negative or NA.
    0 and NA are allowed for positive subsetting. *)
@@ -153,7 +157,7 @@ let rec eval_expr monitors conf expr =
         | Is_Character -> check_type T_Str v
         | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool
         | Length -> a |> Array.length |> Option.some |> put_int |> vector_of_lit)
-    | Dataframe _ -> raise Not_supported in
+    | Dataframe _ -> raise Not_supported [@coverage off] in
 
   let eval_binary op v1 v2 =
     let arithmetic_op o =
@@ -199,7 +203,7 @@ let rec eval_expr monitors conf expr =
           | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
           | Equal -> relational (fun x y -> Some (String.compare x y = 0))
           | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)))
-      | T_Int, _ | _, T_Int | T_Bool, _ -> (
+      | T_Int, _ | _, T_Int | T_Bool, T_Bool -> (
           let a1 = a1 |> coerce_data t1 T_Int in
           let a2 = a2 |> coerce_data t2 T_Int in
           let relational f =
@@ -249,15 +253,14 @@ let rec eval_expr monitors conf expr =
       let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
       let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
-      if Array.is_empty a1 || Array.is_empty a2 then raise Argument_length_zero ;
-      if Array.length a1 > 1 || Array.length a2 > 1 then raise Vector_length_greater_one ;
+      if vector_length v1 <> 1 || vector_length v2 <> 1 then raise Expected_scalar ;
 
       (* Everything gets coerced to integer *)
       let a1 = a1 |> coerce_data t1 T_Int |> Array.map get_int in
       let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
 
       match (a1.(0), a2.(0)) with
-      | Some e1, Some e2 -> Array.(e1 -- e2) |> Array.map (fun i -> Int i) |> vector T_Int
+      | Some e1, Some e2 -> vector_of_list int List.(e1 -- e2)
       | None, None | None, _ | _, None -> raise NA_not_allowed in
 
     match (v1, v2) with
@@ -269,7 +272,7 @@ let rec eval_expr monitors conf expr =
         | Relational o -> relational_op o
         | Logical o -> logical_op o
         | Seq -> sequence_op ())
-    | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported in
+    | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported [@coverage off] in
 
   let eval_call id args =
     match FunTab.find_opt id conf.fun_tab with
@@ -295,7 +298,7 @@ let rec eval_expr monitors conf expr =
             if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
             a2 |> get_at_pos t1 a1 |> vector t1
         | T_Str -> raise Invalid_argument_type)
-    | Dataframe _, _ -> raise Not_supported
+    | Dataframe _, _ -> raise Not_supported [@coverage off]
     | _, Some (Dataframe _) -> raise Invalid_argument_type in
 
   let eval_subset2 v1 v2 =
@@ -307,7 +310,7 @@ let rec eval_expr monitors conf expr =
         match get_int a2.(0) with
         | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
         | Some _ | None -> raise Invalid_subset_index)
-    | Dataframe _, _ -> raise Not_supported
+    | Dataframe _, _ -> raise Not_supported [@coverage off]
     | _, Dataframe _ -> raise Invalid_argument_type in
 
   match expr with
@@ -316,7 +319,7 @@ let rec eval_expr monitors conf expr =
       let res = eval_combine vs in
       List.iter (fun m -> m#record_combine conf (ses, vs) res) monitors ;
       res
-  | Dataframe_Ctor _ -> raise Not_supported
+  | Dataframe_Ctor _ -> raise Not_supported [@coverage off]
   | Unary_Op (op, se) ->
       let operand = eval se in
       let res = eval_unary op operand in
@@ -356,9 +359,11 @@ and eval_stmt monitors conf stmt =
 
   let eval_subset1_assign x idx v =
     match (lookup conf.env x, idx, v) with
-    | (Vector _ as v1), None, (Vector _ as v3) ->
+    | (Vector (_, t1) as v1), None, (Vector (a3, t3) as v3) ->
         if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
-        let conf' = { conf with env = Env.add x v3 conf.env } in
+        let t = type_lub t1 t3 in
+        let a3 = a3 |> coerce_data t3 t in
+        let conf' = { conf with env = Env.add x (vector t a3) conf.env } in
         (conf', v3)
     | (Vector (a1, t1) as v1), Some (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
         let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
@@ -390,15 +395,15 @@ and eval_stmt monitors conf stmt =
               let conf' = { conf with env = Env.add x (vector t res) conf.env } in
               (conf', v3)
         | T_Str -> raise Invalid_argument_type)
-    | Dataframe _, _, _ -> raise Not_supported
+    | Dataframe _, _, _ -> raise Not_supported [@coverage off]
     | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type in
 
   let eval_subset2_assign x idx v =
     match (lookup conf.env x, idx, v) with
     | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
         let n2, n3 = Pair.map_same vector_length (v2, v3) in
-        if n2 = 0 || n2 > 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
-        if n3 = 0 || n3 > 1 then raise Invalid_subset_replacement ;
+        if n2 <> 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
+        if n3 <> 1 then raise Invalid_subset_replacement ;
         let t = type_lub t1 t3 in
         let a1 = a1 |> coerce_data t1 t in
         let a2 = a2 |> coerce_data t2 T_Int in
@@ -410,7 +415,7 @@ and eval_stmt monitors conf stmt =
             let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
             (conf', v3)
         | Some _ | None -> raise Invalid_subset_index)
-    | Dataframe _, _, _ -> raise Not_supported
+    | Dataframe _, _, _ -> raise Not_supported [@coverage off]
     | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type in
 
   let eval_fun_def id params stmts =
@@ -422,8 +427,7 @@ and eval_stmt monitors conf stmt =
   let eval_if cond s2 s3 =
     match cond with
     | Vector _ as v1 -> (
-        if vector_length v1 = 0 then raise Argument_length_zero ;
-        if vector_length v1 > 1 then raise Vector_length_greater_one ;
+        if vector_length v1 <> 1 then raise Expected_scalar ;
         let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
         match a1.(0) with
         | None -> raise Missing_value_need_true_false
@@ -441,7 +445,7 @@ and eval_stmt monitors conf stmt =
           Stdlib.fst @@ run_stmts conf' stmts in
         let conf' = Array.fold_left loop conf a in
         (conf', null)
-    | Dataframe _ -> raise Not_supported in
+    | Dataframe _ -> raise Not_supported [@coverage off] in
 
   match stmt with
   | Assign (x, e) ->

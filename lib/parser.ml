@@ -21,6 +21,7 @@ let reserved =
   ; "is.integer"
   ; "is.character"
   ; "is.na"
+  ; "_length"
   ; "print"
   ; "function"
   ; "if"
@@ -109,8 +110,7 @@ let program =
 
      subset_base ::= base  '['              ']'
                    | base  '[' simple_expr  ']'
-                   | base '[[' simple_expr ']]'
-                   | base  '$' identifier *)
+                   | base '[[' simple_expr ']]' *)
   let subset base =
     base <* ws >>= fun be ->
     peek_char >>= function
@@ -118,7 +118,6 @@ let program =
         char '[' *> blank *> char ']' *> return (Subset1 (be, None))
         <|> (bracks1 simple_expr >>| fun e -> Subset1 (be, Some e))
         <|> (bracks2 simple_expr >>| fun e -> Subset2 (be, e))
-    | Some '$' -> char '$' *> ws *> identifier >>| fun name -> Subset2 (be, Lit (Str name))
     | _ -> fail "not subsetting" in
 
   let expr =
@@ -149,7 +148,8 @@ let program =
         <|> string "is.logical" *> ws *> return Is_Logical
         <|> string "is.integer" *> ws *> return Is_Integer
         <|> string "is.character" *> ws *> return Is_Character
-        <|> string "is.na" *> ws *> return Is_NA in
+        <|> string "is.na" *> ws *> return Is_NA
+        <|> string "_length" *> ws *> return Length in
       let unary = lift2 (fun op se -> Unary_Op (op, se)) u_op simple_expr in
       let coerce = lift2 (fun op se -> Unary_Op (op, se)) f_op (parens simple_expr) in
       unary <|> coerce in

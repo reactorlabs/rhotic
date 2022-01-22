@@ -5,9 +5,9 @@ exception Not_supported
 type literal =
   | NA_bool [@printer fun fmt _ -> fprintf fmt "NA"]
   | Bool    of bool [@printer fun fmt b -> fprintf fmt (if b then "T" else "F")]
-  | NA_int [@printer fun fmt _ -> fprintf fmt "NA"]
+  | NA_int [@printer fun fmt _ -> fprintf fmt "NA_integer_"]
   | Int     of int [@printer fun fmt -> fprintf fmt "%d"]
-  | NA_str [@printer fun fmt _ -> fprintf fmt "NA"]
+  | NA_str [@printer fun fmt _ -> fprintf fmt "NA_character_"]
   | Str     of string [@printer fun fmt -> fprintf fmt "\"%s\""]
 [@@deriving eq, show { with_path = false }]
 

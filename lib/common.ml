@@ -23,11 +23,12 @@ exception Invalid_subset_index
 exception Invalid_subset_replacement
 exception Repeated_parameter
 exception Vector_lengths_do_not_match
-exception Vector_length_greater_one
-exception Argument_length_zero
+exception Expected_scalar
 exception Missing_value_need_true_false
+exception Coercion_introduces_NA
 exception NA_not_allowed
 
+exception Internal_error
 exception Todo
 
 let excptn_to_string = function
@@ -40,14 +41,16 @@ let excptn_to_string = function
   | Invalid_subset_replacement -> "invalid subset replacement"
   | Repeated_parameter -> "repeated parameter in function definition"
   | Vector_lengths_do_not_match -> "vector lengths do not match"
-  | Vector_length_greater_one -> "vector has length > 1"
-  | Argument_length_zero -> "argument of length 0"
+  | Expected_scalar -> "expected scalar"
   | Missing_value_need_true_false -> "missing value where TRUE/FALSE needed"
+  | Coercion_introduces_NA -> "coercion introduces NA"
   | NA_not_allowed -> "NA not allowed"
   | Not_supported -> "not supported"
+  | Internal_error -> "internal error"
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
       raise e
+  [@@coverage off]
 
 module Env = Map.Make (Identifier)
 type environment = value Env.t
@@ -78,7 +81,7 @@ let is_na = function
 
 let match_vector = function
   | Vector (a, t) -> (a, t)
-  | Dataframe _ -> raise Not_supported
+  | Dataframe _ -> raise Internal_error [@coverage off]
 let vector_data = Stdlib.fst % match_vector
 let vector_type = Stdlib.snd % match_vector
 let vector_length = Array.length % vector_data
@@ -86,8 +89,13 @@ let vector_length = Array.length % vector_data
 let vector_of_lit l = Vector ([| l |], get_tag l)
 let vector t v = Vector (v, t)
 
+let vector_consistent_type = function
+  | Vector (data, vector_ty) -> Array.for_all (fun x -> equal_type_tag (get_tag x) vector_ty) data
+  | Dataframe _ -> raise Internal_error [@coverage off]
+
 (* We don't have the NULL vector, so for now use an empty boolean vector *)
-let null = vector T_Bool [||]
+let empty_vector ty = vector ty [||]
+let null = empty_vector T_Bool
 
 (* rhotic to OCaml conversion.
    These helpers take a rhotic value and return an OCaml value, wrapped in an option. None
@@ -123,7 +131,17 @@ let put_str = function
    Note: For flexibility, f must operate on OCaml options, not the raw bool/int/str. This allows
    f to handle None/NA values as inputs *)
 let bool, int, str = ((get_bool, put_bool), (get_int, put_int), (get_str, put_str))
-let lift (type a) (unwrap, wrap) (f : a option -> a option) (x : literal) = f (unwrap x) |> wrap
-let lift2 (type a) (unwrap, wrap) (f : a option -> a option -> a option) (x : literal) (y : literal)
-    =
-  f (unwrap x) (unwrap y) |> wrap
+let lift (type a) (get, put) (f : a option -> a option) (x : literal) = f (get x) |> put
+let lift2 (type a) (get, put) (f : a option -> a option -> a option) (x : literal) (y : literal) =
+  f (get x) (get y) |> put
+
+let vector_of (type a) (_, put) (v : a) = put (Some v) |> vector_of_lit
+let vector_of_na (_, put) = put None |> vector_of_lit
+let vector_of_list (type a) (_, put) (vs : a list) =
+  let ty = get_tag (put None) in
+  let inner = List.map (Option.some %> put) vs |> Array.of_list in
+  vector ty inner
+let vector_of_optlist (type a) (_, put) (vs : a option list) =
+  let ty = get_tag (put None) in
+  let inner = List.map put vs |> Array.of_list in
+  vector ty inner

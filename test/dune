@@ -1,0 +1,3 @@
+(tests
+ (names eval_suite)
+ (libraries lib alcotest))

@@ -2,11 +2,13 @@ open Containers
 open Expr
 open Util
 
+module O = Opcode
+
 module FunTab = Map.Make (Identifier)
-type function_table = (Opcode.pc * identifier list) FunTab.t
+type function_table = (O.pc * identifier list) FunTab.t
 
 let compile_program stmts =
-  let buffer = Vector.create_with ~capacity:(List.length stmts) Opcode.Nop in
+  let buffer = Vector.create_with ~capacity:(List.length stmts) O.Nop in
   let counter = ref 0 in
 
   let current_pc () = Vector.size buffer in
@@ -20,19 +22,19 @@ let compile_program stmts =
   let rec compile_stmts stmt = List.iter compile_stmt stmt
   and compile_stmt stmt =
     let compile_expr target = function
-      | Combine ses -> Opcode.builtin target Combine ses
+      | Combine ses -> O.builtin target Combine ses
       | Dataframe_Ctor _ -> raise Not_supported
-      | Unary_Op (op, se) -> Opcode.builtin target (Unary op) [ se ]
-      | Binary_Op (op, se1, se2) -> Opcode.builtin target (Binary op) [ se1; se2 ]
-      | Subset1 (se1, None) -> Opcode.builtin target Subset1 [ se1 ]
-      | Subset1 (se1, Some se2) -> Opcode.builtin target Subset1 [ se1; se2 ]
-      | Subset2 (se1, se2) -> Opcode.builtin target Subset2 [ se1; se2 ]
-      | Call (".input", args) -> Opcode.builtin target Input args
+      | Unary_Op (op, se) -> O.builtin target (Unary op) [ se ]
+      | Binary_Op (op, se1, se2) -> O.builtin target (Binary op) [ se1; se2 ]
+      | Subset1 (se1, None) -> O.builtin target Subset1 [ se1 ]
+      | Subset1 (se1, Some se2) -> O.builtin target Subset1 [ se1; se2 ]
+      | Subset2 (se1, se2) -> O.builtin target Subset2 [ se1; se2 ]
+      | Call (".input", args) -> O.builtin target Input args
       | Call (fn, args) ->
           (* fn_pc and params are placeholders for now *)
           let params = List.map (fun _ -> "?") args in
-          Opcode.Call { target; fn; fn_pc = -1; params; args }
-      | Simple_Expression se -> Opcode.copy target se in
+          O.Call { target; fn; fn_pc = -1; params; args }
+      | Simple_Expression se -> O.copy target se in
 
     let compile_if cond true_branch false_branch =
       push_op @@ Comment (Printf.sprintf "if %s" (show_simple_expression cond)) ;
@@ -67,7 +69,7 @@ let compile_program stmts =
 
       (* len$ = length(seq) *)
       let len = gensym ~pre:"len" () in
-      push_op @@ Opcode.builtin len Length [ seq ] ;
+      push_op @@ O.builtin len Length [ seq ] ;
 
       (* i = 0 *)
       let i = gensym ~pre:"i" () in
@@ -76,17 +78,17 @@ let compile_program stmts =
       (* begin_pc: cond = i >= len *)
       let begin_pc = current_pc () in
       let cond = gensym ~pre:"cond" () in
-      push_op @@ Opcode.builtin cond (Binary (Relational Greater_Equal)) [ Var i; Var len ] ;
+      push_op @@ O.builtin cond (Binary (Relational Greater_Equal)) [ Var i; Var len ] ;
 
       (* Branch cond end_pc *)
       let branch_pc = current_pc () in
       push_op Nop ;
 
       (* i = i + 1 *)
-      push_op @@ Opcode.builtin i (Binary (Arithmetic Plus)) [ Var i; Lit (Int 1) ] ;
+      push_op @@ O.builtin i (Binary (Arithmetic Plus)) [ Var i; Lit (Int 1) ] ;
 
       (* x = seq[i] *)
-      push_op @@ Opcode.builtin x Subset2 [ seq; Var i ] ;
+      push_op @@ O.builtin x Subset2 [ seq; Var i ] ;
 
       (* body *)
       push_op @@ Comment "for body" ;
@@ -112,12 +114,12 @@ let compile_program stmts =
           match ose2 with
           | None -> [ Var tmp; se3 ]
           | Some se2 -> [ Var tmp; se2; se3 ] in
-        push_op @@ Opcode.copy tmp (Var x1) ;
-        push_op @@ Opcode.builtin x1 Subset1_Assign args
+        push_op @@ O.copy tmp (Var x1) ;
+        push_op @@ O.builtin x1 Subset1_Assign args
     | Subset2_Assign (x1, se2, se3) ->
         let tmp = gensym () in
-        push_op @@ Opcode.copy tmp (Var x1) ;
-        push_op @@ Opcode.builtin x1 Subset2_Assign [ Var tmp; se2; se3 ]
+        push_op @@ O.copy tmp (Var x1) ;
+        push_op @@ O.builtin x1 Subset2_Assign [ Var tmp; se2; se3 ]
     | Function_Def (_, _, _) -> ()
     | If (cond, true_branch, false_branch) -> compile_if cond true_branch false_branch
     | For (x, seq, body) -> compile_for x seq body
@@ -161,14 +163,14 @@ let compile_program stmts =
     Vector.foldi
       (fun fun_tab i opcode ->
         match[@warning "-4"] opcode with
-        | Opcode.Entry (id, params) -> FunTab.add id (i, params) fun_tab
+        | O.Entry (id, params) -> FunTab.add id (i, params) fun_tab
         | _ -> fun_tab)
       FunTab.empty buffer in
 
   Vector.map_in_place
     (fun opcode ->
       match[@warning "-4"] opcode with
-      | Opcode.Call { target; fn; args; _ } -> (
+      | O.Call { target; fn; args; _ } -> (
           match FunTab.find_opt fn fun_tab with
           | None -> raise (Common.Function_not_found fn)
           | Some (fn_pc, params) -> Call { target; fn; fn_pc; params; args })
@@ -179,6 +181,8 @@ let compile_program stmts =
 
 (* TODO:
    - concrete interpreter
+      - support eval
+      - repl
 
    - abstract interpreter
      - need some abstract state / analysis

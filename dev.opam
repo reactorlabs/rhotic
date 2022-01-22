@@ -5,5 +5,7 @@ maintainer: "Ming-Ho Yee <mh@mhyee.com>"
 homepage: "https://github.com/reactorlabs/rhotic"
 bug-reports: "https://github.com/reactorlabs/rhotic/issues"
 depends: [
+ "alcotest"
+ "bisect_ppx"
  "ocamlformat"
 ]
