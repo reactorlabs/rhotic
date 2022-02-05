@@ -78,7 +78,7 @@ let test_eval desc (expected, input) =
 
   try
     let code = Parser.parse input in
-    let _, res = Eval.run code in
+    let res = code |> Compile.compile |> Eval2.run |> Option.get_exn_or "expected value" in
     dump code () ;
     A.test_case desc `Quick (check res)
   with e -> test_unexpected_fail desc e dump_file
@@ -95,7 +95,9 @@ let test_eval_err desc ?(is_valid_r = false) (excptn, input) =
     | _ -> () in
 
   (* Construct the actual test case *)
-  let check code () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run code)) in
+  let check code () =
+    A.check_raises "same exception" excptn (fun _ -> ignore (Eval2.run @@ Compile.compile code))
+  in
 
   try
     let code = Parser.parse input in
@@ -1115,5 +1117,8 @@ let () =
             (Invalid_number_of_args { expected = 0; received = 1 }, "f <- function() { 42 }; f(1)")
         ; test_eval_err "wrong arg number 2"
             (Invalid_number_of_args { expected = 1; received = 0 }, "f <- function(x) { x }; f()")
+        ; test_eval_err "undefined function" (Function_not_found "f", "f()")
+        ; test_eval_err "free variables" ~is_valid_r:true
+            (Object_not_found "x", "x <- 42; f <- function() { x }; f()")
         ] )
     ]

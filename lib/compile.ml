@@ -7,7 +7,7 @@ module O = Opcode
 module FunTab = Map.Make (Identifier)
 type function_table = (O.pc * identifier list) FunTab.t
 
-let compile_program stmts =
+let compile stmts =
   let buffer = Vector.create_with ~capacity:(List.length stmts) O.Nop in
   let counter = ref 0 in
 
@@ -22,19 +22,21 @@ let compile_program stmts =
   let rec compile_stmts stmt = List.iter compile_stmt stmt
   and compile_stmt stmt =
     let compile_expr target = function
-      | Combine ses -> O.builtin target Combine ses
+      | Combine ses -> push_op @@ O.builtin target Combine ses
       | Dataframe_Ctor _ -> raise Not_supported
-      | Unary_Op (op, se) -> O.builtin target (Unary op) [ se ]
-      | Binary_Op (op, se1, se2) -> O.builtin target (Binary op) [ se1; se2 ]
-      | Subset1 (se1, None) -> O.builtin target Subset1 [ se1 ]
-      | Subset1 (se1, Some se2) -> O.builtin target Subset1 [ se1; se2 ]
-      | Subset2 (se1, se2) -> O.builtin target Subset2 [ se1; se2 ]
-      | Call (".input", args) -> O.builtin target Input args
+      | Unary_Op (op, se) -> push_op @@ O.builtin target (Unary op) [ se ]
+      | Binary_Op (op, se1, se2) -> push_op @@ O.builtin target (Binary op) [ se1; se2 ]
+      | Subset1 (se1, None) -> push_op @@ O.builtin target Subset1 [ se1 ]
+      | Subset1 (se1, Some se2) -> push_op @@ O.builtin target Subset1 [ se1; se2 ]
+      | Subset2 (se1, se2) -> push_op @@ O.builtin target Subset2 [ se1; se2 ]
+      | Call (".input", args) -> push_op @@ O.builtin target Input args
       | Call (fn, args) ->
           (* fn_pc and params are placeholders for now *)
           let params = List.map (fun _ -> "?") args in
-          O.Call { target; fn; fn_pc = -1; params; args }
-      | Simple_Expression se -> O.copy target se in
+          push_op @@ O.Call { target; fn; fn_pc = -1; params; args_se = args } ;
+          (* Ensure there's always an instruction after Call *)
+          push_op O.Nop
+      | Simple_Expression se -> push_op @@ O.copy target se in
 
     let compile_if cond true_branch false_branch =
       push_op @@ Comment (Printf.sprintf "if %s" (show_simple_expression cond)) ;
@@ -73,7 +75,7 @@ let compile_program stmts =
 
       (* i = 0 *)
       let i = gensym ~pre:"i" () in
-      push_op @@ compile_expr i (Simple_Expression (Lit (Int 0))) ;
+      compile_expr i (Simple_Expression (Lit (Int 0))) ;
 
       (* begin_pc: cond = i >= len *)
       let begin_pc = current_pc () in
@@ -107,7 +109,7 @@ let compile_program stmts =
       push_op @@ Comment "end for" in
 
     match stmt with
-    | Assign (x, e) -> push_op @@ compile_expr x e
+    | Assign (x, e) -> compile_expr x e
     | Subset1_Assign (x1, ose2, se3) ->
         let tmp = gensym () in
         let args =
@@ -128,11 +130,11 @@ let compile_program stmts =
         | Simple_Expression se -> push_op @@ Print se
         | _ ->
             let tmp = gensym () in
-            push_op @@ compile_expr tmp e ;
+            compile_expr tmp e ;
             push_op @@ Print (Var tmp))
     | Expression e ->
         let tmp = gensym () in
-        push_op @@ compile_expr tmp e in
+        compile_expr tmp e in
 
   (* Compile functions first.
      Note: The opcode semantics will be different from the AST interpreter,
@@ -152,6 +154,7 @@ let compile_program stmts =
 
   (* Compile main *)
   push_op (Comment "start main") ;
+  let start_pc = current_pc () in
   push_op Start ;
   compile_stmts stmts ;
   push_op Stop ;
@@ -170,14 +173,18 @@ let compile_program stmts =
   Vector.map_in_place
     (fun opcode ->
       match[@warning "-4"] opcode with
-      | O.Call { target; fn; args; _ } -> (
+      | O.Call { target; fn; args_se; _ } -> (
           match FunTab.find_opt fn fun_tab with
           | None -> raise (Common.Function_not_found fn)
-          | Some (fn_pc, params) -> Call { target; fn; fn_pc; params; args })
+          | Some (fn_pc, params) ->
+              let n1, n2 = (List.length args_se, List.length params) in
+              if n1 <> n2 then
+                raise (Common.Invalid_number_of_args { expected = n2; received = n1 }) ;
+              Call { target; fn; fn_pc; params; args_se })
       | _ -> opcode)
     buffer ;
 
-  Vector.freeze buffer
+  (Vector.freeze buffer, start_pc)
 
 (* TODO:
    - concrete interpreter
