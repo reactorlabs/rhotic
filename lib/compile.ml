@@ -7,17 +7,38 @@ module O = Opcode
 module FunTab = Map.Make (Identifier)
 type function_table = (O.pc * identifier list) FunTab.t
 
+(* Fixup function calls.
+    First pass: find all Entry opcodes to populate function table
+    Second pass: find and update Call opcodes *)
+let fixup_callsites program () =
+  let update_table fun_tab i opcode =
+    match[@warning "-4"] opcode with
+    | O.Entry (id, params) -> FunTab.add id (i, params) fun_tab
+    | _ -> fun_tab in
+  let fixup fun_tab opcode =
+    match[@warning "-4"] opcode with
+    | O.Call { target; fn; args_se; _ } -> (
+        match FunTab.find_opt fn fun_tab with
+        | None -> raise (Common.Function_not_found fn)
+        | Some (fn_pc, params) ->
+            let n1, n2 = (List.length args_se, List.length params) in
+            if n1 <> n2 then raise (Common.Invalid_number_of_args { expected = n2; received = n1 }) ;
+            O.Call { target; fn; fn_pc; params; args_se })
+    | _ -> opcode in
+
+  let funtab = Vector.foldi update_table FunTab.empty program in
+  Vector.map_in_place (fixup funtab) program
+
 let compile stmts =
   let buffer = Vector.create_with ~capacity:(List.length stmts) O.Nop in
-  let counter = ref 0 in
 
   let current_pc () = Vector.size buffer in
   let push_op = Vector.push buffer in
   let set_op = Vector.set buffer in
 
   let gensym ?(pre = "tmp") () =
-    counter := !counter + 1 ;
-    Printf.sprintf "%s$%d" pre !counter in
+    let pc = current_pc () in
+    Printf.sprintf "%s$%d" pre pc in
 
   let rec compile_stmts stmt = List.iter compile_stmt stmt
   and compile_stmt stmt =
@@ -61,8 +82,8 @@ let compile stmts =
       push_op Nop ;
 
       (* Fixup placeholders *)
-      set_op branch_pc (Branch (cond, true_pc)) ;
-      set_op jump_pc (Jump endif_pc) ;
+      set_op branch_pc @@ Branch (cond, true_pc) ;
+      set_op jump_pc @@ Jump endif_pc ;
 
       push_op @@ Comment "end if" in
 
@@ -104,7 +125,7 @@ let compile stmts =
       push_op Nop ;
 
       (* Fixup placeholders *)
-      set_op branch_pc (Branch (Var cond, end_pc)) ;
+      set_op branch_pc @@ Branch (Var cond, end_pc) ;
 
       push_op @@ Comment "end for" in
 
@@ -145,53 +166,27 @@ let compile stmts =
     (function[@warning "-4"]
       | Function_Def (id, params, body) ->
           push_op @@ Comment (Printf.sprintf "function %s" id) ;
+          let before_entry = current_pc () in
+          push_op Nop ;
           push_op @@ Entry (id, params) ;
           compile_stmts body ;
           push_op (Exit id) ;
-          push_op (Comment "end function")
+          let after_exit = current_pc () in
+          push_op (Comment "end function") ;
+          (* Just before Entry we have a jump to the end of the function.
+             Normally this is unreachable code, but it lets us skip past functions if we
+             compile code on demand (e.g. in a repl or with eval). *)
+          set_op before_entry @@ Jump after_exit
       | _ -> ())
     stmts ;
 
-  (* Compile main *)
+  (* Compile main. *)
   push_op (Comment "start main") ;
   let start_pc = current_pc () in
   push_op Start ;
   compile_stmts stmts ;
   push_op Stop ;
 
-  (* Fixup function calls.
-     First pass: find all Entry opcodes to populate function table
-     Second pass: find and update Call opcodes *)
-  let fun_tab =
-    Vector.foldi
-      (fun fun_tab i opcode ->
-        match[@warning "-4"] opcode with
-        | O.Entry (id, params) -> FunTab.add id (i, params) fun_tab
-        | _ -> fun_tab)
-      FunTab.empty buffer in
-
-  Vector.map_in_place
-    (fun opcode ->
-      match[@warning "-4"] opcode with
-      | O.Call { target; fn; args_se; _ } -> (
-          match FunTab.find_opt fn fun_tab with
-          | None -> raise (Common.Function_not_found fn)
-          | Some (fn_pc, params) ->
-              let n1, n2 = (List.length args_se, List.length params) in
-              if n1 <> n2 then
-                raise (Common.Invalid_number_of_args { expected = n2; received = n1 }) ;
-              Call { target; fn; fn_pc; params; args_se })
-      | _ -> opcode)
-    buffer ;
+  fixup_callsites buffer () ;
 
   (Vector.freeze buffer, start_pc)
-
-(* TODO:
-   - concrete interpreter
-      - support eval
-      - repl
-
-   - abstract interpreter
-     - need some abstract state / analysis
-   - dynamic interpreter
-*)

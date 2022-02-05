@@ -1,121 +1,77 @@
 open Containers
 open Lib
 
-let parse_and_run
-    monitors ?(conf = Eval.start) ?(print_result = true) ?(exit_on_error = false) input =
-  try
-    let stmts = Parser.parse input in
-    (* TODO: compile and print opcodes *)
-    Stdlib.print_endline "Compiling opcodes" ;
-    let opcodes = Compile.compile_program stmts in
-    Opcode.print_opcodes opcodes ;
-    Stdlib.print_endline "Done printing opcodes" ;
-    (* TODO: compile and print opcodes *)
-    let conf', result = Eval.run ~monitors ~conf stmts in
-    (* don't print result if we already printed it *)
-    (match[@warning "-4"] stmts with
-    | [ Print _ ] -> ()
-    | _ -> if print_result then Stdlib.print_endline @@ Expr.show_val result) ;
-    (* return the new configuration *)
-    conf'
-  with e ->
-    (match e with
-    | Parser.Parse_error msg -> Printf.printf "Parse error%s\n" msg
-    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
-    (* return the old configuration *)
-    if exit_on_error then exit 255 else conf
+let init_state = Eval2.make_state ~program:(Vector.of_list []) ~pc:0 ()
+
+(* TODO
+   - repl mode
+     - need to carry program over
+     - debug printing opcodes, start printing from offset
+     - test repl with functions
+     - handle repl printing result with Print builtin... looks like it works
+   - cleanup main
+   - remove old eval and monitors
+
+   - debugging: print execution trace
+   - better interface for state
+   - cleanup and reorganize eval/expr/common
+
+   - implement eval instruction
+
+   - abstract interpreter
+     - need some abstract state / analysis
+   - dynamic interpreter
+*)
 
 let parse_to_r input =
   try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
-  with Parser.Parse_error msg -> Printf.printf "Parse error%s\n" msg
+  with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
 
-let repl monitors =
-  let repl_help () =
-    Stdlib.print_endline "Enter a rhotic expression to be evaluated." ;
-    Stdlib.print_endline "Type '#h' to print this message." ;
-    Stdlib.print_endline "Type '#m' to dump the monitor state." ;
-    Stdlib.print_endline "Type '#r [code]' to translate 'code' to R syntax." ;
-    Stdlib.print_endline "Type '#q' or CTRL+D to quit." in
+let run ?(debug = false) input =
+  try
+    let code = Parser.parse input in
+    let program, pc = Compile.compile code in
 
-  let run_once conf =
-    let handle_directive input =
-      if String.equal input "#h" then repl_help ()
-      else if String.equal input "#m" then Monitor.dump_state monitors
-      else if String.equal input "#q" then raise End_of_file
-      else
-        match String.chop_prefix ~pre:"#r" input with
-        | Some str -> parse_to_r str
-        | None -> Printf.printf "Error: unknown directive\n" in
+    if debug then (
+      Printf.eprintf "Compiled program:\n" ;
+      Printf.eprintf "%s" @@ Vector.to_string ~sep:"\n" (Opcode.show_pc_opcode pc) program ;
+      Printf.eprintf "; start pc = %d\n\n" pc ;
+      Printf.eprintf "Execution trace:\n%!") ;
 
-    Stdlib.print_string "> " ;
-    let input = Stdlib.read_line () in
-    if String.prefix ~pre:"# " input then conf
-    else if String.prefix ~pre:"#" input then (
-      handle_directive input ;
-      conf)
-    else if String.(trim input = "") then conf
-    else parse_and_run monitors ~conf input in
-
-  let rec loop conf =
-    let conf = run_once conf in
-    (loop [@tailcall]) conf in
-
-  Stdlib.print_endline "Welcome to the rhotic REPL.\n" ;
-  repl_help () ;
-  try loop Eval.start with End_of_file -> Stdlib.print_endline "\nGoodbye!"
+    let state' = Eval2.(eval_continuous ~debug @@ make_state ~program ~pc ()) in
+    match state'.last_val with
+    | None -> ()
+    | Some v -> Stdlib.print_endline @@ Expr.show_val v
+  with e ->
+    (match e with
+    | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
+    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
+    exit 255
 
 let () =
-  let create_monitors spec =
-    let spec_to_monitor = function
-      | "fun_na" -> new FunctionObservedNA.monitor
-      | "fun_types1" -> new FunctionTypesTuplewise.monitor
-      | "fun_types2" -> new FunctionTypesElementwiseSet.monitor
-      | "fun_types3" -> new FunctionTypesElementwiseMerge.monitor
-      | "infer" -> new InferSpec.monitor
-      | m -> raise (Monitor.Unknown_monitor m) in
-    try List.map spec_to_monitor spec
-    with Monitor.Unknown_monitor m ->
-      Printf.printf "Unknown monitor \"%s\". Available monitors:\n" m ;
-      Stdlib.print_endline
-        "  fun_na\tFunctionObservedNA: record whether a function observed NAs in its inputs or \
-         outputs" ;
-      Stdlib.print_endline
-        "  fun_types1\tFunctionTypesTuplewise: record function signatures, maintaining a set of \
-         signatures" ;
-      Stdlib.print_endline
-        "  fun_types2\tFunctionTypesElementwiseSet: record function signatures, where each type in \
-         a signature is a set of concrete types" ;
-      Stdlib.print_endline
-        "  fun_types3\tFunctionTypesElementwiseMerge: record function signatures, where each type \
-         in a signature is a single abstract type" ;
-      Stdlib.print_endline
-        "  infer\t\tInferSpec: infer which variables must not be NAs (default, underapproximation)" ;
-      Stdlib.exit 1 in
-
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
 
   let path = ref "" in
+  let debug = ref false in
   let to_r = ref false in
-  let monitor_spec = ref [] in
 
   let cmd_args =
-    [ ("-f", Arg.Set_string path, "rhotic file to run")
+    [ ( "-f"
+      , Arg.String
+          (fun s ->
+            if Sys.file_exists s then path := s else raise @@ Arg.Bad ("No such file: " ^ s))
+      , "rhotic file to run" )
+    ; ("-d", Arg.Set debug, "Print debugging info")
+    ; ("--debug", Arg.Set debug, "Print debugging info")
     ; ("--to-r", Arg.Set to_r, "Translate rhotic code to R")
-    ; ( "--monitor"
-      , Arg.String (fun s -> monitor_spec := String.split_on_char ',' s)
-      , "Enable monitors" )
     ] in
 
   Arg.parse cmd_args (fun s -> raise @@ Arg.Bad ("Invalid argument " ^ s)) usage_msg ;
 
-  let monitors = create_monitors !monitor_spec in
-
-  if String.equal !path "" then repl monitors
+  if String.equal !path "" then Stdlib.print_endline usage_msg
   else
     let chan = Stdlib.open_in !path in
     let input = Stdlib.really_input_string chan @@ Stdlib.in_channel_length chan in
     Stdlib.close_in chan ;
 
-    if !to_r then parse_to_r input
-    else Stdlib.ignore @@ parse_and_run monitors ~print_result:false ~exit_on_error:true input ;
-    Monitor.dump_state monitors
+    if !to_r then parse_to_r input else run ~debug:!debug input

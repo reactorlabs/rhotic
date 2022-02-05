@@ -403,10 +403,12 @@ let eval_branch = function
       | Some b -> b)
   | E.Dataframe _ -> raise Invalid_argument_type
 
-let eval state =
+let eval ?(debug = false) state =
   let env = state.env in
   let op = Vector.get state.program state.pc in
   let pc' = state.pc + 1 in
+
+  if debug then Printf.eprintf "%s\n%!" (show_pc_opcode state.pc op) ;
 
   match op with
   | Copy (x, se) ->
@@ -444,24 +446,18 @@ let eval state =
       { state with pc = newpc }
   | Print se ->
       eval_se env se |> E.show_val |> Stdlib.print_endline ;
-      { state with pc = pc' }
-  | Nop | Entry _ | Start | Stop | Comment _ -> { state with pc = pc' }
+      { state with pc = pc'; last_val = None }
+  | Nop | Start | Stop | Entry _ | Comment _ -> { state with pc = pc' }
 
-let rec eval_continuous state =
+let rec eval_continuous ?(debug = false) state =
   let op = Vector.get state.program state.pc in
-  if equal_opcode op Stop then state.last_val
+  if equal_opcode op Stop || state.pc >= Vector.length state.program then state
   else
-    let state' = eval state in
-    (eval_continuous [@tailcall]) state'
+    let state' = eval ~debug state in
+    (eval_continuous ~debug [@tailcall]) state'
 
-let run (program, pc) = eval_continuous @@ make_state ~program ~pc ()
+let run ?(debug = false) (program, pc) =
+  let state = eval_continuous ~debug @@ make_state ~program ~pc () in
+  state.last_val
 
-let run_str str = run @@ Compile.compile @@ Parser.parse str
-
-(* TODO:
-   - update Main (file and repl mode)
-   - remove old eval and monitors?
-   - print execution trace
-   - better interface for state
-   - cleanup and reorganize eval/expr/common
-*)
+let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

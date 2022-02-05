@@ -61,11 +61,7 @@ and opcode =
 let builtin target builtin args = Builtin (target, builtin, args)
 let copy target se = Copy (target, se)
 
-(* TODO: this is just for debugging, maybe want a string buffer instead *)
-let print_opcodes opcodes =
-  Vector.iteri
-    (fun pc op ->
-      match[@warning "-4"] op with
-      | Comment _ -> Printf.printf "%s\n" (show_opcode op)
-      | _ -> Printf.printf "%4d\t%s\n" pc (show_opcode op))
-    opcodes
+let show_pc_opcode pc op =
+  match[@warning "-4"] op with
+  | Comment _ -> Printf.sprintf "%s" (show_opcode op)
+  | _ -> Printf.sprintf "%4d\t%s" pc (show_opcode op)
