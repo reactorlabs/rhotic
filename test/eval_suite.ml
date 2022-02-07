@@ -78,7 +78,7 @@ let test_eval desc (expected, input) =
 
   try
     let code = Parser.parse input in
-    let res = code |> Compile.compile |> Eval2.run |> Option.get_exn_or "expected value" in
+    let res = code |> Compile.compile |> Eval.run |> Option.get_exn_or "expected value" in
     dump code () ;
     A.test_case desc `Quick (check res)
   with e -> test_unexpected_fail desc e dump_file
@@ -96,7 +96,7 @@ let test_eval_err desc ?(is_valid_r = false) (excptn, input) =
 
   (* Construct the actual test case *)
   let check code () =
-    A.check_raises "same exception" excptn (fun _ -> ignore (Eval2.run @@ Compile.compile code))
+    A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run @@ Compile.compile code))
   in
 
   try

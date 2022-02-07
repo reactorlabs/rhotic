@@ -1,26 +1,37 @@
 open Containers
 open CCFun.Infix
-open Expr
 open Common
 open Util
+open Opcode
 
-let lookup env x =
-  match Env.find_opt x env with
-  | None -> raise (Object_not_found x)
-  | Some v -> v
+module E = Expr
 
-let eval_simple_expr env = function
-  | Lit l -> vector_of_lit l
-  | Var x -> lookup env x
+module Env = Map.Make (E.Identifier)
+type environment = E.value Env.t
+
+type frame = pc * E.identifier * environment
+
+type state =
+  { program : opcode Vector.ro_vector
+  ; pc : pc
+  ; last_val : E.value option
+  ; env : environment [@default Env.empty]
+  ; stack : frame list
+  }
+[@@deriving make]
+
+let init_state = make_state ~program:Opcode.empty_program ~pc:1 ()
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
-let type_lub t1 t2 =
+let promote_type t1 t2 =
+  let open Expr in
   match (t1, t2) with
   | T_Str, _ | _, T_Str -> T_Str
   | T_Int, _ | _, T_Int -> T_Int
   | T_Bool, _ -> T_Bool
 
 let coerce_data from_ty to_ty data =
+  let open Expr in
   (* NA is NA_int, true is 1, false is 0 *)
   let bool_to_int = Option.map (fun x -> if x then 1 else 0) in
 
@@ -57,11 +68,15 @@ let coerce_data from_ty to_ty data =
   | T_Str, T_Int -> coerce get_str str_to_int put_int
   | T_Bool, T_Bool | T_Int, T_Int | T_Str, T_Str -> data
 
-let coerce_value to_ty = function
+let coerce_value to_ty v =
+  let open Expr in
+  match v with
   | Vector (data, from_ty) -> coerce_data from_ty to_ty data |> vector to_ty
   | Dataframe _ -> raise Not_supported [@coverage off]
 
-let check_type ty = function
+let check_type ty v =
+  let open Expr in
+  match v with
   | Vector (_, vector_ty) as vec ->
       assert (Common.vector_consistent_type vec) ;
       Some (equal_type_tag ty vector_ty) |> put_bool |> vector_of_lit
@@ -71,6 +86,7 @@ let check_type ty = function
    0 and NA are allowed for positive subsetting. *)
 let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x >= 0)
 
+(* Checks that all elements are 0. NA is not allowed. *)
 let is_zero_subsetting = Array.for_all @@ Option.map_or ~default:false (fun x -> x = 0)
 
 let contains_na (type t) (a : t option array) = Array.exists (fun x -> Option.is_none x) a
@@ -121,398 +137,332 @@ let update_at_pos t a idxs rpl =
   Array.iter2 (fun i x -> res.(i - 1) <- x) idxs rpl ;
   res
 
-let rec eval_expr monitors conf expr =
-  let run_stmts conf stmts = run_statements monitors conf stmts in
-  let eval = eval_simple_expr conf.env in
+let lookup env x =
+  match Env.find_opt x env with
+  | Some v -> v
+  | None -> raise (Object_not_found x)
 
-  let eval_combine values =
-    (* Get the least upper bound of all types
-       Then coerce all vectors to that type, extract, and concatenate the data *)
-    let ty = values |> List.map vector_type |> List.fold_left type_lub T_Bool in
-    let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
-    vector ty data in
+let update env x v = Env.add x v env
 
-  (* Boolean and integer values get coerced for Logical_Not, Unary_Plus, and Unary_Minus;
-     strings cannot be coerced. Unary operations on data frames are not supported. *)
-  let eval_unary op = function
-    | Vector (a, t) as v -> (
-        match op with
-        | Logical_Not ->
-            (* Coerce to boolean, apply logical not *)
-            if equal_type_tag t T_Str then raise Invalid_argument_type ;
-            a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
-        | Unary_Plus ->
-            (* Nop for integers, but coerces booleans to integers *)
-            if equal_type_tag t T_Str then raise Invalid_argument_type ;
-            a |> coerce_data t T_Int |> vector T_Int
-        | Unary_Minus ->
-            (* Coerce to integer, apply unary negation *)
-            if equal_type_tag t T_Str then raise Invalid_argument_type ;
-            a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
-        | As_Logical -> coerce_value T_Bool v
-        | As_Integer -> coerce_value T_Int v
-        | As_Character -> coerce_value T_Str v
-        | Is_Logical -> check_type T_Bool v
-        | Is_Integer -> check_type T_Int v
-        | Is_Character -> check_type T_Str v
-        | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool
-        | Length -> a |> Array.length |> Option.some |> put_int |> vector_of_lit)
-    | Dataframe _ -> raise Not_supported [@coverage off] in
+let eval_se env = function
+  | E.Lit l -> vector_of_lit l
+  | E.Var x -> lookup env x
 
-  let eval_binary op v1 v2 =
-    let arithmetic_op o =
-      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
-      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
+(* Boolean and integer values get coerced for Logical_Not, Unary_Plus, and Unary_Minus;
+    strings cannot be coerced. Unary operations on data frames are not supported. *)
+let eval_unary op v =
+  let open Expr in
+  match v with
+  | Vector (a, t) as v -> (
+      match op with
+      | Logical_Not ->
+          (* Coerce to boolean, apply logical not *)
+          if equal_type_tag t T_Str then raise Invalid_argument_type ;
+          a |> coerce_data t T_Bool |> Array.map (lift bool @@ Option.map not) |> vector T_Bool
+      | Unary_Plus ->
+          (* Nop for integers, but coerces booleans to integers *)
+          if equal_type_tag t T_Str then raise Invalid_argument_type ;
+          a |> coerce_data t T_Int |> vector T_Int
+      | Unary_Minus ->
+          (* Coerce to integer, apply unary negation *)
+          if equal_type_tag t T_Str then raise Invalid_argument_type ;
+          a |> coerce_data t T_Int |> Array.map (lift int @@ Option.map ( ~- )) |> vector T_Int
+      | As_Logical -> coerce_value T_Bool v
+      | As_Integer -> coerce_value T_Int v
+      | As_Character -> coerce_value T_Str v
+      | Is_Logical -> check_type T_Bool v
+      | Is_Integer -> check_type T_Int v
+      | Is_Character -> check_type T_Str v
+      | Is_NA -> a |> Array.map (is_na %> Option.some %> put_bool) |> vector T_Bool
+      | Length -> a |> Array.length |> Option.some |> put_int |> vector_of_lit)
+  | Dataframe _ -> raise Not_supported [@coverage off]
 
-      (* String operands not allowed; but coerce booleans to integers. *)
-      if equal_type_tag t1 T_Str || equal_type_tag t2 T_Str then raise Invalid_argument_type ;
-      let a1 = a1 |> coerce_data t1 T_Int in
-      let a2 = a2 |> coerce_data t2 T_Int in
+let eval_binary op v1 v2 =
+  let open Expr in
+  let arithmetic_op o =
+    let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+    let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
-      (* R uses "floored" modulo while OCaml uses "truncated" modulo.
-          E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
-      let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
-      let mod' x y = x - (y * div' x y) in
+    (* String operands not allowed; but coerce booleans to integers. *)
+    if equal_type_tag t1 T_Str || equal_type_tag t2 T_Str then raise Invalid_argument_type ;
+    let a1 = a1 |> coerce_data t1 T_Int in
+    let a2 = a2 |> coerce_data t2 T_Int in
 
-      let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
-      match o with
-      | Plus -> arithmetic (fun x y -> Some (x + y))
-      | Minus -> arithmetic (fun x y -> Some (x - y))
-      | Times -> arithmetic (fun x y -> Some (x * y))
-      | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
-      | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
+    (* R uses "floored" modulo while OCaml uses "truncated" modulo.
+        E.g.: 5 %% -2 == -1 in R, but 5 mod -2 == 1 in OCaml *)
+    let div' x y = float_of_int x /. float_of_int y |> floor |> int_of_float in
+    let mod' x y = x - (y * div' x y) in
 
-    let relational_op o =
-      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
-      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
+    let arithmetic f = Array.map2 (lift2 int @@ Option.bind2 f) a1 a2 |> vector T_Int in
+    match o with
+    | Plus -> arithmetic (fun x y -> Some (x + y))
+    | Minus -> arithmetic (fun x y -> Some (x - y))
+    | Times -> arithmetic (fun x y -> Some (x * y))
+    | Int_Divide -> arithmetic (fun x y -> if y = 0 then None else Some (div' x y))
+    | Modulo -> arithmetic (fun x y -> if y = 0 then None else Some (mod' x y)) in
 
-      (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
-         We need to properly coerce the operands, but also need to handle numeric values and string
-         values differently. *)
-      match (t1, t2) with
-      | T_Str, _ | _, T_Str -> (
-          let a1 = a1 |> coerce_data t1 T_Str in
-          let a2 = a2 |> coerce_data t2 T_Str in
-          let relational f =
-            Array.map2 (fun x y -> Option.bind2 f (get_str x) (get_str y) |> put_bool) a1 a2
-            |> vector T_Bool in
-          match o with
-          | Less -> relational (fun x y -> Some (String.compare x y < 0))
-          | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
-          | Greater -> relational (fun x y -> Some (String.compare x y > 0))
-          | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
-          | Equal -> relational (fun x y -> Some (String.compare x y = 0))
-          | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)))
-      | T_Int, _ | _, T_Int | T_Bool, T_Bool -> (
-          let a1 = a1 |> coerce_data t1 T_Int in
-          let a2 = a2 |> coerce_data t2 T_Int in
-          let relational f =
-            Array.map2 (fun x y -> Option.bind2 f (get_int x) (get_int y) |> put_bool) a1 a2
-            |> vector T_Bool in
-          match o with
-          | Less -> relational (fun x y -> Some (x < y))
-          | Less_Equal -> relational (fun x y -> Some (x <= y))
-          | Greater -> relational (fun x y -> Some (x > y))
-          | Greater_Equal -> relational (fun x y -> Some (x >= y))
-          | Equal -> relational (fun x y -> Some (x = y))
-          | Not_Equal -> relational (fun x y -> Some (x <> y))) in
+  let relational_op o =
+    let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+    let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
-    let logical_op o =
-      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
-      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
-
-      (* String operands not allowed; but coerce integers to booleans. *)
-      if equal_type_tag t1 T_Str || equal_type_tag t2 T_Str then raise Invalid_argument_type ;
-      let a1 = a1 |> coerce_data t1 T_Bool in
-      let a2 = a2 |> coerce_data t2 T_Bool in
-
-      (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
-      let and' x y =
-        match (x, y) with
-        | Some true, Some true -> Some true
-        | Some false, _ | _, Some false -> Some false
-        | _ -> None in
-      let or' x y =
-        match (x, y) with
-        | Some false, Some false -> Some false
-        | Some true, _ | _, Some true -> Some true
-        | _ -> None in
-
-      (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
-      let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
-      let e1 = if Array.is_empty a1 then None else get_bool a1.(0) in
-      let e2 = if Array.is_empty a2 then None else get_bool a2.(0) in
-      match o with
-      | And -> and' e1 e2 |> put_bool |> vector_of_lit
-      | Or -> or' e1 e2 |> put_bool |> vector_of_lit
-      | Elementwise_And -> elementwise and'
-      | Elementwise_Or -> elementwise or' in
-
-    (* This needs to be a function, not a constant, because it might raise an exception *)
-    let sequence_op () =
-      let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
-      let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
-
-      if vector_length v1 <> 1 || vector_length v2 <> 1 then raise Expected_scalar ;
-
-      (* Everything gets coerced to integer *)
-      let a1 = a1 |> coerce_data t1 T_Int |> Array.map get_int in
-      let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
-
-      match (a1.(0), a2.(0)) with
-      | Some e1, Some e2 -> vector_of_list int List.(e1 -- e2)
-      | None, None | None, _ | _, None -> raise NA_not_allowed in
-
-    match (v1, v2) with
-    | Vector _, Vector _ -> (
-        (* Both vectors must have the same length. *)
-        if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
-        match op with
-        | Arithmetic o -> arithmetic_op o
-        | Relational o -> relational_op o
-        | Logical o -> logical_op o
-        | Seq -> sequence_op ())
-    | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported [@coverage off] in
-
-  let eval_call id args =
-    match FunTab.find_opt id conf.fun_tab with
-    | None -> raise (Function_not_found id)
-    | Some (params, stmts) ->
-        let n1, n2 = (List.length args, List.length params) in
-        if n1 <> n2 then raise (Invalid_number_of_args { expected = n2; received = n1 }) ;
-        let fun_env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
-        let conf' = { conf with env = fun_env; cur_fun = id } in
-        Stdlib.snd @@ run_stmts conf' stmts in
-
-  let eval_subset1 v1 v2 =
-    match (v1, v2) with
-    | Vector (_, _), None -> v1
-    | Vector (a1, t1), Some (Vector (a2, t2) as v2) -> (
-        match t2 with
-        | T_Bool ->
-            (* Both vectors must have the same length. *)
-            if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
-            a2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos t1 a1 |> vector t1
-        | T_Int ->
-            let a2 = a2 |> Array.map get_int in
-            if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
-            a2 |> get_at_pos t1 a1 |> vector t1
-        | T_Str -> raise Invalid_argument_type)
-    | Dataframe _, _ -> raise Not_supported [@coverage off]
-    | _, Some (Dataframe _) -> raise Invalid_argument_type in
-
-  let eval_subset2 v1 v2 =
-    match (v1, v2) with
-    | Vector (a1, _), Vector (a2, t2) -> (
-        let n1, n2 = Pair.map_same vector_length (v1, v2) in
-        if n2 = 0 || n2 > 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
+    (* Bools and ints use numeric comparisons, while strings use lexicographic comparisons.
+        We need to properly coerce the operands, but also need to handle numeric values and string
+        values differently. *)
+    match (t1, t2) with
+    | T_Str, _ | _, T_Str -> (
+        let a1 = a1 |> coerce_data t1 T_Str in
+        let a2 = a2 |> coerce_data t2 T_Str in
+        let relational f =
+          Array.map2 (fun x y -> Option.bind2 f (get_str x) (get_str y) |> put_bool) a1 a2
+          |> vector T_Bool in
+        match o with
+        | Less -> relational (fun x y -> Some (String.compare x y < 0))
+        | Less_Equal -> relational (fun x y -> Some (String.compare x y <= 0))
+        | Greater -> relational (fun x y -> Some (String.compare x y > 0))
+        | Greater_Equal -> relational (fun x y -> Some (String.compare x y >= 0))
+        | Equal -> relational (fun x y -> Some (String.compare x y = 0))
+        | Not_Equal -> relational (fun x y -> Some (String.compare x y <> 0)))
+    | T_Int, _ | _, T_Int | T_Bool, T_Bool -> (
+        let a1 = a1 |> coerce_data t1 T_Int in
         let a2 = a2 |> coerce_data t2 T_Int in
-        match get_int a2.(0) with
-        | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
-        | Some _ | None -> raise Invalid_subset_index)
-    | Dataframe _, _ -> raise Not_supported [@coverage off]
-    | _, Dataframe _ -> raise Invalid_argument_type in
+        let relational f =
+          Array.map2 (fun x y -> Option.bind2 f (get_int x) (get_int y) |> put_bool) a1 a2
+          |> vector T_Bool in
+        match o with
+        | Less -> relational (fun x y -> Some (x < y))
+        | Less_Equal -> relational (fun x y -> Some (x <= y))
+        | Greater -> relational (fun x y -> Some (x > y))
+        | Greater_Equal -> relational (fun x y -> Some (x >= y))
+        | Equal -> relational (fun x y -> Some (x = y))
+        | Not_Equal -> relational (fun x y -> Some (x <> y))) in
 
-  match expr with
-  | Combine ses ->
-      let vs = List.map eval ses in
-      let res = eval_combine vs in
-      List.iter (fun m -> m#record_combine conf (ses, vs) res) monitors ;
-      res
-  | Dataframe_Ctor _ -> raise Not_supported [@coverage off]
-  | Unary_Op (op, se) ->
-      let operand = eval se in
-      let res = eval_unary op operand in
-      List.iter (fun m -> m#record_unary_op conf op (se, operand) res) monitors ;
-      res
-  | Binary_Op (op, se1, se2) ->
-      let v1, v2 = Pair.map_same eval (se1, se2) in
-      let res = eval_binary op v1 v2 in
-      List.iter (fun m -> m#record_binary_op conf op (se1, v1) (se2, v2) res) monitors ;
-      res
-  | Subset1 (se1, se2) ->
-      let idx, v = Pair.map eval (Option.map eval) (se1, se2) in
-      let res = eval_subset1 idx v in
-      List.iter (fun m -> m#record_subset1 conf (se1, idx) (se2, v) res) monitors ;
-      res
-  | Subset2 (se1, se2) ->
-      let idx, v = Pair.map_same eval (se1, se2) in
-      let res = eval_subset2 idx v in
-      List.iter (fun m -> m#record_subset2 conf (se1, idx) (se2, v) res) monitors ;
-      res
-  | Call (".input", ses) when List.length ses = 1 -> List.hd @@ List.map eval ses
-  | Call (id, ses) ->
-      let args = List.map eval ses in
-      List.iter (fun m -> m#record_call_entry conf id (ses, args)) monitors ;
-      let res = eval_call id args in
-      List.iter (fun m -> m#record_call_exit conf id (ses, args) res) monitors ;
-      res
-  | Simple_Expression se ->
-      let res = eval se in
-      List.iter (fun m -> m#record_simple_expr conf (se, res)) monitors ;
-      res
+  let logical_op o =
+    let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+    let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
 
-and eval_stmt monitors conf stmt =
-  let run_stmts conf stmts = run_statements monitors conf stmts in
-  let eval = eval_expr monitors conf in
-  let eval_se = eval_simple_expr conf.env in
+    (* String operands not allowed; but coerce integers to booleans. *)
+    if equal_type_tag t1 T_Str || equal_type_tag t2 T_Str then raise Invalid_argument_type ;
+    let a1 = a1 |> coerce_data t1 T_Bool in
+    let a2 = a2 |> coerce_data t2 T_Bool in
 
-  let eval_subset1_assign x idx v =
-    match (lookup conf.env x, idx, v) with
-    | (Vector (_, t1) as v1), None, (Vector (a3, t3) as v3) ->
-        if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
-        let t = type_lub t1 t3 in
-        let a3 = a3 |> coerce_data t3 t in
-        let conf' = { conf with env = Env.add x (vector t a3) conf.env } in
-        (conf', v3)
-    | (Vector (a1, t1) as v1), Some (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
-        let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
-        let t = type_lub t1 t3 in
-        let a1 = a1 |> coerce_data t1 t in
-        let a3 = a3 |> coerce_data t3 t in
-        match t2 with
-        | T_Bool ->
-            let a2 = a2 |> Array.map get_bool in
-            if contains_na a2 then raise Invalid_subset_index ;
-            if n1 <> n2 then raise Vector_lengths_do_not_match ;
-            let a2 = a2 |> bool_to_pos_vector in
+    (* Logical comparisons use three-valued logic, e.g. T && NA == NA, but F && NA == F. *)
+    let and' x y =
+      match (x, y) with
+      | Some true, Some true -> Some true
+      | Some false, _ | _, Some false -> Some false
+      | _ -> None in
+    let or' x y =
+      match (x, y) with
+      | Some false, Some false -> Some false
+      | Some true, _ | _, Some true -> Some true
+      | _ -> None in
+
+    (* And and Or compare the first element of each vector; empty vector is treated as NA. *)
+    let elementwise f = Array.map2 (lift2 bool f) a1 a2 |> vector T_Bool in
+    let e1 = if Array.is_empty a1 then None else get_bool a1.(0) in
+    let e2 = if Array.is_empty a2 then None else get_bool a2.(0) in
+    match o with
+    | And -> and' e1 e2 |> put_bool |> vector_of_lit
+    | Or -> or' e1 e2 |> put_bool |> vector_of_lit
+    | Elementwise_And -> elementwise and'
+    | Elementwise_Or -> elementwise or' in
+
+  (* This needs to be a function, not a constant, because it might raise an exception *)
+  let sequence_op () =
+    let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
+    let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
+
+    if vector_length v1 <> 1 || vector_length v2 <> 1 then raise Expected_scalar ;
+
+    (* Everything gets coerced to integer *)
+    let a1 = a1 |> coerce_data t1 T_Int |> Array.map get_int in
+    let a2 = a2 |> coerce_data t2 T_Int |> Array.map get_int in
+
+    match (a1.(0), a2.(0)) with
+    | Some e1, Some e2 -> vector_of_list int List.(e1 -- e2)
+    | None, None | None, _ | _, None -> raise NA_not_allowed in
+
+  match (v1, v2) with
+  | Vector _, Vector _ -> (
+      (* Both vectors must have the same length. *)
+      if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
+      match op with
+      | Arithmetic o -> arithmetic_op o
+      | Relational o -> relational_op o
+      | Logical o -> logical_op o
+      | Seq -> sequence_op ())
+  | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported [@coverage off]
+
+let eval_subset1 v1 v2 =
+  let open Expr in
+  match (v1, v2) with
+  | Vector (_, _), None -> v1
+  | Vector (a1, t1), Some (Vector (a2, t2) as v2) -> (
+      match t2 with
+      | T_Bool ->
+          (* Both vectors must have the same length. *)
+          if vector_length v1 <> vector_length v2 then raise Vector_lengths_do_not_match ;
+          a2 |> Array.map get_bool |> bool_to_pos_vector |> get_at_pos t1 a1 |> vector t1
+      | T_Int ->
+          let a2 = a2 |> Array.map get_int in
+          if not @@ is_positive_subsetting a2 then raise Invalid_subset_index ;
+          a2 |> get_at_pos t1 a1 |> vector t1
+      | T_Str -> raise Invalid_argument_type)
+  | Dataframe _, _ -> raise Not_supported [@coverage off]
+  | _, Some (Dataframe _) -> raise Invalid_argument_type [@coverage off]
+
+let eval_subset2 v1 v2 =
+  let open Expr in
+  match (v1, v2) with
+  | Vector (a1, _), Vector (a2, t2) -> (
+      let n1, n2 = Pair.map_same vector_length (v1, v2) in
+      if n2 = 0 || n2 > 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
+      let a2 = a2 |> coerce_data t2 T_Int in
+      match get_int a2.(0) with
+      | Some i when 1 <= i && i <= n1 -> vector_of_lit a1.(i - 1)
+      | Some _ | None -> raise Invalid_subset_index)
+  | Dataframe _, _ -> raise Not_supported [@coverage off]
+  | _, Dataframe _ -> raise Invalid_argument_type [@coverage off]
+
+let eval_subset1_assign v1 idx v3 =
+  let open Expr in
+  match (v1, idx, v3) with
+  | Vector (_, t1), None, Vector (a3, t3) ->
+      if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
+      let t = promote_type t1 t3 in
+      a3 |> coerce_data t3 t |> vector t
+  | Vector (a1, t1), Some (Vector (a2, t2) as v2), Vector (a3, t3) -> (
+      let n1, n2, n3 = (vector_length v1, vector_length v2, vector_length v3) in
+      let t = promote_type t1 t3 in
+      let a1, a3 = (coerce_data t1 t a1, coerce_data t3 t a3) in
+      match t2 with
+      | T_Bool ->
+          let a2 = a2 |> Array.map get_bool in
+          if contains_na a2 then raise Invalid_subset_index ;
+          if n1 <> n2 then raise Vector_lengths_do_not_match ;
+          let a2 = a2 |> bool_to_pos_vector in
+          let n2 = Array.length a2 in
+          if n2 <> n3 then raise Invalid_subset_replacement ;
+          update_at_pos t a1 a2 a3 |> vector t
+      | T_Int ->
+          let a2 = a2 |> Array.map get_int in
+          if contains_na a2 || (not @@ is_positive_subsetting a2) then raise Invalid_subset_index ;
+          if is_zero_subsetting a2 then vector t a1
+          else
+            let a2 = a2 |> Array.filter (fun x -> not @@ Option.equal CCEqual.int x (Some 0)) in
             let n2 = Array.length a2 in
             if n2 <> n3 then raise Invalid_subset_replacement ;
-            let res = update_at_pos t a1 a2 a3 in
-            let conf' = { conf with env = Env.add x (vector t res) conf.env } in
-            (conf', v3)
-        | T_Int ->
-            let a2 = a2 |> Array.map get_int in
-            if contains_na a2 || (not @@ is_positive_subsetting a2) then raise Invalid_subset_index ;
-            if is_zero_subsetting a2 then
-              let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
-              (conf', v3)
-            else
-              let a2 = a2 |> Array.filter (fun x -> not @@ Option.equal CCEqual.int x (Some 0)) in
-              let n2 = Array.length a2 in
-              if n2 <> n3 then raise Invalid_subset_replacement ;
-              let res = update_at_pos t a1 a2 a3 in
-              let conf' = { conf with env = Env.add x (vector t res) conf.env } in
-              (conf', v3)
-        | T_Str -> raise Invalid_argument_type)
-    | Dataframe _, _, _ -> raise Not_supported [@coverage off]
-    | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type in
+            update_at_pos t a1 a2 a3 |> vector t
+      | T_Str -> raise Invalid_argument_type)
+  | Dataframe _, _, _ -> raise Not_supported [@coverage off]
+  | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
-  let eval_subset2_assign x idx v =
-    match (lookup conf.env x, idx, v) with
-    | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
-        let n2, n3 = Pair.map_same vector_length (v2, v3) in
-        if n2 <> 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
-        if n3 <> 1 then raise Invalid_subset_replacement ;
-        let t = type_lub t1 t3 in
-        let a1 = a1 |> coerce_data t1 t in
-        let a2 = a2 |> coerce_data t2 T_Int in
-        let a3 = a3 |> coerce_data t3 t in
-        match get_int a2.(0) with
-        | Some i when 1 <= i ->
-            let a1 = extend i t a1 in
-            a1.(i - 1) <- a3.(0) ;
-            let conf' = { conf with env = Env.add x (vector t a1) conf.env } in
-            (conf', v3)
-        | Some _ | None -> raise Invalid_subset_index)
-    | Dataframe _, _, _ -> raise Not_supported [@coverage off]
-    | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type in
+let eval_subset2_assign v1 idx v3 =
+  let open Expr in
+  match (v1, idx, v3) with
+  | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
+      let n2, n3 = Pair.map_same vector_length (v2, v3) in
+      if n2 <> 1 || equal_type_tag t2 T_Str then raise Invalid_subset_index ;
+      if n3 <> 1 then raise Invalid_subset_replacement ;
+      let t = promote_type t1 t3 in
+      let a1 = a1 |> coerce_data t1 t in
+      let a2 = a2 |> coerce_data t2 T_Int in
+      let a3 = a3 |> coerce_data t3 t in
+      match get_int a2.(0) with
+      | Some i when 1 <= i ->
+          let a1 = extend i t a1 in
+          a1.(i - 1) <- a3.(0) ;
+          vector t a1
+      | Some _ | None -> raise Invalid_subset_index)
+  | Dataframe _, _, _ -> raise Not_supported [@coverage off]
+  | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
-  let eval_fun_def id params stmts =
-    let unique_params = List.sort_uniq ~cmp:String.compare params in
-    if List.length params <> List.length unique_params then raise Repeated_parameter ;
-    let conf' = { conf with fun_tab = FunTab.add id (params, stmts) conf.fun_tab } in
-    (conf', null) in
+let eval_builtin builtin args =
+  match (builtin, args) with
+  | Unary op, [ v1 ] -> eval_unary op v1
+  | Binary op, [ v1; v2 ] -> eval_binary op v1 v2
+  | Combine, values ->
+      (* Get the least upper bound of all types
+          Then coerce all vectors to that type, extract, and concatenate the data *)
+      let ty = values |> List.map vector_type |> List.fold_left promote_type E.T_Bool in
+      let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
+      vector ty data
+  | Length, [ v1 ] -> vector_length v1 |> Option.some |> put_int |> vector_of_lit
+  | Input, [ v1 ] -> v1
+  | Subset1, [ v1 ] -> eval_subset1 v1 None
+  | Subset1, [ v1; idx ] -> eval_subset1 v1 (Some idx)
+  | Subset2, [ v1; idx ] -> eval_subset2 v1 idx
+  | Subset1_Assign, [ v1; v3 ] -> eval_subset1_assign v1 None v3
+  | Subset1_Assign, [ v1; idx; v3 ] -> eval_subset1_assign v1 (Some idx) v3
+  | Subset2_Assign, [ v1; idx; v3 ] -> eval_subset2_assign v1 idx v3
+  | (Unary _ | Binary _ | Length | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _
+    ->
+      raise Internal_error
 
-  let eval_if cond s2 s3 =
-    match cond with
-    | Vector _ as v1 -> (
-        if vector_length v1 <> 1 then raise Expected_scalar ;
-        let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
-        match a1.(0) with
-        | None -> raise Missing_value_need_true_false
-        | Some true -> run_stmts conf s2
-        | Some false -> run_stmts conf s3)
-    | Dataframe _ -> raise Invalid_argument_type in
+let eval_branch = function
+  | E.Vector _ as v1 -> (
+      if vector_length v1 <> 1 then raise Expected_scalar ;
+      let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
+      match a1.(0) with
+      | None -> raise Missing_value_need_true_false
+      | Some b -> b)
+  | E.Dataframe _ -> raise Invalid_argument_type
 
-  let eval_for x seq stmts =
-    match seq with
-    | Vector (a, _) ->
-        let loop conf i =
-          let v = vector_of_lit i in
-          let conf' = { conf with env = Env.add x v conf.env } in
-          List.iter (fun m -> m#record_for_iteration conf' (x, v) seq stmts) monitors ;
-          Stdlib.fst @@ run_stmts conf' stmts in
-        let conf' = Array.fold_left loop conf a in
-        (conf', null)
-    | Dataframe _ -> raise Not_supported [@coverage off] in
+let eval ?(debug = false) state =
+  let env = state.env in
+  let op = Vector.get state.program state.pc in
+  let pc' = state.pc + 1 in
 
-  match stmt with
-  | Assign (x, e) ->
-      let v = eval e in
-      let conf' = { conf with env = Env.add x v conf.env } in
-      List.iter (fun m -> m#record_assign conf' x (e, v)) monitors ;
-      (conf', v)
-  | Subset1_Assign (x1, se2, se3) ->
-      let idx, v = Pair.map (Option.map eval_se) eval_se (se2, se3) in
-      let conf', res = eval_subset1_assign x1 (Option.map eval_se se2) (eval_se se3) in
-      List.iter (fun m -> m#record_subset1_assign conf' x1 (se2, idx) (se3, v) res) monitors ;
-      (conf', res)
-  | Subset2_Assign (x1, se2, se3) ->
-      let idx, v = Pair.map_same eval_se (se2, se3) in
-      let conf', res = eval_subset2_assign x1 idx v in
-      List.iter (fun m -> m#record_subset2_assign conf' x1 (se2, idx) (se3, v) res) monitors ;
-      (conf', res)
-  | Function_Def (id, params, stmts) ->
-      let conf', res = eval_fun_def id params stmts in
-      List.iter (fun m -> m#record_fun_def conf' id params stmts) monitors ;
-      (conf', res)
-  | If (se1, s2, s3) ->
-      let cond = eval_se se1 in
-      List.iter (fun m -> m#record_if_entry conf (se1, cond) s2 s3) monitors ;
-      let conf', res = eval_if cond s2 s3 in
-      List.iter (fun m -> m#record_if_exit conf' res) monitors ;
-      (conf', res)
-  | For (x1, se2, s3) ->
-      let seq = eval_se se2 in
-      List.iter (fun m -> m#record_for_entry conf x1 (se2, seq) s3) monitors ;
-      let conf', res = eval_for x1 seq s3 in
-      List.iter (fun m -> m#record_for_exit conf' res) monitors ;
-      (conf', res)
-  | Print e ->
-      let res = eval e in
-      List.iter (fun m -> m#record_print_stmt conf (e, res)) monitors ;
-      Stdlib.print_endline @@ show_val res ;
-      (conf, res)
-  | Expression e ->
-      let res = eval e in
-      List.iter (fun m -> m#record_expr_stmt conf (e, res)) monitors ;
-      (conf, res)
+  if debug then Printf.eprintf "%s\n%!" (show_pc_opcode state.pc op) ;
 
-and run_statements (monitors : Monitor.monitors) (conf : configuration) (stmts : statement list) =
-  match stmts with
-  | [] ->
-      (* This is to handle the empty program *)
-      (conf, null)
-  | [ stmt ] ->
-      (* This is the base case; we want to return a value *)
-      let res = eval_stmt monitors conf stmt in
-      res
-  | stmt :: stmts ->
-      let conf', _ = eval_stmt monitors conf stmt in
-      (run_statements [@tailcall]) monitors conf' stmts
+  match op with
+  | Copy (x, se) ->
+      let v = eval_se env se in
+      let env' = update env x v in
+      { state with pc = pc'; last_val = Some v; env = env' }
+  | Call { target; fn_pc; params; args_se; _ } ->
+      let stack' = (pc', target, env) :: state.stack in
+      let args_v = List.map (eval_se env) args_se in
+      let env' = List.fold_left2 (fun e x v -> update e x v) Env.empty params args_v in
+      { state with pc = fn_pc; env = env'; stack = stack' }
+  | Builtin (x, builtin, ses) ->
+      let args = List.map (eval_se env) ses in
+      let v = eval_builtin builtin args in
+      let env' = update env x v in
+      (* Complex assignment is tricky, the "last value" is the RHS, not the LHS after assignment.
+         In most cases, the two are the same. But for subset assignment, coercions may happen,
+         so we need to make sure we return the RHS, which is the last argument. *)
+      let last_val =
+        match[@warning "-4"] builtin with
+        | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
+        | _ -> Some v in
+      { state with pc = pc'; last_val; env = env' }
+  | Exit _ ->
+      let (pc', target, env'), stack' = List.hd_tl state.stack in
+      let env' =
+        match state.last_val with
+        | None -> env'
+        | Some v -> update env' target v in
+      { state with pc = pc'; env = env'; stack = stack' }
+  | Jump newpc -> { state with pc = newpc }
+  | Branch (se, true_pc) ->
+      let cond = eval_se env se in
+      let newpc = if eval_branch cond then true_pc else pc' in
+      { state with pc = newpc }
+  | Print se ->
+      eval_se env se |> E.show_val |> Stdlib.print_endline ;
+      { state with pc = pc'; last_val = None }
+  | Nop | Start | Stop | Entry _ | Comment _ -> { state with pc = pc' }
 
-let start = { env = Env.empty; cur_fun = Common.main_function; fun_tab = FunTab.empty }
+let rec eval_continuous ?(debug = false) state =
+  let op = Vector.get state.program state.pc in
+  if equal_opcode op Stop || state.pc >= Vector.length state.program then state
+  else
+    let state' = eval ~debug state in
+    (eval_continuous ~debug [@tailcall]) state'
 
-let run ?(monitors : Monitor.monitors = []) ?(conf : configuration = start) (stmts : statement list)
-    =
-  List.iter (fun m -> m#program_entry conf) monitors ;
-  let conf', res =
-    Fun.finally
-      ~h:(fun () -> List.iter (fun m -> m#program_exit conf) monitors)
-      ~f:(fun () -> run_statements monitors conf stmts) in
-  (conf', res)
+let run ?(debug = false) (program, pc) =
+  let state = eval_continuous ~debug @@ make_state ~program ~pc () in
+  state.last_val
 
-let run_str ?(monitors : Monitor.monitors = []) str =
-  let program = Parser.parse str in
-  Stdlib.print_endline @@ show_val @@ Stdlib.snd @@ run_statements monitors start program
+let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

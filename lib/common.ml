@@ -52,19 +52,6 @@ let excptn_to_string = function
       raise e
   [@@coverage off]
 
-module Env = Map.Make (Identifier)
-type environment = value Env.t
-
-module FunTab = Map.Make (Identifier)
-type function_table = (identifier list * statement list) FunTab.t
-
-type configuration =
-  { env : environment
-  ; cur_fun : identifier
-  ; fun_tab : function_table
-  }
-let main_function = "main$"
-
 let get_tag = function
   | Bool _ | NA_bool -> T_Bool
   | Int _ | NA_int -> T_Int

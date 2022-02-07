@@ -3,8 +3,6 @@ open Lib
 open Util
 
 (* TODO
-   - remove old eval and monitors
-
    - better interface for state
    - cleanup and reorganize eval/expr/common
 
@@ -19,7 +17,7 @@ let parse_to_r input =
   try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
   with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
 
-let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval2.init_state) input =
+let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval.init_state) input =
   try
     let old_program = state.program in
     let code = Parser.parse input in
@@ -36,7 +34,7 @@ let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval2.init_state) in
       Printf.eprintf "; start pc = %d\n\n" pc ;
       Printf.eprintf "Execution trace:\n%!") ;
 
-    let state' = Eval2.(eval_continuous ~debug state') in
+    let state' = Eval.(eval_continuous ~debug state') in
     (match state'.last_val with
     | None -> ()
     | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
@@ -59,7 +57,7 @@ let repl ?(debug = false) () =
     if String.equal input "#h" then (
       repl_help () ;
       state)
-    else if String.equal input "#r" then Eval2.init_state
+    else if String.equal input "#r" then Eval.init_state
     else if String.equal input "#q" then raise End_of_file
     else
       match String.chop_prefix ~pre:"#to_r" input with
@@ -82,7 +80,7 @@ let repl ?(debug = false) () =
 
   Stdlib.print_endline "Welcome to the rhotic REPL.\n" ;
   repl_help () ;
-  try loop Eval2.init_state with End_of_file -> Stdlib.print_endline "\nGoodbye!"
+  try loop Eval.init_state with End_of_file -> Stdlib.print_endline "\nGoodbye!"
 
 let () =
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
