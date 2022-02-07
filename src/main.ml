@@ -1,18 +1,10 @@
 open Containers
 open Lib
-
-let init_state = Eval2.make_state ~program:(Vector.of_list []) ~pc:0 ()
+open Util
 
 (* TODO
-   - repl mode
-     - need to carry program over
-     - debug printing opcodes, start printing from offset
-     - test repl with functions
-     - handle repl printing result with Print builtin... looks like it works
-   - cleanup main
    - remove old eval and monitors
 
-   - debugging: print execution trace
    - better interface for state
    - cleanup and reorganize eval/expr/common
 
@@ -27,26 +19,70 @@ let parse_to_r input =
   try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
   with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
 
-let run ?(debug = false) input =
+let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval2.init_state) input =
   try
+    let old_program = state.program in
     let code = Parser.parse input in
-    let program, pc = Compile.compile code in
+    let program, pc = Compile.compile ~program:old_program code in
+    let state' = { state with program; pc; last_val = None } in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
-      Printf.eprintf "%s" @@ Vector.to_string ~sep:"\n" (Opcode.show_pc_opcode pc) program ;
+      (* Skip the program before the current pc, i.e. the fragment we already printed. *)
+      program |> Vector.to_array
+      |> Array.filter_mapi (fun i op ->
+             if i < state.pc then None else Some (Opcode.show_pc_opcode i op))
+      |> Array.to_string ~sep:"\n" Fun.id |> Printf.eprintf "%s" ;
       Printf.eprintf "; start pc = %d\n\n" pc ;
       Printf.eprintf "Execution trace:\n%!") ;
 
-    let state' = Eval2.(eval_continuous ~debug @@ make_state ~program ~pc ()) in
-    match state'.last_val with
+    let state' = Eval2.(eval_continuous ~debug state') in
+    (match state'.last_val with
     | None -> ()
-    | Some v -> Stdlib.print_endline @@ Expr.show_val v
+    | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
+    state'
   with e ->
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
     | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
-    exit 255
+    if exit_on_error then exit 255 else state
+
+let repl ?(debug = false) () =
+  let repl_help () =
+    Stdlib.print_endline "Enter a rhotic expression to be evaluated." ;
+    Stdlib.print_endline "Type '#h' to print this message." ;
+    Stdlib.print_endline "Type '#r' to reset the REPL." ;
+    Stdlib.print_endline "Type '#to_r [code]' to translate 'code' to R syntax." ;
+    Stdlib.print_endline "Type '#q' or CTRL+D to quit." in
+
+  let handle_directive state input =
+    if String.equal input "#h" then (
+      repl_help () ;
+      state)
+    else if String.equal input "#r" then Eval2.init_state
+    else if String.equal input "#q" then raise End_of_file
+    else
+      match String.chop_prefix ~pre:"#to_r" input with
+      | Some str ->
+          parse_to_r str ;
+          state
+      | None ->
+          Printf.printf "Error: unknown directive\n" ;
+          state in
+
+  let rec loop state =
+    Stdlib.print_string "> " ;
+    let input = Stdlib.read_line () in
+    let state' =
+      if String.prefix ~pre:"# " input then state
+      else if String.prefix ~pre:"#" input then handle_directive state input
+      else if String.(trim input = "") then state
+      else run ~debug ~state input in
+    (loop [@tailcall]) state' in
+
+  Stdlib.print_endline "Welcome to the rhotic REPL.\n" ;
+  repl_help () ;
+  try loop Eval2.init_state with End_of_file -> Stdlib.print_endline "\nGoodbye!"
 
 let () =
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
@@ -68,10 +104,10 @@ let () =
 
   Arg.parse cmd_args (fun s -> raise @@ Arg.Bad ("Invalid argument " ^ s)) usage_msg ;
 
-  if String.equal !path "" then Stdlib.print_endline usage_msg
+  if String.equal !path "" then repl ~debug:!debug ()
   else
     let chan = Stdlib.open_in !path in
     let input = Stdlib.really_input_string chan @@ Stdlib.in_channel_length chan in
     Stdlib.close_in chan ;
 
-    if !to_r then parse_to_r input else run ~debug:!debug input
+    if !to_r then parse_to_r input else Stdlib.ignore @@ run ~debug:!debug ~exit_on_error:true input

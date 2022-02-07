@@ -29,8 +29,11 @@ let fixup_callsites program () =
   let funtab = Vector.foldi update_table FunTab.empty program in
   Vector.map_in_place (fixup funtab) program
 
-let compile stmts =
-  let buffer = Vector.create_with ~capacity:(List.length stmts) O.Nop in
+let compile ?(program = O.empty_program) stmts =
+  let fresh_compile = Vector.equal O.equal_opcode program O.empty_program in
+  let buffer =
+    if fresh_compile then Vector.create_with ~capacity:(List.length stmts) O.Nop
+    else Vector.copy program in
 
   let current_pc () = Vector.size buffer in
   let push_op = Vector.push buffer in
@@ -143,7 +146,9 @@ let compile stmts =
         let tmp = gensym () in
         push_op @@ O.copy tmp (Var x1) ;
         push_op @@ O.builtin x1 Subset2_Assign [ Var tmp; se2; se3 ]
-    | Function_Def (_, _, _) -> ()
+    | Function_Def _ ->
+        (* Functions are compiled separately; see below. *)
+        ()
     | If (cond, true_branch, false_branch) -> compile_if cond true_branch false_branch
     | For (x, seq, body) -> compile_for x seq body
     | Print e -> (
@@ -157,33 +162,46 @@ let compile stmts =
         let tmp = gensym () in
         compile_expr tmp e in
 
+  (* If this is not a fresh compile, remove the old Stop instruction. *)
+  (if not fresh_compile then
+   let removed = Vector.pop_exn buffer in
+   assert (O.equal_opcode removed Stop)) ;
+
   (* Compile functions first.
-     Note: The opcode semantics will be different from the AST interpreter,
-     because we compile functions in two passes and lift all function
-     definitions to the top. The AST interpreter can only call a function if
-     that function's definition was evaluated. *)
+     Note: The opcode semantics will be different from how R handles functions,
+     because we compile functions in two passes and lift all function definitions to the top.
+     R is more dynamic, and populates the environment whenever a function definition is evaluated. *)
   List.iter
     (function[@warning "-4"]
       | Function_Def (id, params, body) ->
-          push_op @@ Comment (Printf.sprintf "function %s" id) ;
+          (* jump after_exit
+              Normally unreachable, unless we compile code on demand (e.g. in a repl or with eval).
+              So if we get here, jump past the function definition. *)
           let before_entry = current_pc () in
           push_op Nop ;
+
+          (* Function entry, body, and exit *)
+          push_op @@ Comment (Printf.sprintf "function %s" id) ;
           push_op @@ Entry (id, params) ;
           compile_stmts body ;
-          push_op (Exit id) ;
+          push_op @@ Exit id ;
+
+          (* after_exit: comment *)
           let after_exit = current_pc () in
-          push_op (Comment "end function") ;
-          (* Just before Entry we have a jump to the end of the function.
-             Normally this is unreachable code, but it lets us skip past functions if we
-             compile code on demand (e.g. in a repl or with eval). *)
+          push_op @@ Comment "end function" ;
           set_op before_entry @@ Jump after_exit
       | _ -> ())
     stmts ;
 
-  (* Compile main. *)
-  push_op (Comment "start main") ;
-  let start_pc = current_pc () in
-  push_op Start ;
+  (* Compile main.
+     If this is a fresh compile (no pre-existing program) add the comment and Start instruction *)
+  let start_pc =
+    if fresh_compile then (
+      push_op @@ Comment "start main" ;
+      push_op Start ;
+      (* Refer to the pc of Start, not the next instruction. *)
+      current_pc () - 1)
+    else current_pc () in
   compile_stmts stmts ;
   push_op Stop ;
 

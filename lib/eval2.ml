@@ -17,6 +17,8 @@ type state =
   }
 [@@deriving make]
 
+let init_state = make_state ~program:Opcode.empty_program ~pc:1 ()
+
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
 let promote_type t1 t2 =
   let open Expr in
