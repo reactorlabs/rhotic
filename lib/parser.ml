@@ -21,7 +21,7 @@ let reserved =
   ; "is.integer"
   ; "is.character"
   ; "is.na"
-  ; "_length"
+  ; "length"
   ; "print"
   ; "function"
   ; "if"
@@ -149,7 +149,7 @@ let program =
         <|> string "is.integer" *> ws *> return Is_Integer
         <|> string "is.character" *> ws *> return Is_Character
         <|> string "is.na" *> ws *> return Is_NA
-        <|> string "_length" *> ws *> return Length in
+        <|> string "length" *> ws *> return Length in
       let unary = lift2 (fun op se -> Unary_Op (op, se)) u_op simple_expr in
       let coerce = lift2 (fun op se -> Unary_Op (op, se)) f_op (parens simple_expr) in
       unary <|> coerce in

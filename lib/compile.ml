@@ -39,9 +39,11 @@ let compile ?(program = O.empty_program) stmts =
   let push_op = Vector.push buffer in
   let set_op = Vector.set buffer in
 
+  let counter = ref 0 in
   let gensym ?(pre = "tmp") () =
     let pc = current_pc () in
-    Printf.sprintf "%s$%d" pre pc in
+    counter := !counter + 1 ;
+    Printf.sprintf "%s$%d_%d" pre pc !counter in
 
   let rec compile_stmts stmt = List.iter compile_stmt stmt
   and compile_stmt stmt =
@@ -95,7 +97,7 @@ let compile ?(program = O.empty_program) stmts =
 
       (* len$ = length(seq) *)
       let len = gensym ~pre:"len" () in
-      push_op @@ O.builtin len Length [ seq ] ;
+      push_op @@ O.builtin len (Unary Length) [ seq ] ;
 
       (* i = 0 *)
       let i = gensym ~pre:"i" () in

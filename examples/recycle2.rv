@@ -1,11 +1,3 @@
-length <- function(x) {
-  len <- 0
-  for (i in x) {
-    len <- len + 1
-  }
-  len
-}
-
 rep <- function(x, times) {
   cond <- times == 0
   if (cond) {

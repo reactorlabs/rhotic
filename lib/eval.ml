@@ -387,7 +387,6 @@ let eval_builtin builtin args =
       let ty = values |> List.map vector_type |> List.fold_left promote_type E.T_Bool in
       let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
       vector ty data
-  | Length, [ v1 ] -> vector_length v1 |> Option.some |> put_int |> vector_of_lit
   | Input, [ v1 ] -> v1
   | Subset1, [ v1 ] -> eval_subset1 v1 None
   | Subset1, [ v1; idx ] -> eval_subset1 v1 (Some idx)
@@ -395,8 +394,8 @@ let eval_builtin builtin args =
   | Subset1_Assign, [ v1; v3 ] -> eval_subset1_assign v1 None v3
   | Subset1_Assign, [ v1; idx; v3 ] -> eval_subset1_assign v1 (Some idx) v3
   | Subset2_Assign, [ v1; idx; v3 ] -> eval_subset2_assign v1 idx v3
-  | (Unary _ | Binary _ | Length | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _
-    ->
+  | (Unary _ | Binary _ | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _ ->
+      (* These are the cases for when we pass the wrong number of arguments. *)
       raise Internal_error
 
 let eval_branch = function

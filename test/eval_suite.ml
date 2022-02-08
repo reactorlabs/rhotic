@@ -285,11 +285,11 @@ let () =
         ; test_eval "str" (vector_of bool false, {|is.na("abc")|})
         ] )
     ; ( "unary.length"
-      , [ test_eval "empty" (vector_of int 0, "x <- 0[0]; _length(x)")
-        ; test_eval "bools" (vector_of int 1, "x <- T; _length(x)")
-        ; test_eval "ints" (vector_of int 3, "x <- c(1, 2, 3); _length(x)")
-        ; test_eval "strs" (vector_of int 3, {|x <- c("a", "b", "c"); _length(x)|})
-        ; test_eval "NAs" (vector_of int 3, "x <- c(1, NA, 3); _length(x)")
+      , [ test_eval "empty" (vector_of int 0, "x <- 0[0]; length(x)")
+        ; test_eval "bools" (vector_of int 1, "x <- T; length(x)")
+        ; test_eval "ints" (vector_of int 3, "x <- c(1, 2, 3); length(x)")
+        ; test_eval "strs" (vector_of int 3, {|x <- c("a", "b", "c"); length(x)|})
+        ; test_eval "NAs" (vector_of int 3, "x <- c(1, NA, 3); length(x)")
         ] )
     ; ( "binary.arithmetic"
       , [ test_eval "plus single" (vector_of int 5, "2 + 3")

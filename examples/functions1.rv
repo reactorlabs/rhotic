@@ -1,11 +1,3 @@
-length <- function(x) {
-  len <- 0
-  for (i in x) {
-    len <- len + 1
-  }
-  len
-}
-
 ints <- 1:5
 r <- length(ints)
 print(r)
@@ -13,3 +5,24 @@ print(r)
 bools <- T
 r <- length(bools)
 print(r)
+
+vec <- 1:5
+for (x in vec) {
+    print(x)
+}
+
+vec2 <- 5:-1
+for (x in vec2) {
+    print(x)
+}
+
+b <- r > 1
+if (r) {
+    print(T)
+} else {
+    print(F)
+}
+
+if (r) {
+    print(T)
+}

@@ -13,9 +13,8 @@ type pc = Pc.t [@@deriving eq, show]
 type builtin =
   | Unary          of unary_op [@printer fun fmt o -> fprintf fmt "`%s`" (show_unary_op o)]
   | Binary         of binary_op [@printer fun fmt o -> fprintf fmt "`%s`" (show_binary_op o)]
-  | Combine [@printer fun fmt _ -> fprintf fmt "_c"]
-  | Length [@printer fun fmt _ -> fprintf fmt "_length"]
-  | Input [@printer fun fmt _ -> fprintf fmt "_input"]
+  | Combine [@printer fun fmt _ -> fprintf fmt "`c`"]
+  | Input [@printer fun fmt _ -> fprintf fmt "`input`"]
   | Subset1 [@printer fun fmt _ -> fprintf fmt "`[`"]
   | Subset2 [@printer fun fmt _ -> fprintf fmt "`[[`"]
   | Subset1_Assign [@printer fun fmt _ -> fprintf fmt "`[<-`"]
@@ -54,6 +53,7 @@ and opcode =
         fun fmt (cond, target_pc) ->
           fprintf fmt "Branch %s L%d" (show_simple_expression cond) target_pc]
   | Print   of simple_expression
+      (* Print is not a "builtin" because it is side-effecting and doesn't return a value. *)
       [@printer fun fmt se -> fprintf fmt "Print %s" (show_simple_expression se)]
   | Comment of string [@printer fun fmt -> fprintf fmt "; %s"]
 [@@deriving eq, show { with_path = false }]
