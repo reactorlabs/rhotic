@@ -17,7 +17,7 @@ let parse_to_r input =
   try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
   with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
 
-let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval.init_state) input =
+let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval.State.init) input =
   try
     let old_program = state.program in
     let code = Parser.parse input in
@@ -57,7 +57,7 @@ let repl ?(debug = false) () =
     if String.equal input "#h" then (
       repl_help () ;
       state)
-    else if String.equal input "#r" then Eval.init_state
+    else if String.equal input "#r" then Eval.State.init
     else if String.equal input "#q" then raise End_of_file
     else
       match String.chop_prefix ~pre:"#to_r" input with
@@ -80,7 +80,7 @@ let repl ?(debug = false) () =
 
   Stdlib.print_endline "Welcome to the rhotic REPL.\n" ;
   repl_help () ;
-  try loop Eval.init_state with End_of_file -> Stdlib.print_endline "\nGoodbye!"
+  try loop Eval.State.init with End_of_file -> Stdlib.print_endline "\nGoodbye!"
 
 let () =
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in

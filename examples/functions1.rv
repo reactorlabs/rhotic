@@ -17,12 +17,12 @@ for (x in vec2) {
 }
 
 b <- r > 1
-if (r) {
+if (b) {
     print(T)
 } else {
     print(F)
 }
 
-if (r) {
+if (b) {
     print(T)
 }

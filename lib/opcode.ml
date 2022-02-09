@@ -65,5 +65,3 @@ let show_pc_opcode pc op =
   match[@warning "-4"] op with
   | Comment _ -> Printf.sprintf "%s" (show_opcode op)
   | _ -> Printf.sprintf "%4d\t%s" pc (show_opcode op)
-
-let empty_program : opcode Vector.ro_vector = Vector.of_list [ Start; Stop ]

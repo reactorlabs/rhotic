@@ -29,11 +29,12 @@ let fixup_callsites program () =
   let funtab = Vector.foldi update_table FunTab.empty program in
   Vector.map_in_place (fixup funtab) program
 
-let compile ?(program = O.empty_program) stmts =
-  let fresh_compile = Vector.equal O.equal_opcode program O.empty_program in
+let compile ?program stmts =
+  let fresh_compile = Option.is_none program in
   let buffer =
-    if fresh_compile then Vector.create_with ~capacity:(List.length stmts) O.Nop
-    else Vector.copy program in
+    match program with
+    | None -> Vector.create_with ~capacity:(List.length stmts) O.Nop
+    | Some p -> Vector.copy p in
 
   let current_pc () = Vector.size buffer in
   let push_op = Vector.push buffer in
