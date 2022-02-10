@@ -3,14 +3,10 @@ open Lib
 open Util
 
 (* TODO
-   - better interface for state
-   - cleanup and reorganize eval/expr/common
-
-   - implement eval instruction
-
    - abstract interpreter
      - need some abstract state / analysis
    - dynamic interpreter
+   - implement eval instruction
 *)
 
 let parse_to_r input =
@@ -19,23 +15,23 @@ let parse_to_r input =
 
 let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval.State.init) input =
   try
-    let old_program = state.program in
     let code = Parser.parse input in
+    let old_program, old_pc = Eval.State.program_pc state in
     let program, pc = Compile.compile ~program:old_program code in
-    let state' = { state with program; pc; last_val = None } in
+    let state' = Eval.State.set_program_pc (program, pc) state in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
       (* Skip the program before the current pc, i.e. the fragment we already printed. *)
       program |> Vector.to_array
       |> Array.filter_mapi (fun i op ->
-             if i < state.pc then None else Some (Opcode.show_pc_opcode i op))
+             if i < old_pc then None else Some (Opcode.show_pc_opcode i op))
       |> Array.to_string ~sep:"\n" Fun.id |> Printf.eprintf "%s" ;
       Printf.eprintf "; start pc = %d\n\n" pc ;
       Printf.eprintf "Execution trace:\n%!") ;
 
-    let state' = Eval.(eval_continuous ~debug state') in
-    (match state'.last_val with
+    let state' = Eval.eval_continuous ~debug state' in
+    (match Eval.State.last_val state' with
     | None -> ()
     | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
     state'

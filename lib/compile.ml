@@ -50,7 +50,7 @@ let compile ?program stmts =
   and compile_stmt stmt =
     let compile_expr target = function
       | Combine ses -> push_op @@ O.builtin target Combine ses
-      | Dataframe_Ctor _ -> raise Not_supported
+      | Dataframe_Ctor _ -> raise Common.Not_supported
       | Unary_Op (op, se) -> push_op @@ O.builtin target (Unary op) [ se ]
       | Binary_Op (op, se1, se2) -> push_op @@ O.builtin target (Binary op) [ se1; se2 ]
       | Subset1 (se1, None) -> push_op @@ O.builtin target Subset1 [ se1 ]

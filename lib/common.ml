@@ -2,14 +2,6 @@ open Containers
 open CCFun.Infix
 open Expr
 
-(*******************************************************************************
- * This module contains common helpers that are used by various parts of the
- * implementation, in particular, Eval and Monitor.
- *
- * Normally, these helpers would be part of Eval, but that would create a
- * circular dependency between Eval and Monitor.
- ******************************************************************************)
-
 type invalid_number =
   { expected : int
   ; received : int
@@ -28,8 +20,8 @@ exception Missing_value_need_true_false
 exception Coercion_introduces_NA
 exception NA_not_allowed
 
+exception Not_supported
 exception Internal_error
-exception Todo
 
 let excptn_to_string = function
   | Object_not_found x -> Printf.sprintf "object '%s' not found" x

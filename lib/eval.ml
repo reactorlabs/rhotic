@@ -9,7 +9,7 @@ module E = Expr
 module State = struct
   module Env = Map.Make (E.Identifier)
   type environment = E.value Env.t
-  type frame = pc * E.identifier * environment
+  type frame = pc * environment
   type state =
     { program : opcode Vector.ro_vector
     ; pc : pc
@@ -22,43 +22,43 @@ module State = struct
     | Next
     | Jump of pc
 
+  let program_pc state = (state.program, state.pc)
+
+  (* Also resets last_val *)
+  let set_program_pc (program, pc) state = { state with program; pc; last_val = None }
+
   let current_op state = Vector.get state.program state.pc
+
+  let set_pc which state =
+    match which with
+    | Next -> { state with pc = state.pc + 1 }
+    | Jump pc -> { state with pc }
+
+  let last_val state = state.last_val
+
+  let set_last_val last_val state = { state with last_val }
 
   let lookup x state =
     match Env.find_opt x state.env with
     | Some v -> v
     | None -> raise (Object_not_found x)
 
-  (* Updating the environment will automatically update state.last_val, but providing
-     an optional parameter will override and set state.last_val. *)
-  let update x v ?(last_val = None) state =
-    let env = Env.add x v state.env in
-    match last_val with
-    | None -> { state with env; last_val = Some v }
-    | Some vv -> { state with env; last_val = vv }
+  (* Updating the environment will automatically update state.last_val *)
+  let update x v state = { state with env = Env.add x v state.env; last_val = Some v }
 
-  let clear_last_val state = { state with last_val = None }
-
-  let last_val state = state.last_val
-
-  let advance_pc which state =
-    match which with
-    | Next -> { state with pc = state.pc + 1 }
-    | Jump pc -> { state with pc }
-
-  let push target fn_pc params args state =
-    let pc = state.pc + 1 in
-    let stack = (pc, target, state.env) :: state.stack in
+  let push fn_pc params args state =
+    let stack = (state.pc, state.env) :: state.stack in
     let env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
     { state with pc = fn_pc; env; stack }
 
   let pop state =
-    let (pc, target, env), stack = List.hd_tl state.stack in
+    let (pc, env), stack = List.hd_tl state.stack in
+    let[@warning "-8"] (Call { target; _ }) = Vector.get state.program pc in
     let env =
       match state.last_val with
       | None -> env
       | Some v -> Env.add target v env in
-    { state with pc; env; stack }
+    { state with pc = pc + 1; env; stack }
 
   let print_op state =
     let pc = state.pc in
@@ -73,17 +73,7 @@ module State = struct
 
   let init =
     let program : opcode Vector.ro_vector = Vector.of_list [ Start; Stop ] in
-    make_state ~program ~pc:1 ()
-
-  (* TODO
-     "Inline" pc/env onto the stack?
-     instead of target on the stack, read the value from the call instruction?
-     Maybe add a return instruction...
-     Fix calling convention
-     clean up last_val
-     clean up in general
-     does this generalize to an abstract state?
-  *)
+    make_state ~program ~pc:0 ()
 end
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
@@ -471,10 +461,10 @@ let eval ?(debug = false) state =
   match op with
   | Copy (x, se) ->
       let v = eval_se se in
-      state |> State.update x v |> State.advance_pc Next
-  | Call { target; fn_pc; params; args_se; _ } ->
+      state |> State.update x v |> State.set_pc Next
+  | Call { fn_pc; params; args_se; _ } ->
       let args = List.map eval_se args_se in
-      State.push target fn_pc params args state
+      State.push fn_pc params args state
   | Builtin (x, builtin, ses) ->
       let args = List.map eval_se ses in
       let v = eval_builtin builtin args in
@@ -487,17 +477,16 @@ let eval ?(debug = false) state =
         | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
         | _ -> Some v in
 
-      state |> State.update x v ~last_val:(Some last_val) |> State.advance_pc Next
+      state |> State.update x v |> State.set_last_val last_val |> State.set_pc Next
   | Exit _ -> State.pop state
-  | Jump newpc -> State.advance_pc (Jump newpc) state
+  | Jump newpc -> State.set_pc (Jump newpc) state
   | Branch (se, true_pc) ->
       let cond = eval_se se in
-      if eval_branch cond then State.advance_pc (Jump true_pc) state
-      else State.advance_pc Next state
+      if eval_branch cond then State.set_pc (Jump true_pc) state else State.set_pc Next state
   | Print se ->
       eval_se se |> E.show_val |> Stdlib.print_endline ;
-      state |> State.clear_last_val |> State.advance_pc Next
-  | Nop | Start | Stop | Entry _ | Comment _ -> State.advance_pc Next state
+      state |> State.set_last_val None |> State.set_pc Next
+  | Nop | Start | Stop | Entry _ | Comment _ -> State.set_pc Next state
 
 let rec eval_continuous ?(debug = false) state =
   if State.is_stopped state then state
@@ -507,6 +496,6 @@ let rec eval_continuous ?(debug = false) state =
 
 let run ?(debug = false) (program, pc) =
   let state = eval_continuous ~debug @@ State.make program pc in
-  state.last_val
+  State.last_val state
 
 let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

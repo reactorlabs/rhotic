@@ -227,8 +227,8 @@ let program =
            subset2_assign ::= identifier '[[' simple_expr ']]' '<-' simple_expr
                             | identifier  '$' identifier       '<-' simple_expr *)
         let subset_assign =
-          let[@warning "-4-8"] subset_assign' lhs rhs =
-            match lhs with
+          let subset_assign' lhs rhs =
+            match[@warning "-8"] lhs with
             | Subset1 (Var x, se) -> Subset1_Assign (x, se, rhs)
             | Subset2 (Var x, se) -> Subset2_Assign (x, se, rhs) in
           lift2 subset_assign' (subset variable <* arrow) simple_expr in

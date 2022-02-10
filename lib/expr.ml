@@ -1,7 +1,5 @@
 open Containers
 
-exception Not_supported
-
 type literal =
   | NA_bool [@printer fun fmt _ -> fprintf fmt "NA"]
   | Bool    of bool [@printer fun fmt b -> fprintf fmt (if b then "T" else "F")]
