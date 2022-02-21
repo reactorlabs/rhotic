@@ -9,7 +9,7 @@ module E = Expr
 module State = struct
   module Env = Map.Make (E.Identifier)
   type environment = E.value Env.t
-  type frame = pc * environment
+  type frame = pc * E.identifier * environment
   type state =
     { program : opcode Vector.ro_vector
     ; pc : pc
@@ -29,7 +29,7 @@ module State = struct
 
   let current_op state = Vector.get state.program state.pc
 
-  let set_pc which state =
+  let next_pc which state =
     match which with
     | Next -> { state with pc = state.pc + 1 }
     | Jump pc -> { state with pc }
@@ -46,13 +46,13 @@ module State = struct
   (* Updating the environment will automatically update state.last_val *)
   let update x v state = { state with env = Env.add x v state.env; last_val = Some v }
 
-  let push fn_pc params args state =
-    let stack = (state.pc, state.env) :: state.stack in
+  let push fn_pc fn_id params args state =
+    let stack = (state.pc, fn_id, state.env) :: state.stack in
     let env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
     { state with pc = fn_pc; env; stack }
 
   let pop state =
-    let (pc, env), stack = List.hd_tl state.stack in
+    let (pc, _, env), stack = List.hd_tl state.stack in
     let[@warning "-8"] (Call { target; _ }) = Vector.get state.program pc in
     let env =
       match state.last_val with
@@ -64,6 +64,26 @@ module State = struct
     let pc = state.pc in
     let op = Vector.get state.program pc in
     show_pc_opcode pc op
+
+  let print state =
+    let last_val_str =
+      Option.map_or ~default:""
+        (fun v -> Printf.sprintf "\t  res: %s\n" @@ E.show_val v)
+        state.last_val in
+    let env_list =
+      state.env |> Env.bindings |> List.filter (fun (x, _) -> not @@ String.prefix ~pre:"tmp$" x)
+    in
+    let env_str =
+      if List.is_empty env_list then ""
+      else
+        List.to_string ~start:"\t  env: " ~stop:"\n" ~sep:", "
+          (fun (x, v) -> Printf.sprintf "%s ↦ %s" x (E.show_val v))
+          env_list in
+    let stack_list = List.map (fun (_, fn, _) -> fn) state.stack in
+    let stack_str =
+      if List.is_empty stack_list then ""
+      else List.to_string ~start:"\t  stk: " ~stop:"\n" Fun.id stack_list in
+    Printf.sprintf "%s%s%s\n" last_val_str env_str stack_str
 
   let is_stopped state =
     let op = current_op state in
@@ -458,35 +478,39 @@ let eval ?(debug = false) state =
   let op = State.current_op state in
   if debug then Printf.eprintf "%s\n%!" (State.print_op state) ;
 
-  match op with
-  | Copy (x, se) ->
-      let v = eval_se se in
-      state |> State.update x v |> State.set_pc Next
-  | Call { fn_pc; params; args_se; _ } ->
-      let args = List.map eval_se args_se in
-      State.push fn_pc params args state
-  | Builtin (x, builtin, ses) ->
-      let args = List.map eval_se ses in
-      let v = eval_builtin builtin args in
+  let state' =
+    match op with
+    | Copy (x, se) ->
+        let v = eval_se se in
+        state |> State.update x v |> State.next_pc Next
+    | Call { fn; fn_pc; params; args_se; _ } ->
+        let args = List.map eval_se args_se in
+        State.push fn_pc fn params args state
+    | Builtin (x, builtin, ses) ->
+        let args = List.map eval_se ses in
+        let v = eval_builtin builtin args in
 
-      (* Complex assignment is tricky, the "last value" is the RHS, not the LHS after assignment.
-         In most cases, the two are the same. But for subset assignment, coercions may happen,
-         so we need to make sure we return the RHS, which is the last argument. *)
-      let last_val =
-        match[@warning "-4"] builtin with
-        | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
-        | _ -> Some v in
+        (* Complex assignment is tricky, the "last value" is the RHS, not the LHS after assignment.
+           In most cases, the two are the same. But for subset assignment, coercions may happen,
+           so we need to make sure we return the RHS, which is the last argument. *)
+        let last_val =
+          match[@warning "-4"] builtin with
+          | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
+          | _ -> Some v in
 
-      state |> State.update x v |> State.set_last_val last_val |> State.set_pc Next
-  | Exit _ -> State.pop state
-  | Jump newpc -> State.set_pc (Jump newpc) state
-  | Branch (se, true_pc) ->
-      let cond = eval_se se in
-      if eval_branch cond then State.set_pc (Jump true_pc) state else State.set_pc Next state
-  | Print se ->
-      eval_se se |> E.show_val |> Stdlib.print_endline ;
-      state |> State.set_last_val None |> State.set_pc Next
-  | Nop | Start | Stop | Entry _ | Comment _ -> State.set_pc Next state
+        state |> State.update x v |> State.set_last_val last_val |> State.next_pc Next
+    | Exit _ -> State.pop state
+    | Jump newpc -> State.next_pc (Jump newpc) state
+    | Branch (se, true_pc) ->
+        let cond = eval_se se in
+        if eval_branch cond then State.next_pc (Jump true_pc) state else State.next_pc Next state
+    | Print se ->
+        eval_se se |> E.show_val |> Stdlib.print_endline ;
+        state |> State.set_last_val None |> State.next_pc Next
+    | Nop | Start | Stop | Entry _ | Comment _ -> State.next_pc Next state in
+
+  if debug then Printf.eprintf "%s%!" @@ State.print state' ;
+  state'
 
 let rec eval_continuous ?(debug = false) state =
   if State.is_stopped state then state
