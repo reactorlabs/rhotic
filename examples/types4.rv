@@ -1,0 +1,16 @@
+# Test example for analysis: types
+# This example tests loops
+
+x <- 11:13
+sum <- 0
+for (i in x) {
+    sum <- sum + i
+}
+
+sum2 <- 0
+for (i in x) {
+    b <- i > 11
+    if (b) {
+        sum2 <- i + sum2
+    }
+}

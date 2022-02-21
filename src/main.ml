@@ -3,17 +3,46 @@ open Lib
 open Util
 
 (* TODO
-   - abstract interpreter
-     - need some abstract state / analysis
+   - cleanup/generalize the analysis framework?
    - dynamic interpreter
    - implement eval instruction
 *)
+
+(* Duplicate code for now; it doesn't make sense to run analysis in the repl *)
+let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
+  try
+    let code = Parser.parse input in
+    let program, pc = Compile.compile code in
+    let state = Eval.State.make program pc in
+
+    if debug then (
+      Printf.eprintf "Compiled program:\n" ;
+      program
+      |> Vector.mapi (fun i op -> Opcode.show_pc_opcode i op)
+      |> Vector.to_string ~sep:"\n" Fun.id |> Printf.eprintf "%s" ;
+      Printf.eprintf "; start pc = %d\n\n" pc) ;
+
+    if run then (
+      Printf.eprintf "Execution trace:\n%!" ;
+      let state' = Eval.eval_continuous ~debug state in
+      match Eval.State.last_val state' with
+      | None -> ()
+      | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
+
+    if analysis then (
+      Printf.eprintf "Analysis trace:\n%!" ;
+      ignore @@ Analysis.analyze ~debug program pc)
+  with e ->
+    (match e with
+    | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
+    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
+    exit 255
 
 let parse_to_r input =
   try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
   with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
 
-let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval.State.init) input =
+let run ?(debug = false) ?(state = Eval.State.init) input =
   try
     let code = Parser.parse input in
     let old_program, old_pc = Eval.State.program_pc state in
@@ -39,7 +68,7 @@ let run ?(debug = false) ?(exit_on_error = false) ?(state = Eval.State.init) inp
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
     | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
-    if exit_on_error then exit 255 else state
+    state
 
 let repl ?(debug = false) () =
   let repl_help () =
@@ -83,6 +112,8 @@ let () =
 
   let path = ref "" in
   let debug = ref false in
+  let analysis = ref false in
+  let run = ref true in
   let to_r = ref false in
 
   let cmd_args =
@@ -93,6 +124,9 @@ let () =
       , "rhotic file to run" )
     ; ("-d", Arg.Set debug, "Print debugging info")
     ; ("--debug", Arg.Set debug, "Print debugging info")
+    ; ("-a", Arg.Set analysis, "Run static analysis")
+    ; ("--analysis", Arg.Set analysis, "Run static analysis")
+    ; ("--no-run", Arg.Clear run, "Skip concrete execution")
     ; ("--to-r", Arg.Set to_r, "Translate rhotic code to R")
     ] in
 
@@ -104,4 +138,5 @@ let () =
     let input = Stdlib.really_input_string chan @@ Stdlib.in_channel_length chan in
     Stdlib.close_in chan ;
 
-    if !to_r then parse_to_r input else Stdlib.ignore @@ run ~debug:!debug ~exit_on_error:true input
+    if !to_r then parse_to_r input
+    else Stdlib.ignore @@ run_once ~debug:!debug ~analysis:!analysis ~run:!run input

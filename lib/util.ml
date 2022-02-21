@@ -14,6 +14,14 @@ module Option = struct
   let bind2 f x y = Option.bind x (fun x -> Option.bind y (fun y -> f x y))
 end
 
+module Stack = struct
+  include Stack
+
+  let add_list s l = List.iter (fun x -> push x s) (List.rev l)
+
+  let to_list s = s |> to_seq |> List.of_seq
+end
+
 module Vector = struct
   include Vector
 

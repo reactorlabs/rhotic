@@ -70,17 +70,16 @@ module State = struct
       Option.map_or ~default:""
         (fun v -> Printf.sprintf "\t  res: %s\n" @@ E.show_val v)
         state.last_val in
-    let env_list =
-      state.env |> Env.bindings |> List.filter (fun (x, _) -> not @@ String.prefix ~pre:"tmp$" x)
-    in
     let env_str =
+      let env_list =
+        state.env |> Env.bindings |> List.filter (fun (x, _) -> not @@ String.contains x '$') in
       if List.is_empty env_list then ""
       else
         List.to_string ~start:"\t  env: " ~stop:"\n" ~sep:", "
           (fun (x, v) -> Printf.sprintf "%s ↦ %s" x (E.show_val v))
           env_list in
-    let stack_list = List.map (fun (_, fn, _) -> fn) state.stack in
     let stack_str =
+      let stack_list = List.map (fun (_, fn, _) -> fn) state.stack in
       if List.is_empty stack_list then ""
       else List.to_string ~start:"\t  stk: " ~stop:"\n" Fun.id stack_list in
     Printf.sprintf "%s%s%s\n" last_val_str env_str stack_str

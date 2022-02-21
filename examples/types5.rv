@@ -1,0 +1,18 @@
+# Test example for analysis: types
+# This example tests functions
+
+f <- function() { 42 }
+g <- function() { f() }
+h <- function(y) { g() }
+
+id <- function(x) { x }
+
+x <- h(1)
+x <- h("2")
+
+b <- .input(TRUE)
+if (b) {
+    z <- id(5)
+} else {
+    z <- id("b")
+}

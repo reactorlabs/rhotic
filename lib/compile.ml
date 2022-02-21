@@ -101,12 +101,12 @@ let compile ?program stmts =
       push_op @@ O.builtin len (Unary Length) [ seq ] ;
 
       (* i = 0 *)
-      let i = gensym ~pre:"i" () in
+      let i = gensym ~pre:"idx" () in
       compile_expr i (Simple_Expression (Lit (Int 0))) ;
 
       (* begin_pc: cond = i >= len *)
       let begin_pc = current_pc () in
-      let cond = gensym ~pre:"cond" () in
+      let cond = gensym ~pre:"cnd" () in
       push_op @@ O.builtin cond (Binary (Relational Greater_Equal)) [ Var i; Var len ] ;
 
       (* Branch cond end_pc *)

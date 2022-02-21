@@ -22,6 +22,7 @@ exception NA_not_allowed
 
 exception Not_supported
 exception Internal_error
+exception Todo
 
 let excptn_to_string = function
   | Object_not_found x -> Printf.sprintf "object '%s' not found" x
