@@ -8,6 +8,14 @@ module Array = struct
   let is_empty a = length a = 0
 end
 
+module List = struct
+  include List
+
+  let same_elts cmp l1 l2 =
+    let l1', l2' = (List.sort cmp l1, List.sort cmp l2) in
+    List.equal (fun x y -> cmp x y = 0) l1' l2'
+end
+
 module Option = struct
   include Option
 

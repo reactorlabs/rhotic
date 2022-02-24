@@ -10,7 +10,7 @@ module State = struct
   module Env = Map.Make (E.Identifier)
   type environment = E.value Env.t
   type frame = pc * E.identifier * environment
-  type state =
+  type t =
     { program : opcode Vector.ro_vector
     ; pc : pc
     ; last_val : E.value option
@@ -88,11 +88,9 @@ module State = struct
     let op = current_op state in
     equal_opcode op Stop || state.pc >= Vector.length state.program
 
-  let make program pc = make_state ~program ~pc ()
-
   let init =
     let program : opcode Vector.ro_vector = Vector.of_list [ Start; Stop ] in
-    make_state ~program ~pc:0 ()
+    make ~program ~pc:0 ()
 end
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
@@ -518,7 +516,7 @@ let rec eval_continuous ?(debug = false) state =
     (eval_continuous ~debug [@tailcall]) state'
 
 let run ?(debug = false) (program, pc) =
-  let state = eval_continuous ~debug @@ State.make program pc in
+  let state = eval_continuous ~debug @@ State.make ~program ~pc () in
   State.last_val state
 
 let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

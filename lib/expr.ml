@@ -22,7 +22,7 @@ module Identifier = struct
   let pp = Format.pp_print_text
 end
 
-type identifier = Identifier.t [@@deriving eq, show]
+type identifier = Identifier.t [@@deriving eq, ord, show]
 
 type unary_op =
   | Logical_Not [@printer fun fmt _ -> fprintf fmt "!"]

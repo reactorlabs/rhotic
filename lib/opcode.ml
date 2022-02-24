@@ -8,7 +8,7 @@ module Pc = struct
   let pp = Format.pp_print_int
 end
 
-type pc = Pc.t [@@deriving eq, show]
+type pc = Pc.t [@@deriving eq, ord, show]
 
 type builtin =
   | Unary          of unary_op [@printer fun fmt o -> fprintf fmt "`%s`" (show_unary_op o)]

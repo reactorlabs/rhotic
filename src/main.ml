@@ -13,7 +13,7 @@ let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
   try
     let code = Parser.parse input in
     let program, pc = Compile.compile code in
-    let state = Eval.State.make program pc in
+    let state = Eval.State.make ~program ~pc () in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
