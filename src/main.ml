@@ -3,10 +3,11 @@ open Lib
 open Util
 
 (* TODO
-   - cleanup/generalize the analysis framework?
    - dynamic interpreter
    - implement eval instruction
 *)
+
+module TypeAnalysis = Analysis.Make (TypeAnalysisImpl)
 
 (* Duplicate code for now; it doesn't make sense to run analysis in the repl *)
 let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
@@ -31,7 +32,7 @@ let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
 
     if analysis then (
       Printf.eprintf "Analysis trace:\n%!" ;
-      ignore @@ Analysis.analyze ~debug program pc)
+      ignore @@ TypeAnalysis.analyze ~debug program pc)
   with e ->
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
