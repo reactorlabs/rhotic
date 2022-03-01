@@ -5,93 +5,7 @@ open Util
 open Opcode
 
 module E = Expr
-
-module State = struct
-  module Env = Map.Make (E.Identifier)
-  type environment = E.value Env.t
-  type frame = pc * E.identifier * environment
-  type t =
-    { program : opcode Vector.ro_vector
-    ; pc : pc
-    ; last_val : E.value option
-    ; env : environment [@default Env.empty]
-    ; stack : frame list
-    }
-  [@@deriving make]
-  type advance_type =
-    | Next
-    | Jump of pc
-
-  let program_pc state = (state.program, state.pc)
-
-  (* Also resets last_val *)
-  let set_program_pc (program, pc) state = { state with program; pc; last_val = None }
-
-  let current_op state = Vector.get state.program state.pc
-
-  let next_pc which state =
-    match which with
-    | Next -> { state with pc = state.pc + 1 }
-    | Jump pc -> { state with pc }
-
-  let last_val state = state.last_val
-
-  let set_last_val last_val state = { state with last_val }
-
-  let lookup x state =
-    match Env.find_opt x state.env with
-    | Some v -> v
-    | None -> raise (Object_not_found x)
-
-  (* Updating the environment will automatically update state.last_val *)
-  let update x v state = { state with env = Env.add x v state.env; last_val = Some v }
-
-  let push fn_pc fn_id params args state =
-    let stack = (state.pc, fn_id, state.env) :: state.stack in
-    let env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
-    { state with pc = fn_pc; env; stack }
-
-  let pop state =
-    let (pc, _, env), stack = List.hd_tl state.stack in
-    let[@warning "-8"] (Call { target; _ }) = Vector.get state.program pc in
-    let env =
-      match state.last_val with
-      | None -> env
-      | Some v -> Env.add target v env in
-    { state with pc = pc + 1; env; stack }
-
-  let print_op state =
-    let pc = state.pc in
-    let op = Vector.get state.program pc in
-    show_pc_opcode pc op
-
-  let print state =
-    let last_val_str =
-      Option.map_or ~default:""
-        (fun v -> Printf.sprintf "\t  res: %s\n" @@ E.show_val v)
-        state.last_val in
-    let env_str =
-      let env_list =
-        state.env |> Env.bindings |> List.filter (fun (x, _) -> not @@ String.contains x '$') in
-      if List.is_empty env_list then ""
-      else
-        List.to_string ~start:"\t  env: " ~stop:"\n" ~sep:", "
-          (fun (x, v) -> Printf.sprintf "%s ↦ %s" x (E.show_val v))
-          env_list in
-    let stack_str =
-      let stack_list = List.map (fun (_, fn, _) -> fn) state.stack in
-      if List.is_empty stack_list then ""
-      else List.to_string ~start:"\t  stk: " ~stop:"\n" Fun.id stack_list in
-    Printf.sprintf "%s%s%s\n" last_val_str env_str stack_str
-
-  let is_stopped state =
-    let op = current_op state in
-    equal_opcode op Stop || state.pc >= Vector.length state.program
-
-  let init =
-    let program : opcode Vector.ro_vector = Vector.of_list [ Start; Stop ] in
-    make ~program ~pc:0 ()
-end
+module State = EvalState
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
 let promote_type t1 t2 =
@@ -127,7 +41,7 @@ let coerce_data from_ty to_ty data =
     Option.bind s (fun s ->
         match Stdlib.int_of_string_opt s with
         | Some i -> Some i
-        | None -> raise Common.Coercion_introduces_NA) in
+        | None -> raise Coercion_introduces_NA) in
 
   let coerce unwrap convert wrap = Array.map (unwrap %> convert %> wrap) data in
   match (from_ty, to_ty) with
@@ -149,7 +63,7 @@ let check_type ty v =
   let open Expr in
   match v with
   | Vector (_, vector_ty) as vec ->
-      assert (Common.vector_consistent_type vec) ;
+      assert (vector_consistent_type vec) ;
       Some (equal_type_tag ty vector_ty) |> put_bool |> vector_of_lit
   | Dataframe _ -> raise Not_supported [@coverage off]
 
@@ -467,19 +381,18 @@ let eval_branch = function
       | Some b -> b)
   | E.Dataframe _ -> raise Invalid_argument_type
 
-let eval ?(debug = false) state =
+(* eval takes a single execution step *)
+let eval state =
   let eval_se = function
     | E.Lit l -> vector_of_lit l
     | E.Var x -> State.lookup x state in
 
-  let op = State.current_op state in
-  if debug then Printf.eprintf "%s\n%!" (State.print_op state) ;
-
+  let _, op = State.current_pc_op state in
   let state' =
     match op with
     | Copy (x, se) ->
         let v = eval_se se in
-        state |> State.update x v |> State.next_pc Next
+        state |> State.update x v |> State.set_next_pc Next
     | Call { fn; fn_pc; params; args_se; _ } ->
         let args = List.map eval_se args_se in
         State.push fn_pc fn params args state
@@ -495,28 +408,31 @@ let eval ?(debug = false) state =
           | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
           | _ -> Some v in
 
-        state |> State.update x v |> State.set_last_val last_val |> State.next_pc Next
+        state |> State.update x v |> State.set_last_val last_val |> State.set_next_pc Next
     | Exit _ -> State.pop state
-    | Jump newpc -> State.next_pc (Jump newpc) state
+    | Jump newpc -> State.set_next_pc (Jump newpc) state
     | Branch (se, true_pc) ->
         let cond = eval_se se in
-        if eval_branch cond then State.next_pc (Jump true_pc) state else State.next_pc Next state
+        if eval_branch cond then State.set_next_pc (Jump true_pc) state
+        else State.set_next_pc Next state
     | Print se ->
         eval_se se |> E.show_val |> Stdlib.print_endline ;
-        state |> State.set_last_val None |> State.next_pc Next
-    | Nop | Start | Stop | Entry _ | Comment _ -> State.next_pc Next state in
+        state |> State.set_last_val None |> State.set_next_pc Next
+    | Nop | Start | Entry _ | Comment _ -> State.set_next_pc Next state
+    | Stop -> State.set_next_pc Stop state in
 
-  if debug then Printf.eprintf "%s%!" @@ State.print state' ;
+  State.debug_print state' ;
   state'
 
-let rec eval_continuous ?(debug = false) state =
-  if State.is_stopped state then state
-  else
-    let state' = eval ~debug state in
-    (eval_continuous ~debug [@tailcall]) state'
+let rec eval_continuous state =
+  match State.advance state with
+  | None -> state
+  | Some state ->
+      let state' = eval state in
+      (eval_continuous [@tailcall]) state'
 
 let run ?(debug = false) (program, pc) =
-  let state = eval_continuous ~debug @@ State.make ~program ~pc () in
+  let state = eval_continuous @@ State.make ~program ~pc ~debug () in
   State.last_val state
 
 let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

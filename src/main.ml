@@ -14,19 +14,19 @@ let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
   try
     let code = Parser.parse input in
     let program, pc = Compile.compile code in
-    let state = Eval.State.make ~program ~pc () in
+    let state = EvalState.make ~program ~pc ~debug () in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
       program
       |> Vector.mapi (fun i op -> Opcode.show_pc_opcode i op)
       |> Vector.to_string ~sep:"\n" Fun.id |> Printf.eprintf "%s" ;
-      Printf.eprintf "; start pc = %d\n\n" pc) ;
+      Printf.eprintf "; start pc = %d\n\n%!" pc) ;
 
     if run then (
-      Printf.eprintf "Execution trace:\n%!" ;
-      let state' = Eval.eval_continuous ~debug state in
-      match Eval.State.last_val state' with
+      if debug then Printf.eprintf "Execution trace:\n%!" ;
+      let state' = Eval.eval_continuous state in
+      match EvalState.last_val state' with
       | None -> ()
       | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
 
@@ -36,19 +36,19 @@ let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
   with e ->
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
-    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
+    | e -> Printf.eprintf "Error: %s\n" @@ Common.excptn_to_string e) ;
     exit 255
 
 let parse_to_r input =
   try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
   with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
 
-let run ?(debug = false) ?(state = Eval.State.init) input =
+let run ?(debug = false) state input =
   try
     let code = Parser.parse input in
-    let old_program, old_pc = Eval.State.program_pc state in
+    let old_program, old_pc = EvalState.program_pc state in
     let program, pc = Compile.compile ~program:old_program code in
-    let state' = Eval.State.set_program_pc (program, pc) state in
+    let state' = EvalState.set_program_pc program pc state in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
@@ -60,15 +60,15 @@ let run ?(debug = false) ?(state = Eval.State.init) input =
       Printf.eprintf "; start pc = %d\n\n" pc ;
       Printf.eprintf "Execution trace:\n%!") ;
 
-    let state' = Eval.eval_continuous ~debug state' in
-    (match Eval.State.last_val state' with
+    let state' = Eval.eval_continuous state' in
+    (match EvalState.last_val state' with
     | None -> ()
     | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
     state'
   with e ->
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
-    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
+    | e -> Printf.eprintf "Error: %s\n" @@ Common.excptn_to_string e) ;
     state
 
 let repl ?(debug = false) () =
@@ -83,7 +83,7 @@ let repl ?(debug = false) () =
     if String.equal input "#h" then (
       repl_help () ;
       state)
-    else if String.equal input "#r" then Eval.State.init
+    else if String.equal input "#r" then EvalState.init ~debug ()
     else if String.equal input "#q" then raise End_of_file
     else
       match String.chop_prefix ~pre:"#to_r" input with
@@ -101,12 +101,12 @@ let repl ?(debug = false) () =
       if String.prefix ~pre:"# " input then state
       else if String.prefix ~pre:"#" input then handle_directive state input
       else if String.(trim input = "") then state
-      else run ~debug ~state input in
+      else run ~debug state input in
     (loop [@tailcall]) state' in
 
   Stdlib.print_endline "Welcome to the rhotic REPL.\n" ;
   repl_help () ;
-  try loop Eval.State.init with End_of_file -> Stdlib.print_endline "\nGoodbye!"
+  try loop @@ EvalState.init ~debug () with End_of_file -> Stdlib.print_endline "\nGoodbye!"
 
 let () =
   let usage_msg = Printf.sprintf "rhotic [-f <file> [--to-r]]" in
