@@ -10,25 +10,26 @@ module Env = Map.Make (E.Identifier)
 
 module AValue = struct
   (* This is the lattice that represents program values.
-     Note that the abstract step function computes on abstract _states_.
-     For this analysis, an abstract state is an abstract environment,
-     mapping identifiers to abstract values.
+      Note that the abstract step function computes on abstract _states_.
+      For this analysis, an abstract state is an abstract environment,
+      mapping identifiers to abstract values.
 
-     The lattice is defined as:
+      The lattice is defined as:
 
-     TODO: should this be a wide lattice where all types are incomparable to each other?
-     Maybe Bool+Int -> Numeric   -\
-           String                -/ Top
+       Top
+        |
+       Str
+        |
+       Int
+        |
+       Bool
+        |
+       Bot
 
-      Top
-       |
-      Str
-       |
-      Int
-       |
-      Bool
-       |
-      Bot
+     TODO: maybe we want a different lattice shape, like
+                  Top
+           Bool   Int    Str
+                  Bot
   *)
 
   (* Type declaration is "backwards" to make `compare` work as expected. *)
@@ -59,7 +60,7 @@ end
 
 (* Only last_val and env are part of the abstract state.
    The other fields are needed for debugging and computation. *)
-type state =
+type astate =
   { pc : pc
   ; op : opcode
   ; cur_fun : E.Identifier.t

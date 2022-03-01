@@ -2,9 +2,7 @@ open Containers
 open Lib
 open Util
 
-(* TODO
-   - dynamic interpreter
-   - implement eval instruction
+(* TODO: implement eval instruction
 *)
 
 module TypeAnalysis = Analysis.Make (TypeAnalysisImpl)

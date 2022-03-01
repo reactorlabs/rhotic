@@ -2,33 +2,49 @@ open Containers
 open Util
 open Opcode
 
+(* TODO: backwards analysis *)
+(* TODO: context sensitivity, better handling of interprocedural (even when context insensitive)
+
+   The current way of handling interprocedural is a hack; we treat it as intraprocedural with
+   function environments implemented as a single giant environment but with prefixed keys.
+   This is messy, because each state needs to carry with it a lot of "global" context,
+   i.e. what its successors are, where the result of a call should be saved, etc.
+
+   A better approach might be to keep this global context within the analysis framework
+   (i.e. this module), rather than inside the analysis instance.
+   The analysis framework should probably have some special handling for calls/returns,
+   i.e. determining the target, which variables to update, when to create/destroy environments.
+
+   This refactor is probably a prerequisite if we want a context-sensitive analysis.
+*)
+
 module type AnalysisInstance = sig
-  type state
-  val init : pc -> opcode -> Expr.identifier -> pc list -> Expr.identifier list -> state
-  val show_op : state -> string
-  val show : state -> string
-  val leq : state -> state -> bool
-  val merge : state -> state -> state
-  val successors : state -> pc list
-  val step : state -> state
+  type astate
+  val init : pc -> opcode -> Expr.identifier -> pc list -> Expr.identifier list -> astate
+  val show_op : astate -> string
+  val show : astate -> string
+  val leq : astate -> astate -> bool
+  val merge : astate -> astate -> astate
+  val successors : astate -> pc list
+  val step : astate -> astate
 end
 
 module type S = sig
-  type state
+  type astate
   val analyze :
-    ?debug:bool -> opcode Vector.ro_vector -> pc -> state Vector.ro_vector * state Vector.ro_vector
+       ?debug:bool
+    -> opcode Vector.ro_vector
+    -> pc
+    -> astate Vector.ro_vector * astate Vector.ro_vector
 end
 
 module Make (AI : AnalysisInstance) : S = struct
-  type state = AI.state
+  type astate = AI.astate
 
   module Context = struct
     exception Found_function of string
-
-    (* TODO: forwards/backwards, entry/exit pc
-             much harder: context sensitivity *)
     type t =
-      { analysis : state array (* all the analysis states we compute *)
+      { analysis : astate array (* all the analysis states we compute *)
       ; worklist : pc Stack.t
       ; seen : bool array (* make sure we visit each node at least once *)
       ; debug : bool
