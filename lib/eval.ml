@@ -382,17 +382,16 @@ let eval_branch = function
   | E.Dataframe _ -> raise Invalid_argument_type
 
 (* eval takes a single execution step *)
-let eval state =
+let eval state ctx =
   let eval_se = function
     | E.Lit l -> vector_of_lit l
     | E.Var x -> State.lookup x state in
 
-  let _, op = State.current_pc_op state in
   let state' =
-    match op with
+    match State.current_op state with
     | Copy (x, se) ->
         let v = eval_se se in
-        state |> State.update x v |> State.set_next_pc Next
+        state |> State.update x v |> State.set_next Next
     | Call { fn; fn_pc; params; args_se; _ } ->
         let args = List.map eval_se args_se in
         State.push fn_pc fn params args state
@@ -408,31 +407,33 @@ let eval state =
           | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
           | _ -> Some v in
 
-        state |> State.update x v |> State.set_last_val last_val |> State.set_next_pc Next
+        state |> State.update x v |> State.set_last_val last_val |> State.set_next Next
     | Exit _ -> State.pop state
-    | Jump newpc -> State.set_next_pc (Jump newpc) state
+    | Jump newpc -> State.set_next (Jump newpc) state
     | Branch (se, true_pc) ->
         let cond = eval_se se in
-        if eval_branch cond then State.set_next_pc (Jump true_pc) state
-        else State.set_next_pc Next state
+        if eval_branch cond then State.set_next (Jump true_pc) state else State.set_next Next state
     | Print se ->
         eval_se se |> E.show_val |> Stdlib.print_endline ;
-        state |> State.set_last_val None |> State.set_next_pc Next
-    | Nop | Start | Entry _ | Comment _ -> State.set_next_pc Next state
-    | Stop -> State.set_next_pc Stop state in
+        state |> State.set_last_val None |> State.set_next Next
+    | Nop | Start | Entry _ | Comment _ -> State.set_next Next state
+    | Stop -> State.set_next Stop state in
 
   State.debug_print state' ;
-  state'
+  let ctx' = Dynamic.TypeAnalysis.observe state' ctx in
+  (state', ctx')
 
-let rec eval_continuous state =
+let rec eval_continuous state ctx =
   match State.advance state with
-  | None -> state
+  | None -> (state, ctx)
   | Some state ->
-      let state' = eval state in
-      (eval_continuous [@tailcall]) state'
+      let state', ctx' = eval state ctx in
+      (eval_continuous [@tailcall]) state' ctx'
 
 let run ?(debug = false) (program, pc) =
-  let state = eval_continuous @@ State.make ~program ~pc ~debug () in
-  State.last_val state
+  let state = State.make ~program ~pc ~debug () in
+  let ctx = Dynamic.TypeAnalysis.make program in
+  let state', _ = eval_continuous state ctx in
+  State.last_val state'
 
 let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

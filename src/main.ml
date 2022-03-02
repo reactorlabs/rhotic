@@ -2,12 +2,11 @@ open Containers
 open Lib
 open Util
 
-(* TODO: implement eval instruction
-*)
+(* TODO: implement eval instruction *)
 
 module TypeAnalysis = Analysis.Make (TypeAnalysisImpl)
 
-let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
+let run_once ?(debug = false) ?(analysis = false) ?(dynamic = false) ?(run = true) input =
   try
     let code = Parser.parse input in
     let program, pc = Compile.compile code in
@@ -15,14 +14,13 @@ let run_once ?(debug = false) ?(analysis = false) ?(run = true) input =
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
-      program
-      |> Vector.mapi (fun i op -> Opcode.show_pc_opcode i op)
-      |> Vector.to_string ~sep:"\n" Fun.id |> Printf.eprintf "%s" ;
+      Vector.iteri (fun i op -> Printf.eprintf "%s\n" @@ Opcode.show_pc_opcode i op) program ;
       Printf.eprintf "; start pc = %d\n\n%!" pc) ;
 
-    if run then (
+    if run || dynamic then (
       if debug then Printf.eprintf "Execution trace:\n%!" ;
-      let state' = Eval.eval_continuous state in
+      let ctx = Dynamic.TypeAnalysis.make ~debug ~enable:dynamic program in
+      let state', _ = Eval.eval_continuous state ctx in
       match EvalState.last_val state' with
       | None -> ()
       | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
@@ -42,6 +40,7 @@ let () =
   let path = ref "" in
   let debug = ref false in
   let analysis = ref false in
+  let dynamic = ref false in
   let run = ref true in
   let to_r = ref false in
 
@@ -54,6 +53,7 @@ let () =
     ; ("--debug", Arg.Set debug, "Print debugging info")
     ; ("-a", Arg.Set analysis, "Run static analysis")
     ; ("--analysis", Arg.Set analysis, "Run static analysis")
+    ; ("--dynamic", Arg.Set dynamic, "Run dynamic analysis (ignores --no-run)")
     ; ("--no-run", Arg.Clear run, "Skip concrete execution")
     ; ("--to-r", Arg.Set to_r, "Translate rhotic code to R")
     ] in
@@ -72,4 +72,5 @@ let () =
     if !to_r then
       try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
       with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
-    else Stdlib.ignore @@ run_once ~debug:!debug ~analysis:!analysis ~run:!run input
+    else
+      Stdlib.ignore @@ run_once ~debug:!debug ~analysis:!analysis ~dynamic:!dynamic ~run:!run input
