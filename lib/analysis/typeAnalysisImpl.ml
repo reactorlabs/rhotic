@@ -16,41 +16,42 @@ module AValue = struct
 
       The lattice is defined as:
 
-       Top
-        |
-       Str
-        |
-       Int
-        |
-       Bool
-        |
-       Bot
-
-     TODO: maybe we want a different lattice shape, like
-                  Top
-           Bool   Int    Str
-                  Bot
+            Top
+          /  |  \
+       Bool Int Str
+          \  |  /
+            Bot
   *)
 
-  (* Type declaration is "backwards" to make `compare` work as expected. *)
   type t =
-    | Bot [@printer fun fmt _ -> fprintf fmt "⊥"]
+    | Top [@printer fun fmt _ -> fprintf fmt "⊤"]
     | Bool [@printer fun fmt _ -> fprintf fmt "B"]
     | Int [@printer fun fmt _ -> fprintf fmt "I"]
     | Str [@printer fun fmt _ -> fprintf fmt "S"]
-    | Top [@printer fun fmt _ -> fprintf fmt "⊤"]
-  [@@deriving eq, ord, show { with_path = false }]
+    | Bot [@printer fun fmt _ -> fprintf fmt "⊥"]
+  [@@deriving eq, show { with_path = false }]
 
-  (* Bot < Bool < Int < Str < Top *)
-  let leq x y = compare x y <= 0
+  let leq x y =
+    match (x, y) with
+    | Bot, _ | _, Top -> true
+    | Bool, Bool | Int, Int | Str, Str -> true
+    | _, Bot | Top, _ -> false
+    | Bool, (Int | Str) | Int, (Bool | Str) | Str, (Bool | Int) -> false
 
   let merge x y =
     match (x, y) with
     | Top, _ | _, Top -> Top
     | Bot, z | z, Bot -> z
     | Str, Str | Int, Int | Bool, Bool -> x
-    | Str, (Int | Bool) | (Int | Bool), Str -> Str
-    | Int, Bool | Bool, Int -> Int
+    | Bool, (Int | Str) | Int, (Bool | Str) | Str, (Bool | Int) -> Top
+
+  let promote_type x y =
+    match (x, y) with
+    | Top, _ | _, Top -> Top
+    | Str, _ | _, Str -> Str
+    | Int, _ | _, Int -> Int
+    | Bool, _ | _, Bool -> Bool
+    | Bot, Bot -> Bot
 
   let abstract = function
     | E.Bool _ | E.NA_bool -> Bool
@@ -173,22 +174,22 @@ let step state =
       | As_Character -> if AValue.equal AValue.Bot v then AValue.Bot else AValue.Str
       | Logical_Not -> (
           match v with
-          | AValue.Top | AValue.Str -> AValue.Top
+          | AValue.Top -> AValue.Top
           | AValue.Int | AValue.Bool -> AValue.Bool
-          | AValue.Bot -> AValue.Bot)
+          | AValue.Bot | AValue.Str -> AValue.Bot)
       | Unary_Plus | Unary_Minus -> (
           match v with
-          | AValue.Top | AValue.Str -> AValue.Top
+          | AValue.Top -> AValue.Top
           | AValue.Int | AValue.Bool -> AValue.Int
-          | AValue.Bot -> AValue.Bot) in
+          | AValue.Bot | AValue.Str -> AValue.Bot) in
 
     let eval_binary op v1 v2 =
       match op with
       | Arithmetic _ -> (
           match (v1, v2) with
-          | (AValue.Top | AValue.Str), _ | _, (AValue.Top | AValue.Str) -> AValue.Top
+          | AValue.Top, _ | _, AValue.Top -> AValue.Top
           | (AValue.Int | AValue.Bool), (AValue.Int | AValue.Bool) -> AValue.Int
-          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot)
+          | (AValue.Bot | AValue.Str), _ | _, (AValue.Bot | AValue.Str) -> AValue.Bot)
       | Relational _ -> (
           match (v1, v2) with
           | AValue.Top, _ | _, AValue.Top -> AValue.Top
@@ -197,9 +198,9 @@ let step state =
           | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot)
       | Logical _ -> (
           match (v1, v2) with
-          | (AValue.Top | AValue.Str), _ | _, (AValue.Top | AValue.Str) -> AValue.Top
+          | AValue.Top, _ | _, AValue.Top -> AValue.Top
           | (AValue.Int | AValue.Bool), (AValue.Int | AValue.Bool) -> AValue.Bool
-          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot)
+          | (AValue.Bot | AValue.Str), _ | _, (AValue.Bot | AValue.Str) -> AValue.Bot)
       | Seq ->
           if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v2 then AValue.Bot
           else AValue.Int in
@@ -209,24 +210,24 @@ let step state =
     | Binary op, [ v1; v2 ] -> eval_binary op v1 v2
     | Combine, values ->
         if List.mem AValue.Bot values then AValue.Bot
-        else List.fold_left (fun x y -> AValue.merge x y) AValue.Bot values
+        else List.fold_left AValue.promote_type AValue.Bot values
     | Input, [ _ ] -> AValue.Top
     | Subset1, [ v1 ] -> v1
     | (Subset1 | Subset2), [ v1; idx ] -> (
         match idx with
-        | AValue.Top | AValue.Str -> AValue.Top
+        | AValue.Top -> AValue.Top
         | AValue.Int | AValue.Bool -> v1
-        | AValue.Bot -> AValue.Bot)
+        | AValue.Bot | AValue.Str -> AValue.Bot)
     | Subset1_Assign, [ v1; v3 ] ->
         if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot
-        else AValue.merge v1 v3
+        else AValue.promote_type v1 v3
     | (Subset1_Assign | Subset2_Assign), [ v1; idx; v3 ] -> (
         match idx with
-        | AValue.Top | AValue.Str -> AValue.Top
+        | AValue.Top -> AValue.Top
         | AValue.Int | AValue.Bool ->
             if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot
             else AValue.merge v1 v3
-        | AValue.Bot -> AValue.Bot)
+        | AValue.Bot | AValue.Str -> AValue.Bot)
     | (Unary _ | Binary _ | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _ ->
         (* These are the cases for when we pass the wrong number of arguments. *)
         raise Internal_error in

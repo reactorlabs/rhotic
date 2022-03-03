@@ -3,7 +3,6 @@ open Util
 (*
   TODO:
     - check that it "works"
-    - fix type analysis
     - write some examples
 
     - architecture
