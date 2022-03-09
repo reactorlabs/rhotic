@@ -13,8 +13,8 @@ open Util
           - eval/analysis/dynamic modules
         - how to clean up astate
 
-    - write another simple analysis (intervals?)
     - analysis that only looks at values
+    - write another simple analysis (intervals?)
     - na analysis
  *)
 
@@ -33,11 +33,28 @@ module Make (AI : Analysis.AnalysisInstance) : S = struct
     ; enable : bool
     }
 
+  exception Found_function of string
   let make ?(debug = false) ?(enable = false) program =
     let n = Vector.length program in
     (* TODO: For the dynamic analysis, we only care about AI.state's last_val and env, so use dummy values *)
     let analysis =
-      Array.init n (fun pc -> AI.init pc (Vector.get program pc) "" List.empty List.empty) in
+      (* For the given pc, return the name of function it's in *)
+      let current_function pc =
+        try
+          (* From the current pc, advance until we find an "Exit" or "Stop" instruction *)
+          for i = pc to n - 1 do
+            match[@warning "-4"] Vector.get program i with
+            | Opcode.Exit id -> raise @@ Found_function id
+            | Opcode.Stop -> raise @@ Found_function ""
+            | _ -> ()
+          done ;
+          assert false
+        with Found_function id -> id in
+
+      let fns = program |> Vector.mapi (fun pc _ -> current_function pc) in
+
+      Array.init n (fun pc ->
+          AI.init pc (Vector.get program pc) (Vector.get fns pc) List.empty List.empty) in
     { analysis; debug; enable }
 
   let get pc ctx = ctx.analysis.(pc)

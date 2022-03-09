@@ -1,22 +1,35 @@
 # Test example for analysis: types
 # This example has some control flow merges
 
-x <- TRUE
-y <- .input(1)
-b <- y != 1
-
+b <- .input(TRUE)
 if (b) {
     x <- 1
 } else {
-    x <- "1"
+    x <- "a"
 }
 
 if (b) {
-    y <- 2
-} else {
-    y <- "2"
+    x <- x + 1
 }
+x
 
-if (b) {
-    z <- 3
-}
+# Compiled program:
+# ; start main
+#    1    Start
+#    2    b = `input`(T)
+# ; if b
+#    4    Branch b L7
+#    5    x = "a"
+#    6    Jump L8
+#    7    x = 1
+#    8    Nop
+# ; end if
+# ; if b
+#   11    Branch b L13
+#   12    Jump L14
+#   13    x = `+`(x,1)
+#   14    Nop
+# ; end if
+#   16    tmp$16_1 = x
+#   17    Stop
+# ; start pc = 1

@@ -23,7 +23,7 @@ let run_once ?(debug = false) ?(analysis = false) ?(dynamic = false) ?(run = tru
       let state', _ = Eval.eval_continuous state ctx in
       match EvalState.last_val state' with
       | None -> ()
-      | Some v -> Stdlib.print_endline @@ Expr.show_val v) ;
+      | Some v -> Printf.eprintf "%s\n\n%!" @@ Expr.show_val v) ;
 
     if analysis then (
       Printf.eprintf "Analysis trace:\n%!" ;

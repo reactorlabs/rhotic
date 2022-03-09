@@ -1,0 +1,42 @@
+# Test example for analysis: types
+# This example tests loops
+
+x <- 1:2
+y <- 0
+for (i in x) {
+    b <- i < 2
+    if (b) {
+        y <- y + i
+    } else {
+        y <- as.character(y)
+    }
+}
+y
+
+# Compiled program:
+# ; start main
+#    1    Start
+#    2    x = `:`(1,2)
+#    3    y = 0
+# ; for i in x
+#    5    len$5_1 = `length`(x)
+#    6    idx$6_2 = 0
+#    7    cnd$7_3 = `>=`(idx$6_2,len$5_1)
+#    8    Branch cnd$7_3 L21
+#    9    idx$6_2 = `+`(idx$6_2,1)
+#   10    i = `[[`(x,idx$6_2)
+# ; for body
+#   12    b = `<`(i,2)
+# ; if b
+#   14    Branch b L17
+#   15    y = `as.character`(y)
+#   16    Jump L18
+#   17    y = `+`(y,i)
+#   18    Nop
+# ; end if
+#   20    Jump L7
+#   21    Nop
+# ; end for
+#   23    tmp$23_4 = y
+#   24    Stop
+# ; start pc = 1

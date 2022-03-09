@@ -1,0 +1,23 @@
+# Test example for analysis: types
+# This example tests functions
+
+id <- function(x) { x }
+
+y <- id(1)
+z <- id("hello")
+
+# Compiled program:
+#    0    Jump L5
+# ; function id
+#    2    Entry id(x)
+#    3    tmp$3_1 = x
+#    4    Exit id
+# ; end function
+# ; start main
+#    7    Start
+#    8    y = id(x=1) ; L2
+#    9    Nop
+#   10    z = id(x="hello") ; L2
+#   11    Nop
+#   12    Stop
+# ; start pc = 7
