@@ -2,31 +2,30 @@ open Containers
 open Lib
 open Util
 
-(* TODO: implement eval instruction *)
+(* TODO:
+   - compiler should prefix variable ids with fun id
+   - clean up static analysis
+   - clean up dynamic analysis *)
 
 module TypeAnalysis = Analysis.Make (TypeAnalysisImpl)
 
-let run_once ?(debug = false) ?(analysis = false) ?(dynamic = false) ?(run = true) input =
+let run_input debug analysis dynamic run input =
   try
-    let code = Parser.parse input in
-    let program, pc = Compile.compile code in
-    let state = EvalState.make ~program ~pc ~debug () in
+    let program, pc = input |> Parser.parse |> Compile.compile in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
       Vector.iteri (fun i op -> Printf.eprintf "%s\n" @@ Opcode.show_pc_opcode i op) program ;
-      Printf.eprintf "; start pc = %d\n\n%!" pc) ;
+      Printf.eprintf "; start pc = %d\n%!" pc) ;
 
     if run || dynamic then (
-      if debug then Printf.eprintf "Execution trace:\n%!" ;
-      let ctx = Dynamic.TypeAnalysis.make ~debug ~enable:dynamic program in
-      let state', _ = Eval.eval_continuous state ctx in
-      match EvalState.last_val state' with
-      | None -> ()
-      | Some v -> Printf.eprintf "%s\n\n%!" @@ Expr.show_val v) ;
+      if debug then Printf.eprintf "\nExecution trace:\n%!" ;
+      match Eval.run ~debug (program, pc) with
+      | Some v -> Printf.eprintf "%s\n%!" @@ Expr.show_val v
+      | None -> ()) ;
 
     if analysis then (
-      Printf.eprintf "Analysis trace:\n%!" ;
+      if debug then Printf.eprintf "\nAnalysis trace:\n%!" ;
       ignore @@ TypeAnalysis.analyze ~debug program pc)
   with e ->
     (match e with
@@ -49,13 +48,13 @@ let () =
       , Arg.String
           (fun s -> if Sys.file_exists s then path := s else raise @@ Arg.Bad ("no such file " ^ s))
       , "rhotic file to run" )
-    ; ("-d", Arg.Set debug, "Print debugging info")
     ; ("--debug", Arg.Set debug, "Print debugging info")
     ; ("-a", Arg.Set analysis, "Run static analysis")
     ; ("--analysis", Arg.Set analysis, "Run static analysis")
+    ; ("-d", Arg.Set dynamic, "Run dynamic analysis (ignores --no-run)")
     ; ("--dynamic", Arg.Set dynamic, "Run dynamic analysis (ignores --no-run)")
     ; ("--no-run", Arg.Clear run, "Skip concrete execution")
-    ; ("--to-r", Arg.Set to_r, "Translate rhotic code to R")
+    ; ("--to-r", Arg.Set to_r, "Compile rhotic code to R")
     ] in
 
   Arg.parse cmd_args (fun s -> raise @@ Arg.Bad ("invalid argument " ^ s)) usage_msg ;
@@ -72,5 +71,4 @@ let () =
     if !to_r then
       try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
       with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
-    else
-      Stdlib.ignore @@ run_once ~debug:!debug ~analysis:!analysis ~dynamic:!dynamic ~run:!run input
+    else Stdlib.ignore @@ run_input !debug !analysis !dynamic !run input

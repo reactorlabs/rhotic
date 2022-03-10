@@ -4,7 +4,6 @@ open Common
 open Util
 open Opcode
 
-module E = Expr
 module State = EvalState
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
@@ -352,13 +351,14 @@ let eval_subset2_assign v1 idx v3 =
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
 let eval_builtin builtin args =
+  let open Expr in
   match (builtin, args) with
   | Unary op, [ v1 ] -> eval_unary op v1
   | Binary op, [ v1; v2 ] -> eval_binary op v1 v2
   | Combine, values ->
       (* Get the least upper bound of all types
           Then coerce all vectors to that type, extract, and concatenate the data *)
-      let ty = values |> List.map vector_type |> List.fold_left promote_type E.T_Bool in
+      let ty = values |> List.map vector_type |> List.fold_left promote_type T_Bool in
       let data = values |> List.map (coerce_value ty) |> List.map vector_data |> Array.concat in
       vector ty data
   | Input, [ v1 ] -> v1
@@ -372,68 +372,65 @@ let eval_builtin builtin args =
       (* These are the cases for when we pass the wrong number of arguments. *)
       raise Internal_error
 
-let eval_branch = function
-  | E.Vector _ as v1 -> (
+let eval_branch v =
+  let open Expr in
+  match v with
+  | Vector _ as v1 -> (
       if vector_length v1 <> 1 then raise Expected_scalar ;
       let a1 = v1 |> coerce_value T_Bool |> vector_data |> Array.map get_bool in
       match a1.(0) with
       | None -> raise Missing_value_need_true_false
       | Some b -> b)
-  | E.Dataframe _ -> raise Invalid_argument_type
+  | Dataframe _ -> raise Invalid_argument_type
 
-(* eval takes a single execution step *)
-let eval state ctx =
+let step state =
+  let open Expr in
   let eval_se = function
-    | E.Lit l -> vector_of_lit l
-    | E.Var x -> State.lookup x state in
+    | Lit l -> vector_of_lit l
+    | Var x -> State.lookup x state in
 
-  let state' =
-    match State.current_op state with
-    | Copy (x, se) ->
-        let v = eval_se se in
-        state |> State.update x v |> State.set_next Next
-    | Call { fn; fn_pc; params; args_se; _ } ->
-        let args = List.map eval_se args_se in
-        State.push fn_pc fn params args state
-    | Builtin (x, builtin, ses) ->
-        let args = List.map eval_se ses in
-        let v = eval_builtin builtin args in
+  match State.current_op state with
+  | Copy (x, se) ->
+      let v = eval_se se in
+      state |> State.update x v |> State.set_next Next
+  | Call { fn; fn_pc; params; args_se; _ } ->
+      let args = List.map eval_se args_se in
+      State.push fn_pc fn params args state
+  | Builtin (x, builtin, ses) ->
+      let args = List.map eval_se ses in
+      let v = eval_builtin builtin args in
 
-        (* Complex assignment is tricky, the "last value" is the RHS, not the LHS after assignment.
-           In most cases, the two are the same. But for subset assignment, coercions may happen,
-           so we need to make sure we return the RHS, which is the last argument. *)
-        let last_val =
-          match[@warning "-4"] builtin with
-          | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
-          | _ -> Some v in
+      (* Complex assignment is tricky, the "last value" is the RHS, not the LHS after assignment.
+          In most cases, the two are the same. But for subset assignment, coercions may happen,
+          so we need to make sure we return the RHS, which is the last argument. *)
+      let last_val =
+        match[@warning "-4"] builtin with
+        | Subset1_Assign | Subset2_Assign -> Some (List.hd @@ List.rev args)
+        | _ -> Some v in
 
-        state |> State.update x v |> State.set_last_val last_val |> State.set_next Next
-    | Exit _ -> State.pop state
-    | Jump newpc -> State.set_next (Jump newpc) state
-    | Branch (se, true_pc) ->
-        let cond = eval_se se in
-        if eval_branch cond then State.set_next (Jump true_pc) state else State.set_next Next state
-    | Print se ->
-        eval_se se |> E.show_val |> Stdlib.print_endline ;
-        state |> State.set_last_val None |> State.set_next Next
-    | Nop | Start | Entry _ | Comment _ -> State.set_next Next state
-    | Stop -> State.set_next Stop state in
-
-  State.debug_print state' ;
-  let ctx' = Dynamic.TypeAnalysis.observe state' ctx in
-  (state', ctx')
-
-let rec eval_continuous state ctx =
-  match State.advance state with
-  | None -> (state, ctx)
-  | Some state ->
-      let state', ctx' = eval state ctx in
-      (eval_continuous [@tailcall]) state' ctx'
+      state |> State.update x v ~last_val |> State.set_next Next
+  | Exit _ -> State.pop state
+  | Jump newpc -> State.set_next (Jump newpc) state
+  | Branch (se, true_pc) ->
+      let cond = eval_se se in
+      if eval_branch cond then State.set_next (Jump true_pc) state else State.set_next Next state
+  | Print se ->
+      eval_se se |> Expr.show_val |> Stdlib.print_endline ;
+      state |> State.clear_last_val |> State.set_next Next
+  | Nop | Start | Entry _ | Comment _ -> State.set_next Next state
+  | Stop -> State.set_next Stop state
 
 let run ?(debug = false) (program, pc) =
-  let state = State.make ~program ~pc ~debug () in
+  let rec eval_continuous state ctx =
+    match State.advance program state with
+    | None -> (state, ctx)
+    | Some state ->
+        let state' = step state in
+        if debug then Printf.eprintf "%s\n" @@ State.show state' ;
+        let ctx' = Dynamic.TypeAnalysis.observe state' ctx in
+        (eval_continuous [@tailcall]) state' ctx' in
+
+  let state = State.init program pc in
   let ctx = Dynamic.TypeAnalysis.make program in
   let state', _ = eval_continuous state ctx in
   State.last_val state'
-
-let run_str ?(debug = false) str = str |> Parser.parse |> Compile.compile |> run ~debug

@@ -67,10 +67,9 @@ module Make (AI : Analysis.AnalysisInstance) : S = struct
   let observe state ctx =
     if not ctx.enable then ctx
     else
-      let _, pc = EvalState.program_pc state in
-      match EvalState.next_pc state with
+      match EvalState.current_next_pc state with
       | None -> ctx
-      | Some pc' ->
+      | Some (pc, pc') ->
           let astate = get pc ctx in
           let astate' = AI.step astate in
           if ctx.debug then Printf.eprintf "\t  <dynamic %d>:\t%s\n%!" pc' (AI.show astate') ;
