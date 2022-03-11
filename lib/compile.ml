@@ -29,12 +29,8 @@ let fixup_callsites program () =
   let funtab = Vector.foldi update_table FunTab.empty program in
   Vector.map_in_place (fixup funtab) program
 
-let compile ?program stmts =
-  let fresh_compile = Option.is_none program in
-  let buffer =
-    match program with
-    | None -> Vector.create_with ~capacity:(List.length stmts) O.Nop
-    | Some p -> Vector.copy p in
+let compile stmts =
+  let buffer = Vector.create_with ~capacity:(List.length stmts) O.Nop in
 
   let current_pc () = Vector.size buffer in
   let push_op = Vector.push buffer in
@@ -165,11 +161,6 @@ let compile ?program stmts =
         let tmp = gensym () in
         compile_expr tmp e in
 
-  (* If this is not a fresh compile, remove the old Stop instruction. *)
-  (if not fresh_compile then
-   let removed = Vector.pop_exn buffer in
-   assert (O.equal_opcode removed Stop)) ;
-
   (* Compile functions first.
      Note: The opcode semantics will be different from how R handles functions,
      because we compile functions in two passes and lift all function definitions to the top.
@@ -177,34 +168,19 @@ let compile ?program stmts =
   List.iter
     (function[@warning "-4"]
       | Function_Def (id, params, body) ->
-          (* jump after_exit
-              Normally unreachable, unless we compile code on demand (e.g. in a repl or with eval).
-              So if we get here, jump past the function definition. *)
-          let before_entry = current_pc () in
-          push_op Nop ;
-
           (* Function entry, body, and exit *)
           push_op @@ Comment (Printf.sprintf "function %s" id) ;
           push_op @@ Entry (id, params) ;
           compile_stmts body ;
           push_op @@ Exit id ;
-
-          (* after_exit: comment *)
-          let after_exit = current_pc () in
-          push_op @@ Comment "end function" ;
-          set_op before_entry @@ Jump after_exit
+          push_op @@ Comment "end function"
       | _ -> ())
     stmts ;
 
-  (* Compile main.
-     If this is a fresh compile (no pre-existing program) add the comment and Start instruction *)
-  let start_pc =
-    if fresh_compile then (
-      push_op @@ Comment "start main" ;
-      push_op Start ;
-      (* Refer to the pc of Start, not the next instruction. *)
-      current_pc () - 1)
-    else current_pc () in
+  (* Compile main. Add the comment and Start instruction *)
+  push_op @@ Comment "start main" ;
+  let start_pc = current_pc () in
+  push_op Start ;
   compile_stmts stmts ;
   push_op Stop ;
 
