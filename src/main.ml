@@ -3,7 +3,6 @@ open Lib
 open Util
 
 (* TODO:
-   - compiler should prefix variable ids with fun id
    - clean up static analysis
    - clean up dynamic analysis *)
 

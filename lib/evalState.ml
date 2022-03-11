@@ -1,6 +1,6 @@
 open Containers
-open Common
 open Util
+open Common
 open Opcode
 
 module E = Expr
@@ -65,7 +65,7 @@ let push fn_pc fn_id params args state =
   let[@warning "-8"] (Call { target; _ }) = state.op in
   let stack = (state.pc, target, fn_id, state.env) :: state.stack in
   let env = List.fold_left2 (fun e x v -> Env.add x v e) Env.empty params args in
-  { state with next = Jump fn_pc; env; stack }
+  { state with next = Jump fn_pc; last_val = None; env; stack }
 
 let pop state =
   let (pc, target, _, env), stack = List.hd_tl state.stack in

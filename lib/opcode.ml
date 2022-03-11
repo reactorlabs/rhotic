@@ -35,13 +35,13 @@ and opcode =
         fun fmt target fn fn_pc params args ->
           fprintf fmt "%s = %s(%s) ; L%d" target fn
             (List.map2 (fun p a -> p ^ "=" ^ show_simple_expression a) params args
-            |> String.concat ",")
+            |> String.concat ", ")
             fn_pc]
   | Builtin of identifier * builtin * simple_expression list
       [@printer
         fun fmt (target, builtin, args) ->
           fprintf fmt "%s = %s(%s)" target (show_builtin builtin)
-            (args |> List.map show_simple_expression |> String.concat ",")]
+            (args |> List.map show_simple_expression |> String.concat ", ")]
   | Entry   of identifier * identifier list
       [@printer fun fmt (id, params) -> fprintf fmt "Entry %s(%s)" id (String.concat "," params)]
   | Exit    of identifier [@printer fun fmt -> fprintf fmt "Exit %s"]

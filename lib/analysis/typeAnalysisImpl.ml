@@ -1,5 +1,4 @@
 open Containers
-open Common
 open Util
 open Opcode
 
@@ -230,7 +229,7 @@ let step state =
         | AValue.Bot | AValue.Str -> AValue.Bot)
     | (Unary _ | Binary _ | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _ ->
         (* These are the cases for when we pass the wrong number of arguments. *)
-        raise Internal_error in
+        assert false in
 
   match state.op with
   | Copy (x, se) ->

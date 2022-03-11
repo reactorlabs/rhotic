@@ -1,21 +1,20 @@
 open Containers
 open CCFun.Infix
-open Common
 open Util
+open Expr
+open Common
 open Opcode
 
 module State = EvalState
 
 (* Type hierarchy: T_Bool < T_Int < T_Str *)
 let promote_type t1 t2 =
-  let open Expr in
   match (t1, t2) with
   | T_Str, _ | _, T_Str -> T_Str
   | T_Int, _ | _, T_Int -> T_Int
   | T_Bool, _ -> T_Bool
 
 let coerce_data from_ty to_ty data =
-  let open Expr in
   (* NA is NA_int, true is 1, false is 0 *)
   let bool_to_int = Option.map (fun x -> if x then 1 else 0) in
 
@@ -53,13 +52,11 @@ let coerce_data from_ty to_ty data =
   | T_Bool, T_Bool | T_Int, T_Int | T_Str, T_Str -> data
 
 let coerce_value to_ty v =
-  let open Expr in
   match v with
   | Vector (data, from_ty) -> coerce_data from_ty to_ty data |> vector to_ty
   | Dataframe _ -> raise Not_supported [@coverage off]
 
 let check_type ty v =
-  let open Expr in
   match v with
   | Vector (_, vector_ty) as vec ->
       assert (vector_consistent_type vec) ;
@@ -115,7 +112,7 @@ let update_at_pos t a idxs rpl =
   assert (is_positive_subsetting idxs) ;
   assert (not @@ is_zero_subsetting idxs) ;
   assert (not @@ contains_na idxs) ;
-  let idxs = Array.map (fun x -> Option.get_exn_or "internal error" x) idxs in
+  let idxs = Array.map (fun x -> Option.get_lazy (fun () -> assert false) x) idxs in
   let max_idx = Array.fold_left (fun mx i -> max mx i) (Array.length a) idxs in
   let res = extend max_idx t a in
   Array.iter2 (fun i x -> res.(i - 1) <- x) idxs rpl ;
@@ -124,7 +121,6 @@ let update_at_pos t a idxs rpl =
 (* Boolean and integer values get coerced for Logical_Not, Unary_Plus, and Unary_Minus;
     strings cannot be coerced. Unary operations on data frames are not supported. *)
 let eval_unary op v =
-  let open Expr in
   match v with
   | Vector (a, t) as v -> (
       match op with
@@ -151,7 +147,6 @@ let eval_unary op v =
   | Dataframe _ -> raise Not_supported [@coverage off]
 
 let eval_binary op v1 v2 =
-  let open Expr in
   let arithmetic_op o =
     let a1, t1 = Pair.(vector_data &&& vector_type) v1 in
     let a2, t2 = Pair.(vector_data &&& vector_type) v2 in
@@ -267,7 +262,6 @@ let eval_binary op v1 v2 =
   | Vector _, _ | _, Vector _ | Dataframe _, _ -> raise Not_supported [@coverage off]
 
 let eval_subset1 v1 v2 =
-  let open Expr in
   match (v1, v2) with
   | Vector (_, _), None -> v1
   | Vector (a1, t1), Some (Vector (a2, t2) as v2) -> (
@@ -285,7 +279,6 @@ let eval_subset1 v1 v2 =
   | _, Some (Dataframe _) -> raise Invalid_argument_type [@coverage off]
 
 let eval_subset2 v1 v2 =
-  let open Expr in
   match (v1, v2) with
   | Vector (a1, _), Vector (a2, t2) -> (
       let n1, n2 = Pair.map_same vector_length (v1, v2) in
@@ -298,7 +291,6 @@ let eval_subset2 v1 v2 =
   | _, Dataframe _ -> raise Invalid_argument_type [@coverage off]
 
 let eval_subset1_assign v1 idx v3 =
-  let open Expr in
   match (v1, idx, v3) with
   | Vector (_, t1), None, Vector (a3, t3) ->
       if vector_length v1 <> vector_length v3 then raise Vector_lengths_do_not_match ;
@@ -331,7 +323,6 @@ let eval_subset1_assign v1 idx v3 =
   | _, Some (Dataframe _), _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
 let eval_subset2_assign v1 idx v3 =
-  let open Expr in
   match (v1, idx, v3) with
   | Vector (a1, t1), (Vector (a2, t2) as v2), (Vector (a3, t3) as v3) -> (
       let n2, n3 = Pair.map_same vector_length (v2, v3) in
@@ -351,7 +342,6 @@ let eval_subset2_assign v1 idx v3 =
   | _, Dataframe _, _ | _, _, Dataframe _ -> raise Invalid_argument_type
 
 let eval_builtin builtin args =
-  let open Expr in
   match (builtin, args) with
   | Unary op, [ v1 ] -> eval_unary op v1
   | Binary op, [ v1; v2 ] -> eval_binary op v1 v2
@@ -370,10 +360,9 @@ let eval_builtin builtin args =
   | Subset2_Assign, [ v1; idx; v3 ] -> eval_subset2_assign v1 idx v3
   | (Unary _ | Binary _ | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _ ->
       (* These are the cases for when we pass the wrong number of arguments. *)
-      raise Internal_error
+      assert false
 
 let eval_branch v =
-  let open Expr in
   match v with
   | Vector _ as v1 -> (
       if vector_length v1 <> 1 then raise Expected_scalar ;
@@ -384,7 +373,6 @@ let eval_branch v =
   | Dataframe _ -> raise Invalid_argument_type
 
 let step state =
-  let open Expr in
   let eval_se = function
     | Lit l -> vector_of_lit l
     | Var x -> State.lookup x state in
@@ -413,9 +401,10 @@ let step state =
   | Jump newpc -> State.set_next (Jump newpc) state
   | Branch (se, true_pc) ->
       let cond = eval_se se in
-      if eval_branch cond then State.set_next (Jump true_pc) state else State.set_next Next state
+      let next = if eval_branch cond then State.Jump true_pc else State.Next in
+      state |> State.clear_last_val |> State.set_next next
   | Print se ->
-      eval_se se |> Expr.show_val |> Stdlib.print_endline ;
+      eval_se se |> show_val |> Stdlib.print_endline ;
       state |> State.clear_last_val |> State.set_next Next
   | Nop | Start | Entry _ | Comment _ -> State.set_next Next state
   | Stop -> State.set_next Stop state

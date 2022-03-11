@@ -20,6 +20,7 @@ module Identifier = struct
   let compare = String.compare
   let equal = String.equal
   let pp = Format.pp_print_text
+  let prefix ?(pre = "") s = pre ^ "%" ^ s
 end
 
 type identifier = Identifier.t [@@deriving eq, ord, show]

@@ -1,6 +1,6 @@
 open Containers
-open Expr
 open Util
+open Expr
 
 module O = Opcode
 
@@ -28,6 +28,43 @@ let fixup_callsites program () =
 
   let funtab = Vector.foldi update_table FunTab.empty program in
   Vector.map_in_place (fixup funtab) program
+
+(* Fixup var identifiers so that each identifier is unique; this makes analysis a bit easier.
+   To make identifiers more readable, we prefix with the function name. *)
+let fixup_vars program () =
+  let prefix_op pre op =
+    let prefix_id ?(pre = pre) = Identifier.prefix ~pre in
+    let prefix_ids ?(pre = pre) = List.map (prefix_id ~pre) in
+    let prefix_se ?(pre = pre) = function
+      | Lit l -> Lit l
+      | Var x -> Var (prefix_id ~pre x) in
+    let prefix_ses ?(pre = pre) = List.map (prefix_se ~pre) in
+
+    match op with
+    | O.Copy (id, se) -> O.Copy (prefix_id id, prefix_se se)
+    | O.Call { target; fn; fn_pc; params; args_se } ->
+        Call
+          { target = prefix_id target
+          ; fn
+          ; fn_pc
+          ; params = prefix_ids ~pre:fn params
+          ; args_se = prefix_ses args_se
+          }
+    | O.Builtin (id, builtin, ses) -> O.Builtin (prefix_id id, builtin, prefix_ses ses)
+    | O.Entry (fn, params) -> O.Entry (fn, prefix_ids ~pre:fn params)
+    | O.Branch (se, pc) -> O.Branch (prefix_se se, pc)
+    | O.Print se -> O.Print (prefix_se se)
+    | O.Nop | O.Exit _ | O.Start | O.Stop | O.Jump _ | O.Comment _ -> op in
+
+  let cur_fun = ref "" in
+  for pc = 0 to Vector.length program - 1 do
+    let op = Vector.get program pc in
+    (match[@warning "-4"] op with
+    | O.Start -> cur_fun := ""
+    | O.Entry (fn, _) -> cur_fun := fn
+    | _ -> ()) ;
+    Vector.set program pc (prefix_op !cur_fun op)
+  done
 
 let compile stmts =
   let buffer = Vector.create_with ~capacity:(List.length stmts) O.Nop in
@@ -92,7 +129,7 @@ let compile stmts =
     let compile_for x seq body =
       push_op @@ Comment (Printf.sprintf "for %s in %s" x (show_simple_expression seq)) ;
 
-      (* len$ = length(seq) *)
+      (* len = length(seq) *)
       let len = gensym ~pre:"len" () in
       push_op @@ O.builtin len (Unary Length) [ seq ] ;
 
@@ -100,8 +137,11 @@ let compile stmts =
       let i = gensym ~pre:"idx" () in
       compile_expr i (Simple_Expression (Lit (Int 0))) ;
 
-      (* begin_pc: cond = i >= len *)
+      (* begin_pc: for header *)
       let begin_pc = current_pc () in
+      push_op @@ Comment "for header" ;
+
+      (* cond = i >= len *)
       let cond = gensym ~pre:"cnd" () in
       push_op @@ O.builtin cond (Binary (Relational Greater_Equal)) [ Var i; Var len ] ;
 
@@ -185,5 +225,6 @@ let compile stmts =
   push_op Stop ;
 
   fixup_callsites buffer () ;
+  fixup_vars buffer () ;
 
   (Vector.freeze buffer, start_pc)

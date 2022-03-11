@@ -19,10 +19,7 @@ exception Expected_scalar
 exception Missing_value_need_true_false
 exception Coercion_introduces_NA
 exception NA_not_allowed
-
 exception Not_supported
-exception Internal_error
-exception Todo
 
 let excptn_to_string = function
   | Object_not_found x -> Printf.sprintf "object '%s' not found" x
@@ -39,7 +36,6 @@ let excptn_to_string = function
   | Coercion_introduces_NA -> "coercion introduces NA"
   | NA_not_allowed -> "NA not allowed"
   | Not_supported -> "not supported"
-  | Internal_error -> "internal error"
   | e ->
       Stdlib.prerr_endline "Unrecognized exception" ;
       raise e
@@ -61,7 +57,7 @@ let is_na = function
 
 let match_vector = function
   | Vector (a, t) -> (a, t)
-  | Dataframe _ -> raise Internal_error [@coverage off]
+  | Dataframe _ -> assert false
 let vector_data = Stdlib.fst % match_vector
 let vector_type = Stdlib.snd % match_vector
 let vector_length = Array.length % vector_data
@@ -71,7 +67,7 @@ let vector t v = Vector (v, t)
 
 let vector_consistent_type = function
   | Vector (data, vector_ty) -> Array.for_all (fun x -> equal_type_tag (get_tag x) vector_ty) data
-  | Dataframe _ -> raise Internal_error [@coverage off]
+  | Dataframe _ -> assert false
 
 (* We don't have the NULL vector, so for now use an empty boolean vector *)
 let empty_vector ty = vector ty [||]

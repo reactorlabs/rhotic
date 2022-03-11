@@ -59,7 +59,7 @@ let test_eval desc (expected, input) =
     | Vector _ as vec ->
         if not (Common.vector_consistent_type vec) then
           A.failf "Vector `%s` not consistent with its type!" (show_val vec)
-    | Dataframe _ -> raise Common.Internal_error in
+    | Dataframe _ -> assert false in
 
   (* Dump the test case for R: evaluating `code` in R should return `expected` *)
   let dump code () =
@@ -108,6 +108,9 @@ let test_eval_err desc ?(is_valid_r = false) (excptn, input) =
 let () =
   let open Common in
   let open CCList.Infix in
+  (* The compiler mangles variable names, so we can't manually construct exceptions and test for equality. *)
+  let object_not_found ?(pre = "") id = Object_not_found (Identifier.prefix ~pre id) in
+
   A.run "eval-testsuite"
     (* The dummy test is so that we have something to run, when generating the R test suite. *)
     [ ("dummy", [ A.test_case "dummy test" `Quick (fun () -> A.(check int) "same value" 1 1) ])
@@ -129,7 +132,7 @@ let () =
         ; test_eval "lookup 4" (vector_of int 2, "x <- 42; y <- 1; z <- 2; z")
         ; test_eval "lookup 5" (vector_of_list int (4 -- 1), "x <- 1; y <- 2; z <- 3; c(4, z, y, x)")
         ] )
-    ; ("environments.err", [ test_eval_err "object not found" (Object_not_found "x", "x") ])
+    ; ("environments.err", [ test_eval_err "object not found" (object_not_found "x", "x") ])
     ; ( "combine"
         (* Workaround: we don't have the NULL vector, so we use an empty logical vector instead. *)
       , [ test_eval "empty" (null, "x <- c(); as.logical(x)")
@@ -750,7 +753,7 @@ let () =
             (Vector_lengths_do_not_match, "x <- 11:13; y <- 1:6; x[] <- y")
         ; test_eval_err "wrong length 5"
             (Vector_lengths_do_not_match, "x <- 11:13; y <- 1[0]; x[] <- y")
-        ; test_eval_err "not found" (Object_not_found "x", "x[] <- 1")
+        ; test_eval_err "not found" (object_not_found "x", "x[] <- 1")
         ] )
     ; ( "subset1_assign.logical"
       , [ test_eval "assignment 1"
@@ -796,7 +799,7 @@ let () =
             (Invalid_subset_replacement, "x <- 1:5; i <- c(T, F, F, T, T); y <- 11:14; x[i] <- y")
         ; test_eval_err "wrong replacement length 4"
             (Invalid_subset_replacement, "x <- 1:5; i <- c(T, F, F, T, T); y <- 1[0]; x[i] <- y")
-        ; test_eval_err "not found" (Object_not_found "x", "x[T] <- 1")
+        ; test_eval_err "not found" (object_not_found "x", "x[T] <- 1")
         ] )
     ; ( "subset1_assign.zero"
       , [ test_eval "int vector 1" (vector_of int 7, "x <- 7; x[0] <- 42; x")
@@ -816,7 +819,7 @@ let () =
       , [ test_eval_err "NA in index" ~is_valid_r:true
             (* R allows this because the RHS has only one element *)
             (Invalid_subset_index, "x <- 1:4; i <- c(0, NA); x[i] <- 0")
-        ; test_eval_err "not found" (Object_not_found "x", "x[0] <- 1")
+        ; test_eval_err "not found" (object_not_found "x", "x[0] <- 1")
         ] )
     ; ( "subset1_assign.positive"
       , [ test_eval "single index" (vector_of_list int [ 0; 12; 13; 14 ], "x <- 11:14; x[1] <- 0; x")
@@ -890,7 +893,7 @@ let () =
             (Invalid_subset_replacement, "x <- 11:14; i <- 1:3; y <- 9:8; x[i] <- y")
         ; test_eval_err "wrong replacement length 4"
             (Invalid_subset_replacement, "x <- 11:14; i <- c(2, 0, 1); y <- 9:7; x[i] <- y")
-        ; test_eval_err "not found" (Object_not_found "x", "x[1] <- 1")
+        ; test_eval_err "not found" (object_not_found "x", "x[1] <- 1")
         ] )
     ; ( "subset2_assign"
       , [ test_eval "int vector 1"
@@ -930,7 +933,7 @@ let () =
         ; test_eval_err "index 0" (Invalid_subset_index, "x <- 11:14; x[[0]] <- 9")
         ; test_eval_err "negative index" (Invalid_subset_index, "x <- 11:14; x[[-1]] <- 9")
         ; test_eval_err "NA index" (Invalid_subset_index, "x <- 11:14; x[[NA]] <- 9")
-        ; test_eval_err "not found" (Object_not_found "x", "x[[1]] <- 1")
+        ; test_eval_err "not found" (object_not_found "x", "x[[1]] <- 1")
         ] )
     ; ( "if"
       , [ test_eval "true branch 1" (vector_of int 1, "if (T) { x <- 1 } else { x <- 2 }; x")
@@ -1119,6 +1122,6 @@ let () =
             (Invalid_number_of_args { expected = 1; received = 0 }, "f <- function(x) { x }; f()")
         ; test_eval_err "undefined function" (Function_not_found "f", "f()")
         ; test_eval_err "free variables" ~is_valid_r:true
-            (Object_not_found "x", "x <- 42; f <- function() { x }; f()")
+            (object_not_found ~pre:"f" "x", "x <- 42; f <- function() { x }; f()")
         ] )
     ]
