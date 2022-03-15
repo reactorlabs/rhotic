@@ -409,17 +409,20 @@ let step state =
   | Nop | Start | Entry _ | Comment _ -> State.set_next Next state
   | Stop -> State.set_next Stop state
 
-let run ?(debug = false) (program, pc) =
+let run_with_analysis ?(debug = false) ?(dynamic = true) (program, pc) =
   let rec eval_continuous state ctx =
     match State.advance program state with
     | None -> (state, ctx)
     | Some state ->
         let state' = step state in
-        if debug then Printf.eprintf "%s\n" @@ State.show state' ;
+        if debug && not dynamic then Printf.eprintf "%s" @@ State.show state' ;
         let ctx' = Dynamic.TypeAnalysis.observe state' ctx in
         (eval_continuous [@tailcall]) state' ctx' in
 
   let state = State.init program pc in
-  let ctx = Dynamic.TypeAnalysis.make program in
-  let state', _ = eval_continuous state ctx in
-  State.last_val state'
+  let ctx = Dynamic.TypeAnalysis.make ~debug ~enable:dynamic program in
+  let state', ctx' = eval_continuous state ctx in
+  (State.last_val state', ctx')
+
+let run ?(debug = false) (program, pc) =
+  Stdlib.fst @@ run_with_analysis ~debug ~dynamic:false (program, pc)
