@@ -21,12 +21,11 @@ let run_input debug static dynamic run input =
 
     if static then (
       if debug then Printf.eprintf "\nStatic analysis trace:\n%!" ;
-      ignore @@ Analysis.TypeAnalysis.analyze ~debug (program, pc)) ;
+      ignore @@ Static.TypeAnalysis.analyze ~debug (program, pc)) ;
 
     if dynamic then (
       if debug then Printf.eprintf "\nDynamic analysis trace:\n%!" ;
-      let _, ctx = Eval.run_with_analysis ~debug (program, pc) in
-      ignore @@ Dynamic.TypeAnalysis.finish ctx)
+      ignore @@ Dynamic.TypeAnalysis.run ~debug (program, pc))
   with e ->
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
