@@ -2,7 +2,7 @@ open Util
 open Opcode
 open Analysis
 
-module Make (AI : AnalysisInstance) : DYNAMIC_ANALYSIS = struct
+module Make (AI : AnalysisInstance) : S = struct
   type astate = AI.astate
 
   module Context = struct
@@ -58,7 +58,7 @@ module Make (AI : AnalysisInstance) : DYNAMIC_ANALYSIS = struct
           ctx
   end
 
-  let run ?(debug = false) (program, pc) =
+  let analyze ?(debug = false) (program, pc) =
     let rec eval_continuous state ctx =
       match EvalState.advance program state with
       | None -> (state, ctx)
@@ -75,3 +75,4 @@ module Make (AI : AnalysisInstance) : DYNAMIC_ANALYSIS = struct
 end
 
 module TypeAnalysis = Make (TypeAnalysisImpl)
+module IntervalAnalysis = Make (IntervalAnalysisImpl)

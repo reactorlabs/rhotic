@@ -34,7 +34,7 @@ let coerce_data from_ty to_ty data =
       | "F" | "FALSE" | "False" | "false" -> Some false
       | _ -> None) in
 
-  (* Coerce string to int, result is NA if the coercion fails *)
+  (* Coerce string to int, raise exception if the coercion fails *)
   let str_to_int s =
     Option.bind s (fun s ->
         match Stdlib.int_of_string_opt s with

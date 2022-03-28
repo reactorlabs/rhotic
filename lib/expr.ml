@@ -25,6 +25,8 @@ end
 
 type identifier = Identifier.t [@@deriving eq, ord, show]
 
+module Env = Map.Make (Identifier)
+
 type unary_op =
   | Logical_Not [@printer fun fmt _ -> fprintf fmt "!"]
   | Unary_Plus [@printer fun fmt _ -> fprintf fmt "+"]

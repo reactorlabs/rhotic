@@ -2,7 +2,7 @@ open Containers
 open Util
 open Opcode
 
-(* This is a static analysis that represents each program value by its type. *)
+(* This is a static analysis that computes intervals, representing the length of program values *)
 
 module E = Expr
 module Env = E.Env
@@ -16,46 +16,33 @@ module AValue = struct
      The lattice is defined as:
 
             Top
-          /  |  \
-       Bool Int Str
-          \  |  /
+             |
+           [a,b]
+             |
             Bot
+
+     where [a,b] leq [c,d] iff c <= a and d >= b.
+
+     Note that this lattice has infinite height.
   *)
 
   type t =
     | Top [@printer fun fmt _ -> fprintf fmt "⊤"]
-    | Bool [@printer fun fmt _ -> fprintf fmt "B"]
-    | Int [@printer fun fmt _ -> fprintf fmt "I"]
-    | Str [@printer fun fmt _ -> fprintf fmt "S"]
+    | Interval of int * int [@printer fun fmt (a, b) -> fprintf fmt "[%d,%d]" a b]
     | Bot [@printer fun fmt _ -> fprintf fmt "⊥"]
   [@@deriving eq, show { with_path = false }]
 
   let leq x y =
     match (x, y) with
     | Bot, _ | _, Top -> true
-    | Bool, Bool | Int, Int | Str, Str -> true
+    | Interval (a, b), Interval (c, d) -> c <= a && d >= b
     | _, Bot | Top, _ -> false
-    | Bool, (Int | Str) | Int, (Bool | Str) | Str, (Bool | Int) -> false
 
   let merge x y =
     match (x, y) with
     | Top, _ | _, Top -> Top
+    | Interval (a, b), Interval (c, d) -> Interval (Stdlib.min a c, Stdlib.max b d)
     | Bot, z | z, Bot -> z
-    | Str, Str | Int, Int | Bool, Bool -> x
-    | Bool, (Int | Str) | Int, (Bool | Str) | Str, (Bool | Int) -> Top
-
-  let promote_type x y =
-    match (x, y) with
-    | Top, _ | _, Top -> Top
-    | Str, _ | _, Str -> Str
-    | Int, _ | _, Int -> Int
-    | Bool, _ | _, Bool -> Bool
-    | Bot, Bot -> Bot
-
-  let abstract = function
-    | E.Bool _ | E.NA_bool -> Bool
-    | E.Int _ | E.NA_int -> Int
-    | E.Str _ | E.NA_str -> Str
 end
 
 (* Only last_val and env are part of the abstract state.
@@ -119,7 +106,7 @@ let update ?(strong = false) x v state =
   { state with env = Env.add x v' state.env; last_val = v' }
 
 let eval_se state = function
-  | E.Lit l -> AValue.abstract l
+  | E.Lit _ -> AValue.Interval (1, 1)
   | E.Var x -> lookup x state
 
 let call params args_se state =
@@ -145,69 +132,75 @@ let return targets state =
 
 let step state =
   let open Expr in
-  let eval_builtin builtin args =
+  let eval_builtin builtin args ses =
     let eval_unary op v =
       match op with
-      | As_Logical | Is_Logical | Is_Integer | Is_Character | Is_NA ->
-          if AValue.equal AValue.Bot v then AValue.Bot else AValue.Bool
-      | As_Integer | Length -> if AValue.equal AValue.Bot v then AValue.Bot else AValue.Int
-      | As_Character -> if AValue.equal AValue.Bot v then AValue.Bot else AValue.Str
-      | Logical_Not -> (
-          match v with
-          | AValue.Top -> AValue.Top
-          | AValue.Int | AValue.Bool -> AValue.Bool
-          | AValue.Bot | AValue.Str -> AValue.Bot)
-      | Unary_Plus | Unary_Minus -> (
-          match v with
-          | AValue.Top -> AValue.Top
-          | AValue.Int | AValue.Bool -> AValue.Int
-          | AValue.Bot | AValue.Str -> AValue.Bot) in
+      | Logical_Not | Unary_Plus | Unary_Minus | As_Logical | As_Integer | As_Character -> v
+      | Is_Logical | Is_Integer | Is_Character | Is_NA | Length ->
+          if AValue.equal AValue.Bot v then AValue.Bot else AValue.Interval (1, 1) in
 
     let eval_binary op v1 v2 =
       match op with
-      | Arithmetic _ -> (
+      | Arithmetic _ | Relational _ | Logical (Elementwise_And | Elementwise_Or) -> (
           match (v1, v2) with
-          | AValue.Top, _ | _, AValue.Top -> AValue.Top
-          | (AValue.Int | AValue.Bool), (AValue.Int | AValue.Bool) -> AValue.Int
-          | (AValue.Bot | AValue.Str), _ | _, (AValue.Bot | AValue.Str) -> AValue.Bot)
-      | Relational _ -> (
+          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot
+          | (AValue.Top | AValue.Interval _), (AValue.Top | AValue.Interval _) -> AValue.merge v1 v2
+          )
+      | Logical (And | Or) -> (
           match (v1, v2) with
-          | AValue.Top, _ | _, AValue.Top -> AValue.Top
-          | (AValue.Str | AValue.Int | AValue.Bool), (AValue.Str | AValue.Int | AValue.Bool) ->
-              AValue.Bool
-          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot)
-      | Logical _ -> (
-          match (v1, v2) with
-          | AValue.Top, _ | _, AValue.Top -> AValue.Top
-          | (AValue.Int | AValue.Bool), (AValue.Int | AValue.Bool) -> AValue.Bool
-          | (AValue.Bot | AValue.Str), _ | _, (AValue.Bot | AValue.Str) -> AValue.Bot)
-      | Seq ->
-          if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v2 then AValue.Bot
-          else AValue.Int in
+          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot
+          | (AValue.Top | AValue.Interval _), (AValue.Top | AValue.Interval _) ->
+              AValue.Interval (1, 1))
+      | Seq -> (
+          (* We have to look at the unevaluated arguments to the binary operation.
+             If they're literals, we can use their values to construct an interval.
+             Otherwise, we can't do anything and return Top. *)
+          let coerce = function
+            | E.Bool b -> Bool.to_int b
+            | E.Int i -> i
+            | E.Str s -> Int.of_string_exn s
+            | E.NA_bool | E.NA_int | E.NA_str -> raise Common.Coercion_introduces_NA in
+
+          match[@warning "-4"] ses with
+          | [ E.Lit l1; E.Lit l2 ] -> (
+              try
+                let i1, i2 = (coerce l1, coerce l2) in
+                let l = Stdlib.abs (i2 - i1) + 1 in
+                AValue.Interval (l, l)
+              with _ -> AValue.Bot)
+          | [ _; _ ] -> AValue.Top
+          | _ -> assert false) in
 
     match (builtin, args) with
     | Unary op, [ v1 ] -> eval_unary op v1
     | Binary op, [ v1; v2 ] -> eval_binary op v1 v2
     | Combine, values ->
-        if List.mem AValue.Bot values then AValue.Bot
-        else List.fold_left AValue.promote_type AValue.Bot values
+        List.fold_left
+          (fun acc interval ->
+            match (acc, interval) with
+            | AValue.Top, _ | _, AValue.Top -> AValue.Top
+            | AValue.Interval (a, b), AValue.Interval (c, d) -> AValue.Interval (a + c, b + d)
+            | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot)
+          (AValue.Interval (0, 0))
+          values
     | Input, [ _ ] -> AValue.Top
     | Subset1, [ v1 ] -> v1
-    | (Subset1 | Subset2), [ v1; idx ] -> (
+    | Subset1, [ _; idx ] -> (
         match idx with
         | AValue.Top -> AValue.Top
-        | AValue.Int | AValue.Bool -> v1
-        | AValue.Bot | AValue.Str -> AValue.Bot)
+        | AValue.Interval (_, i) -> AValue.Interval (0, i)
+        | AValue.Bot -> AValue.Bot)
+    | Subset2, [ _; idx ] -> (
+        match idx with
+        | AValue.Top -> AValue.Top
+        | AValue.Interval _ -> AValue.Interval (1, 1)
+        | AValue.Bot -> AValue.Bot)
     | Subset1_Assign, [ v1; v3 ] ->
-        if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot
-        else AValue.promote_type v1 v3
-    | (Subset1_Assign | Subset2_Assign), [ v1; idx; v3 ] -> (
-        match idx with
-        | AValue.Top -> AValue.Top
-        | AValue.Int | AValue.Bool ->
-            if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot
-            else AValue.merge v1 v3
-        | AValue.Bot | AValue.Str -> AValue.Bot)
+        if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot else v3
+    | (Subset1_Assign | Subset2_Assign), [ v1; idx; v3 ] ->
+        if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot idx || AValue.equal AValue.Bot v3
+        then AValue.Bot
+        else v3
     | (Unary _ | Binary _ | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _ ->
         (* These are the cases for when we pass the wrong number of arguments. *)
         assert false in
@@ -218,7 +211,7 @@ let step state =
       update ~strong:true x v state
   | Builtin (x, builtin, ses) ->
       let args = List.map (eval_se state) ses in
-      let v = eval_builtin builtin args in
+      let v = eval_builtin builtin args ses in
 
       (* Complex assignment is tricky, the "last value" is the RHS.
          Strong update unless we have a non-empty subset assignment. *)

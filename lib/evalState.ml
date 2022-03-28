@@ -4,7 +4,7 @@ open Common
 open Opcode
 
 module E = Expr
-module Env = Map.Make (E.Identifier)
+module Env = E.Env
 
 type environment = E.value Env.t
 

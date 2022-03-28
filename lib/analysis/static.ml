@@ -3,7 +3,7 @@ open Util
 open Opcode
 open Analysis
 
-module Make (AI : AnalysisInstance) : STATIC_ANALYSIS = struct
+module Make (AI : AnalysisInstance) : S = struct
   type astate = AI.astate
 
   module Context = struct
@@ -125,3 +125,4 @@ module Make (AI : AnalysisInstance) : STATIC_ANALYSIS = struct
 end
 
 module TypeAnalysis = Make (TypeAnalysisImpl)
+module IntervalAnalysis = Make (IntervalAnalysisImpl)

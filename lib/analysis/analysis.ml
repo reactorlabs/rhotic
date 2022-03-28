@@ -13,12 +13,7 @@ module type AnalysisInstance = sig
   val return : Expr.identifier list -> astate -> astate
 end
 
-module type STATIC_ANALYSIS = sig
+module type S = sig
   type astate
   val analyze : ?debug:bool -> opcode Vector.ro_vector * pc -> astate Vector.ro_vector
-end
-
-module type DYNAMIC_ANALYSIS = sig
-  type astate
-  val run : ?debug:bool -> opcode Vector.ro_vector * pc -> astate Vector.ro_vector
 end
