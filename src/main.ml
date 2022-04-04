@@ -2,11 +2,25 @@ open Containers
 open Lib
 open Util
 
-(* TODO: make the analysis matching less brittle *)
+let analyses = [ ("", `None); ("type", `Type); ("interval", `Interval) ]
+let analyses_symbols = List.map Stdlib.fst analyses
 
 let run_input debug analysis static dynamic run input =
   try
     let program, pc = input |> Parser.parse |> Compile.compile in
+
+    let run_program ppc =
+      Eval.run ~debug ppc |> Option.iter (fun v -> Printf.eprintf "%s\n%!" @@ Expr.show_val v) in
+
+    let static_analysis, dynamic_analysis =
+      match analysis with
+      | `Type ->
+          ( (fun ppc -> ignore @@ Static.TypeAnalysis.analyze ~debug ppc)
+          , fun ppc -> ignore @@ Dynamic.TypeAnalysis.analyze ~debug ppc )
+      | `Interval ->
+          ( (fun ppc -> ignore @@ Static.IntervalAnalysis.analyze ~debug ppc)
+          , fun ppc -> ignore @@ Dynamic.IntervalAnalysis.analyze ~debug ppc )
+      | _ -> (ignore, ignore) in
 
     if debug then (
       Printf.eprintf "Compiled program:\n" ;
@@ -15,23 +29,15 @@ let run_input debug analysis static dynamic run input =
 
     if run then (
       if debug then Printf.eprintf "\nExecution trace:\n%!" ;
-      match Eval.run ~debug (program, pc) with
-      | Some v -> Printf.eprintf "%s\n%!" @@ Expr.show_val v
-      | None -> ()) ;
+      run_program (program, pc)) ;
 
     if static then (
       if debug then Printf.eprintf "\nStatic analysis trace:\n%!" ;
-      match analysis with
-      | "type" -> ignore @@ Static.TypeAnalysis.analyze ~debug (program, pc)
-      | "interval" -> ignore @@ Static.IntervalAnalysis.analyze ~debug (program, pc)
-      | _ -> ()) ;
+      static_analysis (program, pc)) ;
 
     if dynamic then (
       if debug then Printf.eprintf "\nDynamic analysis trace:\n%!" ;
-      match analysis with
-      | "type" -> ignore @@ Dynamic.TypeAnalysis.analyze ~debug (program, pc)
-      | "interval" -> ignore @@ Dynamic.IntervalAnalysis.analyze ~debug (program, pc)
-      | _ -> ())
+      dynamic_analysis (program, pc))
   with e ->
     (match e with
     | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
@@ -49,14 +55,14 @@ let () =
   let run = ref true in
   let to_r = ref false in
 
+  let parse_file s =
+    if Sys.file_exists s then path := s else raise @@ Arg.Bad ("no such file " ^ s) in
+
   let cmd_args =
-    [ ( "-f"
-      , Arg.String
-          (fun s -> if Sys.file_exists s then path := s else raise @@ Arg.Bad ("no such file " ^ s))
-      , "rhotic file to run" )
+    [ ("-f", Arg.String parse_file, "rhotic file to run")
     ; ("--debug", Arg.Set debug, "Print debugging info")
-    ; ("-a", Arg.Symbol ([ "type"; "interval" ], fun s -> analysis := s), " Analysis to run")
-    ; ("--analysis", Arg.Symbol ([ "type"; "interval" ], fun s -> analysis := s), " Analysis to run")
+    ; ("-a", Arg.Symbol (analyses_symbols, fun s -> analysis := s), " Analysis to run")
+    ; ("--analysis", Arg.Symbol (analyses_symbols, fun s -> analysis := s), " Analysis to run")
     ; ("-s", Arg.Set static, "Run static analysis")
     ; ("--static", Arg.Set static, "Run static analysis")
     ; ("-d", Arg.Set dynamic, "Run dynamic analysis")
@@ -83,4 +89,6 @@ let () =
     if !to_r then
       try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
       with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
-    else Stdlib.ignore @@ run_input !debug !analysis !static !dynamic !run input
+    else
+      let match_analysis s = List.assoc ~eq:String.equal s analyses in
+      Stdlib.ignore @@ run_input !debug (match_analysis !analysis) !static !dynamic !run input
