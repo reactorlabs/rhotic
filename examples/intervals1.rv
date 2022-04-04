@@ -1,0 +1,39 @@
+# Test example for analysis: intervals
+# This example is a straight line piece of code, with no branching or functions
+
+x1 <- 11:15
+x2 <- -x1
+
+y1 <- length(x1)
+y1 <- x1 - x2
+y1 <- x1 && x2
+
+z <- 4
+x3 <- 2:z
+
+y1 <- c(1, 2, 3, 4)
+y1 <- c(x3, 1)
+y1 <- c(x1, z, 1)
+
+y2 <- x1[]
+y2 <- x1[0]
+y2 <- x1[9]
+y2 <- x1[z]
+y2 <- x1[x3]
+y2 <- x1[y1]
+
+y2 <- c(y2, 1, 1)
+
+y3 <- x1[[1]]
+y3 <- x1[[z]]
+
+x1[] <- x2
+y2[0] <- 4
+y2[1] <- 4
+y2[4] <- 0
+y2[10] <- 0
+
+x1[[4]] <- 5
+
+x1[x3] <- x3
+x2[z] <- 1

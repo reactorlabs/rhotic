@@ -23,7 +23,12 @@ module AValue = struct
 
      where [a,b] leq [c,d] iff c <= a and d >= b.
 
-     Note that this lattice has infinite height.
+     Note: This lattice has infinite height.
+
+     Note: A more complicated lattice could improve precision, i.e. if the lattice tracked constant
+     scalars. Currently, with some extra effort, we look at the unevaluated expression and use its
+     value if it is a literal, e.g. the analysis can determine the interval for the expression 1:5.
+     However, the analysis cannot do anything with 1:x, even if the value of x is statically known.
   *)
 
   type t =
@@ -133,35 +138,32 @@ let return targets state =
 let step state =
   let open Expr in
   let eval_builtin builtin args ses =
+    let coerce = function
+      | E.Bool b -> Bool.to_int b
+      | E.Int i -> i
+      | E.Str s -> Int.of_string_exn s
+      | E.NA_bool | E.NA_int | E.NA_str -> raise Common.Coercion_introduces_NA in
+
     let eval_unary op v =
       match op with
-      | Logical_Not | Unary_Plus | Unary_Minus | As_Logical | As_Integer | As_Character -> v
-      | Is_Logical | Is_Integer | Is_Character | Is_NA | Length ->
+      | Logical_Not | Unary_Plus | Unary_Minus | As_Logical | As_Integer | As_Character | Is_NA -> v
+      | Is_Logical | Is_Integer | Is_Character | Length ->
           if AValue.equal AValue.Bot v then AValue.Bot else AValue.Interval (1, 1) in
 
     let eval_binary op v1 v2 =
       match op with
-      | Arithmetic _ | Relational _ | Logical (Elementwise_And | Elementwise_Or) -> (
-          match (v1, v2) with
-          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot
-          | (AValue.Top | AValue.Interval _), (AValue.Top | AValue.Interval _) -> AValue.merge v1 v2
-          )
-      | Logical (And | Or) -> (
-          match (v1, v2) with
-          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot
-          | (AValue.Top | AValue.Interval _), (AValue.Top | AValue.Interval _) ->
-              AValue.Interval (1, 1))
+      | Arithmetic _ | Relational _ | Logical (Elementwise_And | Elementwise_Or) ->
+          if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v2 then AValue.Bot
+          else AValue.merge v1 v2
+      | Logical (And | Or) ->
+          if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v2 then AValue.Bot
+          else AValue.Interval (1, 1)
       | Seq -> (
-          (* We have to look at the unevaluated arguments to the binary operation.
-             If they're literals, we can use their values to construct an interval.
-             Otherwise, we can't do anything and return Top. *)
-          let coerce = function
-            | E.Bool b -> Bool.to_int b
-            | E.Int i -> i
-            | E.Str s -> Int.of_string_exn s
-            | E.NA_bool | E.NA_int | E.NA_str -> raise Common.Coercion_introduces_NA in
-
-          match[@warning "-4"] ses with
+          match(* Look at the unevaluated arguments. If they're literals, we can use their values to
+                  construct an interval. Otherwise, we can't do anything and return Top. *)
+               [@warning "-4"]
+            ses
+          with
           | [ E.Lit l1; E.Lit l2 ] -> (
               try
                 let i1, i2 = (coerce l1, coerce l2) in
@@ -185,22 +187,48 @@ let step state =
           values
     | Input, [ _ ] -> AValue.Top
     | Subset1, [ v1 ] -> v1
-    | Subset1, [ _; idx ] -> (
-        match idx with
-        | AValue.Top -> AValue.Top
-        | AValue.Interval (_, i) -> AValue.Interval (0, i)
-        | AValue.Bot -> AValue.Bot)
+    | Subset1, [ v1; idx ] -> (
+        if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot idx then AValue.Bot
+        else
+          (* Look at the unevaluated idx argument. If it's a literal, we can use its value to
+             construct an interval. Otherwise, we can't do anything and return Top. *)
+          match idx with
+          | AValue.Top -> AValue.Top
+          | AValue.Interval (_, i) -> (
+              match[@warning "-4"] ses with
+              | [ _; E.Lit idx_lit ] -> (
+                  try
+                    let i = coerce idx_lit in
+                    if i = 0 then AValue.Interval (0, 0) else AValue.Interval (1, 1)
+                  with _ -> AValue.Bot)
+              | _ -> AValue.Interval (0, i))
+          | AValue.Bot -> AValue.Bot)
     | Subset2, [ _; idx ] -> (
         match idx with
         | AValue.Top -> AValue.Top
         | AValue.Interval _ -> AValue.Interval (1, 1)
         | AValue.Bot -> AValue.Bot)
     | Subset1_Assign, [ v1; v3 ] ->
-        if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot else v3
-    | (Subset1_Assign | Subset2_Assign), [ v1; idx; v3 ] ->
+        if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot v3 then AValue.Bot else v1
+    | (Subset1_Assign | Subset2_Assign), [ v1; idx; v3 ] -> (
         if AValue.equal AValue.Bot v1 || AValue.equal AValue.Bot idx || AValue.equal AValue.Bot v3
         then AValue.Bot
-        else v3
+        else
+          (* Look at the unevaluated idx argument. If it's a literal, we can use its value to
+             construct an interval. Otherwise, we can't do anything and return Top. *)
+          match (v1, idx) with
+          | AValue.Top, _ | _, AValue.Top -> AValue.Top
+          | AValue.Bot, _ | _, AValue.Bot -> AValue.Bot
+          | AValue.Interval (l, h), AValue.Interval _ -> (
+              match[@warning "-4"] ses with
+              | [ _; E.Lit idx_lit; _ ] -> (
+                  try
+                    let i = coerce idx_lit in
+                    if i = 0 || i < l then v1
+                    else if l <= i && i <= h then AValue.Interval (i, h)
+                    else AValue.Interval (i, i)
+                  with _ -> AValue.Bot)
+              | _ -> AValue.Top))
     | (Unary _ | Binary _ | Input | Subset1 | Subset2 | Subset1_Assign | Subset2_Assign), _ ->
         (* These are the cases for when we pass the wrong number of arguments. *)
         assert false in
@@ -214,15 +242,13 @@ let step state =
       let v = eval_builtin builtin args ses in
 
       (* Complex assignment is tricky, the "last value" is the RHS.
-         Strong update unless we have a non-empty subset assignment. *)
-      let last_val, strong =
+         Updating a vector's length is always a strong update. *)
+      let last_val =
         match[@warning "-4"] builtin with
-        | Subset1_Assign | Subset2_Assign ->
-            let strong' = if List.length ses = 2 then true else false in
-            (List.hd @@ List.rev args, strong')
-        | _ -> (v, true) in
+        | Subset1_Assign | Subset2_Assign -> List.hd @@ List.rev args
+        | _ -> v in
 
-      let state' = update ~strong x v state in
+      let state' = update ~strong:true x v state in
       { state' with last_val }
   | Call _ | Exit _ -> assert false
   | Jump _ | Branch _ | Nop | Start | Stop | Print _ | Entry _ | Comment _ -> state

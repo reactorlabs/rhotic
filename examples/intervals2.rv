@@ -1,0 +1,13 @@
+# Test example for analysis: intervals
+# This example has some control flow merges
+
+b <- .input(TRUE)
+if (b) {
+  x <- 11:12
+} else {
+  x <- 11:16
+}
+
+x[1] <- 0
+x[3] <- 0
+x[7] <- 0

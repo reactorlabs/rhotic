@@ -1,0 +1,16 @@
+# Test example for analysis: intervals
+# This example tests functions
+
+id <- function(x) { x }
+
+b <- .input(TRUE)
+if (b) {
+  x <- 11:12
+  y <- id(x)
+} else {
+  x <- 11:16
+  y <- id(x)
+}
+
+z <- 1:10
+z <- id(z)
