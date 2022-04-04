@@ -48,13 +48,13 @@ module Make (AI : AnalysisInstance) : S = struct
     let is_done ctx =
       (if ctx.debug then
        let str = Stack.to_list ctx.worklist |> List.to_string Int.to_string in
-       Printf.eprintf "\t  Worklist: %s\n%!" str) ;
+       Printf.printf "\t  Worklist: %s\n%!" str) ;
       Stack.is_empty ctx.worklist
 
     let pop ctx =
       let pc = Stack.pop ctx.worklist in
       let state = ctx.analysis.(pc) in
-      if ctx.debug then Printf.eprintf "%s\n%!" @@ AI.show_op state ;
+      if ctx.debug then Printf.printf "%s\n%!" @@ AI.show_op state ;
       ctx.seen.(pc) <- true ;
       (pc, state)
 
@@ -82,17 +82,17 @@ module Make (AI : AnalysisInstance) : S = struct
       let merged = AI.merge state state' in
       ctx.analysis.(pc) <- merged ;
       Stack.push pc ctx.worklist ;
-      if ctx.debug then Printf.eprintf "\t  Merged %d:\t%s\n%!" pc (AI.show merged)
+      if ctx.debug then Printf.printf "\t  Merged %d:\t%s\n%!" pc (AI.show merged)
 
     let add_if_not_seen pc ctx = if not ctx.seen.(pc) then Stack.push pc ctx.worklist
 
     let finish ctx =
       if ctx.debug then (
-        Printf.eprintf "\nStatic analysis output:\n" ;
+        Printf.printf "\nStatic analysis output:\n" ;
         Array.iteri
           (fun pc state ->
-            Printf.eprintf "\t  Before %d:\t%s\n%!" pc (AI.show state) ;
-            Printf.eprintf "%s\n%!" @@ AI.show_op state)
+            Printf.printf "\t  Before %d:\t%s\n%!" pc (AI.show state) ;
+            Printf.printf "%s\n%!" @@ AI.show_op state)
           ctx.analysis) ;
       Vector.freeze @@ Vector.of_array ctx.analysis
   end
@@ -105,13 +105,13 @@ module Make (AI : AnalysisInstance) : S = struct
       (* Pop state from worklist, then apply transfer function (i.e. abstract step) *)
       let pc, state = Context.pop ctx in
       let state' = Context.step pc state ctx in
-      if debug then Printf.eprintf "\t  After  %d:\t%s\n%!" pc (AI.show state') ;
+      if debug then Printf.printf "\t  After  %d:\t%s\n%!" pc (AI.show state') ;
 
       (* Compare the new state to the successors' states *)
       Context.successors pc ctx
       |> List.iter (fun pc' ->
              let succ_state = Context.get pc' ctx in
-             if debug then Printf.eprintf "\t  Before %d:\t%s\n%!" pc' (AI.show succ_state) ;
+             if debug then Printf.printf "\t  Before %d:\t%s\n%!" pc' (AI.show succ_state) ;
 
              (* If the new state is strictly greater than the successor state,
                 merge/update the sucessor state.

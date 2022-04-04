@@ -10,7 +10,7 @@ let run_input debug analysis static dynamic run input =
     let program, pc = input |> Parser.parse |> Compile.compile in
 
     let run_program ppc =
-      Eval.run ~debug ppc |> Option.iter (fun v -> Printf.eprintf "%s\n%!" @@ Expr.show_val v) in
+      Eval.run ~debug ppc |> Option.iter (fun v -> Printf.printf "%s\n%!" @@ Expr.show_val v) in
 
     let static_analysis, dynamic_analysis =
       match analysis with
@@ -23,25 +23,25 @@ let run_input debug analysis static dynamic run input =
       | _ -> (ignore, ignore) in
 
     if debug then (
-      Printf.eprintf "Compiled program:\n" ;
-      Vector.iteri (fun i op -> Printf.eprintf "%s\n" @@ Opcode.show_pc_opcode i op) program ;
-      Printf.eprintf "; start pc = %d\n%!" pc) ;
+      Printf.printf "Compiled program:\n" ;
+      Vector.iteri (fun i op -> Printf.printf "%s\n" @@ Opcode.show_pc_opcode i op) program ;
+      Printf.printf "; start pc = %d\n%!" pc) ;
 
     if run then (
-      if debug then Printf.eprintf "\nExecution trace:\n%!" ;
+      if debug then Printf.printf "\nExecution trace:\n%!" ;
       run_program (program, pc)) ;
 
     if static then (
-      if debug then Printf.eprintf "\nStatic analysis trace:\n%!" ;
+      if debug then Printf.printf "\nStatic analysis trace:\n%!" ;
       static_analysis (program, pc)) ;
 
     if dynamic then (
-      if debug then Printf.eprintf "\nDynamic analysis trace:\n%!" ;
+      if debug then Printf.printf "\nDynamic analysis trace:\n%!" ;
       dynamic_analysis (program, pc))
   with e ->
     (match e with
-    | Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
-    | e -> Printf.eprintf "Error: %s\n" @@ Common.excptn_to_string e) ;
+    | Parser.Parse_error msg -> Printf.printf "Parse error%s\n" msg
+    | e -> Printf.printf "Error: %s\n" @@ Common.excptn_to_string e) ;
     exit 255
 
 let () =
@@ -74,11 +74,11 @@ let () =
   Arg.parse cmd_args (fun s -> raise @@ Arg.Bad ("invalid argument " ^ s)) usage_msg ;
 
   if String.is_empty !path then (
-    Printf.eprintf "%s: option '-f' is required.\n" Sys.argv.(0) ;
+    Printf.printf "%s: option '-f' is required.\n" Sys.argv.(0) ;
     Arg.usage cmd_args usage_msg ;
     exit 2)
   else if (!static || !dynamic) && String.is_empty !analysis then (
-    Printf.eprintf "%s: option '-a' is required if '-s' or '-d' are set.\n" Sys.argv.(0) ;
+    Printf.printf "%s: option '-a' is required if '-s' or '-d' are set.\n" Sys.argv.(0) ;
     Arg.usage cmd_args usage_msg ;
     exit 2)
   else
@@ -88,7 +88,7 @@ let () =
 
     if !to_r then
       try Parser.parse input |> Deparser.to_r |> Stdlib.print_endline
-      with Parser.Parse_error msg -> Printf.eprintf "Parse error%s\n" msg
+      with Parser.Parse_error msg -> Printf.printf "Parse error%s\n" msg
     else
       let match_analysis s = List.assoc ~eq:String.equal s analyses in
       Stdlib.ignore @@ run_input !debug (match_analysis !analysis) !static !dynamic !run input

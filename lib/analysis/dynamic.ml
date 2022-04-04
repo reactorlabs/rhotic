@@ -32,17 +32,17 @@ module Make (AI : AnalysisInstance) : S = struct
       let merged = AI.merge astate astate' in
       ctx.analysis.(pc) <- merged ;
       if ctx.debug then (
-        Printf.eprintf "\t  Before %d:\t%s\n%!" pc (AI.show astate) ;
+        Printf.printf "\t  Before %d:\t%s\n%!" pc (AI.show astate) ;
         if not (AI.leq astate astate' && AI.leq astate' astate) then
-          Printf.eprintf "\t  Merged %d:\t%s\n%!" pc (AI.show merged))
+          Printf.printf "\t  Merged %d:\t%s\n%!" pc (AI.show merged))
 
     let finish ctx =
       if ctx.debug then (
-        Printf.eprintf "\nDynamic analysis output:\n" ;
+        Printf.printf "\nDynamic analysis output:\n" ;
         Array.iteri
           (fun pc astate ->
-            Printf.eprintf "\t  Before %d:\t%s\n%!" pc (AI.show astate) ;
-            Printf.eprintf "%s\n%!" @@ AI.show_op astate)
+            Printf.printf "\t  Before %d:\t%s\n%!" pc (AI.show astate) ;
+            Printf.printf "%s\n%!" @@ AI.show_op astate)
           ctx.analysis) ;
       Vector.freeze @@ Vector.of_array ctx.analysis
 
@@ -52,8 +52,8 @@ module Make (AI : AnalysisInstance) : S = struct
       | Some (pc, pc') ->
           let astate' = step (pc, pc') ctx in
           if ctx.debug then (
-            Printf.eprintf "%s\n%!" @@ AI.show_op astate' ;
-            Printf.eprintf "\t  After  %d:\t%s\n%!" pc (AI.show astate')) ;
+            Printf.printf "%s\n%!" @@ AI.show_op astate' ;
+            Printf.printf "\t  After  %d:\t%s\n%!" pc (AI.show astate')) ;
           merge_at pc' astate' ctx ;
           ctx
   end
@@ -64,7 +64,6 @@ module Make (AI : AnalysisInstance) : S = struct
       | None -> (state, ctx)
       | Some state ->
           let state' = Eval.step state in
-          if debug then Printf.eprintf "%s" @@ EvalState.show state' ;
           let ctx' = Context.observe state' ctx in
           (eval_continuous [@tailcall]) state' ctx' in
 

@@ -415,7 +415,7 @@ let run ?(debug = false) (program, pc) =
     | None -> state
     | Some state ->
         let state' = step state in
-        if debug then Printf.eprintf "%s" @@ State.show state' ;
+        if debug then Printf.printf "%s" @@ State.show state' ;
         (eval_continuous [@tailcall]) state' in
 
   State.init program pc |> eval_continuous |> State.last_val
