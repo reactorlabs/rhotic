@@ -74,4 +74,5 @@ module Make (AI : AnalysisInstance) : S = struct
 end
 
 module TypeAnalysis = Make (TypeAnalysisImpl)
+module TypeAnalysis2 = Make (TypeAnalysisImpl2)
 module IntervalAnalysis = Make (IntervalAnalysisImpl)

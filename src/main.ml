@@ -2,7 +2,7 @@ open Containers
 open Lib
 open Util
 
-let analyses = [ ("", `None); ("type", `Type); ("interval", `Interval) ]
+let analyses = [ ("", `None); ("type", `Type); ("type2", `Type2); ("interval", `Interval) ]
 let analyses_symbols = List.map Stdlib.fst analyses
 
 let run_input debug analysis static dynamic run input =
@@ -17,6 +17,9 @@ let run_input debug analysis static dynamic run input =
       | `Type ->
           ( (fun ppc -> ignore @@ Static.TypeAnalysis.analyze ~debug ppc)
           , fun ppc -> ignore @@ Dynamic.TypeAnalysis.analyze ~debug ppc )
+      | `Type2 ->
+          ( (fun ppc -> ignore @@ Static.TypeAnalysis2.analyze ~debug ppc)
+          , fun ppc -> ignore @@ Dynamic.TypeAnalysis2.analyze ~debug ppc )
       | `Interval ->
           ( (fun ppc -> ignore @@ Static.IntervalAnalysis.analyze ~debug ppc)
           , fun ppc -> ignore @@ Dynamic.IntervalAnalysis.analyze ~debug ppc )

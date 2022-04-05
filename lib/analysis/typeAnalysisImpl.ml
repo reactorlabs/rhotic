@@ -52,10 +52,16 @@ module AValue = struct
     | Bool, _ | _, Bool -> Bool
     | Bot, Bot -> Bot
 
-  let abstract = function
+  let abstract_lit = function
     | E.Bool _ | E.NA_bool -> Bool
     | E.Int _ | E.NA_int -> Int
     | E.Str _ | E.NA_str -> Str
+
+  let abstract_val v =
+    match Common.vector_type v with
+    | T_Bool -> Bool
+    | T_Int -> Int
+    | T_Str -> Str
 end
 
 (* Only last_val and env are part of the abstract state.
@@ -119,7 +125,7 @@ let update ?(strong = false) x v astate =
   { astate with env = Env.add x v' astate.env; last_val = v' }
 
 let eval_se astate = function
-  | E.Lit l -> AValue.abstract l
+  | E.Lit l -> AValue.abstract_lit l
   | E.Var x -> lookup x astate
 
 let call params args_se ?cstate:_ astate =
