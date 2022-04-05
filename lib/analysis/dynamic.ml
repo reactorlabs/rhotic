@@ -17,15 +17,15 @@ module Make (AI : AnalysisInstance) : S = struct
 
     (* Apply a single step of the abstract evaluator (i.e. apply a transfer function).
         The transfer functions are split into call, return, and intraprocedural step functions. *)
-    let step (pc, pc') ctx =
+    let step (pc, pc') cstate ctx =
       let astate = ctx.analysis.(pc) in
       match[@warning "-4"] Vector.get ctx.program pc with
-      | Call { params; args_se; _ } -> AI.call params args_se astate
+      | Call { params; args_se; _ } -> AI.call params args_se ~cstate astate
       | Exit _ ->
           (* Instruction before the return site is function call *)
           let[@warning "-8"] (Call { target; _ }) = Vector.get ctx.program (pc' - 1) in
-          AI.return [ target ] astate
-      | _ -> AI.step astate
+          AI.return [ target ] ~cstate astate
+      | _ -> AI.step ~cstate astate
 
     let merge_at pc astate' ctx =
       let astate = ctx.analysis.(pc) in
@@ -46,11 +46,11 @@ module Make (AI : AnalysisInstance) : S = struct
           ctx.analysis) ;
       Vector.freeze @@ Vector.of_array ctx.analysis
 
-    let observe state ctx =
-      match EvalState.current_next_pc state with
+    let observe cstate ctx =
+      match EvalState.current_next_pc cstate with
       | None -> ctx
       | Some (pc, pc') ->
-          let astate' = step (pc, pc') ctx in
+          let astate' = step (pc, pc') cstate ctx in
           if ctx.debug then (
             Printf.printf "%s\n%!" @@ AI.show_op astate' ;
             Printf.printf "\t  After  %d:\t%s\n%!" pc (AI.show astate')) ;

@@ -62,13 +62,13 @@ type astate =
 
 let init pc op = make_astate ~pc ~op ()
 
-let show_op state = show_pc_opcode state.pc state.op
+let show_op astate = show_pc_opcode astate.pc astate.op
 
-let show state =
-  let last_val_str = Printf.sprintf "res: %s" @@ AValue.show state.last_val in
+let show astate =
+  let last_val_str = Printf.sprintf "res: %s" @@ AValue.show astate.last_val in
   let env_str =
     let env_list =
-      state.env |> Env.bindings |> List.filter (fun (x, _) -> not @@ String.contains x '$') in
+      astate.env |> Env.bindings |> List.filter (fun (x, _) -> not @@ String.contains x '$') in
     if List.is_empty env_list then ""
     else
       List.to_string ~start:" | env: " ~sep:", "
@@ -103,39 +103,39 @@ let merge x y =
   let env = Env.union (fun _ vx vy -> Some (AValue.merge vx vy)) x.env y.env in
   { x with last_val; env }
 
-let lookup x state = Env.get_or x state.env ~default:AValue.Bot
+let lookup x astate = Env.get_or x astate.env ~default:AValue.Bot
 
-let update ?(strong = false) x v state =
-  let old = lookup x state in
+let update ?(strong = false) x v astate =
+  let old = lookup x astate in
   let v' = if strong then v else AValue.merge old v in
-  { state with env = Env.add x v' state.env; last_val = v' }
+  { astate with env = Env.add x v' astate.env; last_val = v' }
 
-let eval_se state = function
+let eval_se astate = function
   | E.Lit _ -> AValue.Interval (1, 1)
-  | E.Var x -> lookup x state
+  | E.Var x -> lookup x astate
 
-let call params args_se state =
-  let args = List.map (eval_se state) args_se in
+let call params args_se ?cstate:_ astate =
+  let args = List.map (eval_se astate) args_se in
   let env =
     List.fold_left2
       (fun e x v ->
         let old = Env.get_or x e ~default:AValue.Bot in
         let v' = AValue.merge old v in
         Env.add x v' e)
-      state.env params args in
-  { state with env }
+      astate.env params args in
+  { astate with env }
 
-let return targets state =
+let return targets ?cstate:_ astate =
   let env =
     List.fold_left
       (fun e x ->
         let old = Env.get_or x e ~default:AValue.Bot in
-        let v' = AValue.merge old state.last_val in
+        let v' = AValue.merge old astate.last_val in
         Env.add x v' e)
-      state.env targets in
-  { state with env }
+      astate.env targets in
+  { astate with env }
 
-let step state =
+let step ?cstate:_ astate =
   let open Expr in
   let eval_builtin builtin args ses =
     let coerce = function
@@ -233,12 +233,12 @@ let step state =
         (* These are the cases for when we pass the wrong number of arguments. *)
         assert false in
 
-  match state.op with
+  match astate.op with
   | Copy (x, se) ->
-      let v = eval_se state se in
-      update ~strong:true x v state
+      let v = eval_se astate se in
+      update ~strong:true x v astate
   | Builtin (x, builtin, ses) ->
-      let args = List.map (eval_se state) ses in
+      let args = List.map (eval_se astate) ses in
       let v = eval_builtin builtin args ses in
 
       (* Complex assignment is tricky, the "last value" is the RHS.
@@ -248,7 +248,7 @@ let step state =
         | Subset1_Assign | Subset2_Assign -> List.hd @@ List.rev args
         | _ -> v in
 
-      let state' = update ~strong:true x v state in
-      { state' with last_val }
+      let astate' = update ~strong:true x v astate in
+      { astate' with last_val }
   | Call _ | Exit _ -> assert false
-  | Jump _ | Branch _ | Nop | Start | Stop | Print _ | Entry _ | Comment _ -> state
+  | Jump _ | Branch _ | Nop | Start | Stop | Print _ | Entry _ | Comment _ -> astate

@@ -8,9 +8,10 @@ module type AnalysisInstance = sig
   val show : astate -> string
   val leq : astate -> astate -> bool
   val merge : astate -> astate -> astate
-  val step : astate -> astate
-  val call : Expr.identifier list -> Expr.simple_expression list -> astate -> astate
-  val return : Expr.identifier list -> astate -> astate
+  val step : ?cstate:EvalState.t -> astate -> astate
+  val call :
+    Expr.identifier list -> Expr.simple_expression list -> ?cstate:EvalState.t -> astate -> astate
+  val return : Expr.identifier list -> ?cstate:EvalState.t -> astate -> astate
 end
 
 module type S = sig
